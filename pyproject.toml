@@ -1,0 +1,35 @@
+[project]
+name = "bittensor-pylon"
+version = "0.1.0"
+description = "A Litestar app for Bittensor subnet data."
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+requires-python = "==3.12.*"
+dependencies = [
+    "uv",
+    "nox",
+    "pydantic-settings",
+    "pydantic",
+    "turbobt @ git+https://github.com/bactensor/turbobt.git@refs/pull/1/head",
+    "litestar[standard]",
+    "cachetools",
+    "requests",
+    "bittensor_wallet"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-asyncio>=1.0.0"
+]
+format = [
+    "ruff",
+    "ty",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.uv]
+# uv-specific settings can go here

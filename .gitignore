@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+bittensor_pylon.egg-info/
+build/
+tests/__pycache__/
