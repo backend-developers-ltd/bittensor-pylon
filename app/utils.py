@@ -1,9 +1,10 @@
 from app.models import Epoch
+from app.settings import settings
 
 TEMPO = 3600  # Default value, can be overridden if needed
 
 
-def get_epoch_containing_block(block: int, netuid: int, tempo: int = TEMPO) -> Epoch:
+def get_epoch_containing_block(block: int, netuid: int = settings.bittensor_netuid, tempo: int = TEMPO) -> Epoch:
     """
     Reimplementing the logic from subtensor's Rust function:
         pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block_number: u64) -> u64

@@ -1,4 +1,3 @@
-from typing import List
 from pydantic import BaseModel
 
 
@@ -22,4 +21,4 @@ class Neuron(BaseModel):
 class Metagraph(BaseModel):
     block: int
     block_hash: str
-    neurons: List[Neuron]
+    neurons: list[Neuron]
