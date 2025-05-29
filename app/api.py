@@ -1,7 +1,7 @@
 import functools
 import logging
 
-from litestar import Request, get, put
+from litestar import Request, Response, get
 
 from app.bittensor_client import get_metagraph
 from app.utils import get_epoch_containing_block
@@ -17,7 +17,7 @@ def safe_endpoint(func):
         except Exception as e:
             error_message = f"Error in endpoint {func.__name__}: {e}"
             logger.error(error_message, exc_info=True)
-            return {"detail": error_message, "status_code": 500}
+            return Response(status_code=500, content=error_message)
 
     return wrapper
 
