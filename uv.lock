@@ -118,7 +118,7 @@ requires-dist = [
     { name = "requests" },
     { name = "ruff", marker = "extra == 'format'" },
     { name = "sqlalchemy" },
-    { name = "turbobt", specifier = ">=0.0.2" },
+    { name = "turbobt", specifier = ">=0.0.3" },
     { name = "ty", marker = "extra == 'format'" },
     { name = "uv", marker = "extra == 'dev'" },
 ]
@@ -924,7 +924,7 @@ wheels = [
 
 [[package]]
 name = "turbobt"
-version = "0.0.3"
+version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bittensor-commit-reveal" },
@@ -934,9 +934,9 @@ dependencies = [
     { name = "websockets" },
     { name = "xxhash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2e/60/1588fcfcc85ba35ce160d61514012fd40ef425f424217cdf3874f99351cc/turbobt-0.0.3.tar.gz", hash = "sha256:81bb4666c9ad79924461cca3521dca760e3aa40da8c10d90a9506c6d3dad21fc", size = 114459, upload-time = "2025-05-29T13:28:58.244Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/c4/fcc01a3e4ac62d6e5dffc125a334c58009ef3ab4ef78e658191f87b000f9/turbobt-0.0.4.tar.gz", hash = "sha256:02c50c7da4f957efdaed90c2cad0844d4b08e0b109a9bc01b1d3933864264847", size = 114461, upload-time = "2025-05-30T08:18:19.203Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/92/5c7056ed043b86e97e1ee2238671d46d71a87fea61f27ea02870706bc43c/turbobt-0.0.3-py3-none-any.whl", hash = "sha256:62d8803aa4d66a2818ccc4b25361e17a04aaf405baa525df498cd1c9cbef1930", size = 37062, upload-time = "2025-05-29T13:28:54.751Z" },
+    { url = "https://files.pythonhosted.org/packages/56/87/f109aa2914780b90ade74acc9dda26edbebc0ae6b55f21c52b0d7069d33f/turbobt-0.0.4-py3-none-any.whl", hash = "sha256:2db98fec0d737ec85f6ed973549d560be32c7e30b2e9a8afbbc49c4435f29054", size = 37058, upload-time = "2025-05-30T08:18:16.877Z" },
 ]
 
 [[package]]

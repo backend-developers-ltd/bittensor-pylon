@@ -1,8 +1,9 @@
 import functools
 import logging
 
-from litestar import Request, Response, get
+from litestar import Request, Response, get, put
 
+from app import db
 from app.bittensor_client import get_metagraph
 from app.utils import get_epoch_containing_block
 
@@ -27,6 +28,13 @@ def get_latest_block(request: Request):
     if block_number is None:
         raise RuntimeError("Latest block not available - try again later")
     return block_number
+
+
+def get_current_epoch(request: Request):
+    epoch = request.app.state.current_epoch_start
+    if epoch is None:
+        raise RuntimeError("Latest epoch not available - try again later")
+    return epoch
 
 
 @get("/latest_block")
@@ -61,8 +69,7 @@ async def block_hash(request: Request, block_number: int) -> dict:
 @get("/epoch")
 @safe_endpoint
 async def latest_epoch_start(request: Request) -> dict:
-    block_number = get_latest_block(request)
-    epoch = get_epoch_containing_block(block_number)
+    epoch = get_current_epoch(request)
     return epoch.model_dump()
 
 
@@ -83,3 +90,61 @@ async def hyperparams(request: Request) -> dict:
     if hyperparams is None:
         return {"detail": "Hyperparameters not available in cache yet.", "status_code": 503}
     return hyperparams
+
+
+@put("/update_weight")
+@safe_endpoint
+async def update_weight(request: Request) -> dict:
+    """
+    Update a hotkey's weight by adding the given number to the current running total for that hotkey.
+    params: weight_delta (float/int), hotkey (str)
+    """
+    data = await request.json()
+    hotkey = data.get("hotkey")
+    delta = data.get("weight_delta")
+    if hotkey is None:
+        return Response({"detail": "Missing hotkey"}, status_code=400)
+    if delta is None:
+        return Response({"detail": "Missing weight_delta"}, status_code=400)
+
+    epoch = get_current_epoch(request)
+    weight = await db.update_weight(hotkey, delta, epoch)
+    return {"hotkey": hotkey, "weight": weight, "epoch": epoch}
+
+
+@put("/set_weight")
+@safe_endpoint
+async def set_weight(request: Request) -> dict:
+    """
+    Set a hotkey's weight, replacing whatever is there already.
+    params: weight (float/int), hotkey (str)
+    """
+    data = await request.json()
+    hotkey = data.get("hotkey")
+    weight = data.get("weight")
+    if hotkey is None:
+        return Response({"detail": "Missing hotkey"}, status_code=400)
+    if weight is None:
+        return Response({"detail": "Missing weight"}, status_code=400)
+
+    epoch = get_current_epoch(request)
+    await db.set_weight(hotkey, weight, epoch)
+    return {"hotkey": hotkey, "weight": weight, "epoch": epoch}
+
+
+# TODO: refactor to epochs_ago
+@get("/raw_weights")
+@safe_endpoint
+async def raw_weights(request: Request) -> dict:
+    """
+    Get raw weights for given epoch.
+    params: epoch (int)
+    """
+    epoch = request.query_params.get("epoch", None)
+    epoch = int(epoch) if epoch is not None else get_current_epoch(request)
+    # in case epoch start block is incorrect
+    epoch = get_epoch_containing_block(epoch).epoch_start
+    weights = await db.get_raw_weights(epoch)
+    if weights == {}:
+        return Response({"detail": "Epoch weights not found"}, status_code=404)
+    return {"epoch": epoch, "weights": weights}

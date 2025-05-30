@@ -10,7 +10,7 @@ requires-python = "==3.12.*"
 dependencies = [
     "pydantic-settings",
     "pydantic",
-    "turbobt>=0.0.2",
+    "turbobt>=0.0.3",
     "litestar[standard]",
     "cachetools",
     "requests",

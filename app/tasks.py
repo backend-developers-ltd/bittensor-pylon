@@ -3,6 +3,7 @@ import logging
 
 from app.bittensor_client import cache_metagraph
 from app.settings import settings
+from app.utils import get_epoch_containing_block
 
 FETCH_LATEST_INTERVAL_SECONDS = 10
 FETCH_HYPERPARAMS_INTERVAL_SECONDS = 60
@@ -41,6 +42,7 @@ async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
             if app.state.latest_block is None or new_block.number != app.state.latest_block:
                 await cache_metagraph(app, new_block)
                 app.state.latest_block = new_block.number
+                app.state.current_epoch_start = get_epoch_containing_block(new_block.number).epoch_start
                 logger.info(f"Cached latest metagraph for block {new_block.number}")
         except Exception as e:
             logger.error(f"Error fetching latest metagraph: {e}", exc_info=True)

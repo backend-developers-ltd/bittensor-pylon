@@ -4,8 +4,19 @@ import logging
 from cachetools import TTLCache
 from litestar import Litestar
 
-from app.api import block_hash, epoch_start, hyperparams, latest_block, latest_metagraph, metagraph
+from app.api import (
+    block_hash,
+    epoch_start,
+    hyperparams,
+    latest_block,
+    latest_metagraph,
+    metagraph,
+    raw_weights,
+    set_weight,
+    update_weight,
+)
 from app.bittensor_client import create_bittensor_client
+from app.db import init_db
 from app.tasks import fetch_latest_hyperparams_task, fetch_latest_metagraph_task
 
 logger = logging.getLogger(__name__)
@@ -17,6 +28,8 @@ METAGRAPH_CACHE_MAXSIZE = 1000
 
 async def on_startup(app: Litestar) -> None:
     logger.debug("Litestar app startup")
+    await init_db()
+
     app.state.bittensor_client = await create_bittensor_client()
     await app.state.bittensor_client.__aenter__()
 
@@ -29,7 +42,7 @@ async def on_startup(app: Litestar) -> None:
     app.state._hyperparams_task = asyncio.create_task(fetch_latest_hyperparams_task(app, app.state._stop_event))
     app.state._metagraph_task = asyncio.create_task(fetch_latest_metagraph_task(app, app.state._stop_event))
 
-    # Log all registered routes for verification
+    # Log all registered routes
     logger.debug("Registered routes:")
     for route in app.routes:
         logger.debug(f"{route.path} -> {getattr(route, 'handler', None)}")
@@ -44,7 +57,17 @@ async def on_shutdown(app: Litestar) -> None:
 
 
 app = Litestar(
-    route_handlers=[latest_block, block_hash, metagraph, latest_metagraph, epoch_start, hyperparams],
+    route_handlers=[
+        latest_block,
+        block_hash,
+        metagraph,
+        latest_metagraph,
+        epoch_start,
+        hyperparams,
+        set_weight,
+        raw_weights,
+        update_weight,
+    ],
     on_startup=[on_startup],
     on_shutdown=[on_shutdown],
 )
