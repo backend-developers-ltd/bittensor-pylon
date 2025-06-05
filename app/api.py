@@ -58,7 +58,7 @@ async def metagraph(request: Request, block_number: int) -> dict:
     metagraph = await get_metagraph(request.app, block_number)
     return metagraph.model_dump()
 
-
+# TODO: optimize call to not fetch metagraph - just the hash?
 @get("/block_hash/{block_number:int}")
 @safe_endpoint
 async def block_hash(request: Request, block_number: int) -> dict:

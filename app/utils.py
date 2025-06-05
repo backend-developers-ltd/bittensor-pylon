@@ -1,7 +1,7 @@
 from app.models import Epoch
 from app.settings import settings
 
-TEMPO = 3600  # Default value, can be overridden if needed
+TEMPO = 360  # Default value, can be overridden if needed
 
 
 def get_epoch_containing_block(block: int, netuid: int = settings.bittensor_netuid, tempo: int = TEMPO) -> Epoch:

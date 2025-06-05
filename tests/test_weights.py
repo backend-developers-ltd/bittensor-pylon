@@ -8,7 +8,7 @@ from app.main import app
 def client():
     with TestClient(app) as test_client:
         test_client.app.state.latest_block = 12
-        test_client.app.state.current_epoch_start = 36004
+        test_client.app.state.current_epoch_start = 35736
         yield test_client
 
 
