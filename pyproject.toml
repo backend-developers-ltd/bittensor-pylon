@@ -16,7 +16,8 @@ dependencies = [
     "requests",
     "bittensor_wallet",
     "sqlalchemy",
-    "aiosqlite"
+    "aiosqlite",
+    "alembic"
 ]
 
 [project.optional-dependencies]
@@ -24,7 +25,7 @@ dev = [
     "uv",
     "nox",
     "pytest",
-    "pytest-asyncio>=1.0.0"
+    "pytest-asyncio>=1.0.0",
 ]
 format = [
     "ruff",
