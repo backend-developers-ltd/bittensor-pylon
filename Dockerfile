@@ -10,7 +10,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # dependency files first
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock alembic.ini ./
 
 # install uv and project dependencies
 COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
@@ -18,6 +18,9 @@ RUN /bin/uv sync
 
 # the rest of the application code
 COPY app ./app
+
+# database mounting
+VOLUME ["/app/bittensor_pylon.sqlite3"]
 
 EXPOSE 8000
 CMD [".venv/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

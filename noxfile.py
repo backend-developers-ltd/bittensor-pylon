@@ -25,3 +25,13 @@ def format(session):
     session.run("ruff", "format", ".")
     session.run("ruff", "check", "--fix", ".")
     # session.run("uvx", "ty", "check")
+
+
+@nox.session(name="generate-migration", python=PYTHON_VERSION)
+def generate_migration(session: nox.Session) -> None:
+    """Generate a new Alembic migration script."""
+    session.run("uv", "pip", "install", ".[dev]")
+    if not session.posargs:
+        session.error('Migration message is required. Usage: nox -s generate-migration -- "Your migration message"')
+    migration_message = session.posargs[0]
+    session.run("uv", "run", "alembic", "revision", "--autogenerate", "-m", migration_message)

@@ -1,18 +1,23 @@
+import asyncio
 import datetime
-import os
+import logging
 
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Use SQLite file by default, fallback to in-memory for testing
-DB_PATH = os.getenv("BITTENSOR_PYLON_DB", "sqlite+aiosqlite:///bittensor_pylon.sqlite3")
+from app.settings import settings
 
-# Async engine for modern async support
+DB_PATH = settings.bittensor_pylon_db
+
 engine = create_async_engine(DB_PATH, echo=True, future=True)
 SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
+
+logger = logging.getLogger(__name__)
 
 
 class Weight(Base):
@@ -26,8 +31,12 @@ class Weight(Base):
 
 # For easy import in main
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        alembic_cfg = AlembicConfig("alembic.ini")
+        await asyncio.to_thread(alembic_command.upgrade, alembic_cfg, "head")
+    except Exception as e:
+        logger.error(f"Error applying database migrations: {e}")
+        raise
 
 
 async def _get_weight(session: AsyncSession, hotkey: str, epoch: int) -> Weight | None:
