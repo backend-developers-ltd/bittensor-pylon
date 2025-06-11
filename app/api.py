@@ -1,10 +1,14 @@
 import functools
 import logging
 
-from litestar import Request, Response, get, put
+from litestar import Request, Response, get, post, put
 
 from app import db
-from app.bittensor_client import get_metagraph
+from app.bittensor_client import (
+    commit_weights,
+    get_latest_weights,
+    get_metagraph,
+)
 from app.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
@@ -133,7 +137,7 @@ async def set_weight(request: Request) -> dict:
     return {"hotkey": hotkey, "weight": weight, "epoch": epoch}
 
 
-# TODO: refactor to epochs_ago
+# TODO: refactor to epochs_ago ?
 @get("/raw_weights")
 @safe_endpoint
 async def raw_weights(request: Request) -> dict:
@@ -143,9 +147,29 @@ async def raw_weights(request: Request) -> dict:
     """
     epoch = request.query_params.get("epoch", None)
     epoch = int(epoch) if epoch is not None else get_current_epoch(request)
-    # in case epoch start block is incorrect
-    epoch = get_epoch_containing_block(epoch).epoch_start
+    epoch = get_epoch_containing_block(epoch).epoch_start  # in case epoch start block is incorrect
     weights = await db.get_raw_weights(epoch)
     if weights == {}:
         return Response({"detail": "Epoch weights not found"}, status_code=404)
     return {"epoch": epoch, "weights": weights}
+
+
+@post("/force_commit_weights")
+@safe_endpoint
+async def force_commit_weights(request: Request) -> dict:
+    """
+    Commit the latest weights from the db to the subnet now.
+    """
+    block = get_latest_block(request)
+    weights = await get_latest_weights(request.app, block)
+    if not weights:
+        msg = "Could not retrieve weights from db to commit"
+        logger.warning(msg)
+        return Response({"detail": msg}, status_code=404)
+
+    await commit_weights(request.app, weights)
+
+    return {
+        "block": block,
+        "committed_weights": weights,
+    }

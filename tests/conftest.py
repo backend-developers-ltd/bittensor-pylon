@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
-from app.models import Metagraph, Neuron
+from app.models import AxonInfo, Metagraph, Neuron
 
 
 class MockSubnet:
@@ -20,7 +20,10 @@ class MockSubnet:
         return self._hyperparams.copy()
 
     async def list_neurons(self, block_hash=None):
-        return [get_mock_neuron() for _ in range(3)]
+        return [get_mock_neuron(uid) for uid in range(3)]
+
+    async def weights(self):
+        return AsyncMock()
 
 
 class MockBittensorClient:
@@ -36,10 +39,13 @@ class MockBittensorClient:
         return self._subnet
 
 
-def get_mock_neuron():
+def get_mock_neuron(uid: int = 0):
     return Neuron(
-        uid=0,
-        hotkey="mock_hotkey",
+        uid=uid,
+        hotkey=f"mock_hotkey_{uid}",
+        coldkey=f"mock_coldkey_{uid}",
+        active=True,
+        axon_info=AxonInfo(ip="127.0.0.1", port=8080, protocol=1).model_dump(),
         stake=1.0,
         rank=0.5,
         trust=0.5,
@@ -47,12 +53,16 @@ def get_mock_neuron():
         incentive=0.5,
         dividends=0.0,
         emission=0.1,
+        validator_trust=0.5,
+        validator_permit=True,
+        last_update=0,
+        pruning_score=0,
     )
 
 
-def get_mock_metagraph():
+def get_mock_metagraph(block: int):
     return Metagraph(
-        block=123,
+        block=block,
         block_hash="0xabc",
-        neurons=[get_mock_neuron() for _ in range(3)],
+        neurons={neuron.hotkey: neuron for neuron in [get_mock_neuron(uid) for uid in range(3)]},
     )

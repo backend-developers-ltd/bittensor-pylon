@@ -1,4 +1,7 @@
 from pydantic import BaseModel
+from turbobt.neuron import AxonInfo
+
+type Hotkey = str
 
 
 class Epoch(BaseModel):
@@ -8,17 +11,39 @@ class Epoch(BaseModel):
 
 class Neuron(BaseModel):
     uid: int
-    hotkey: str
+    coldkey: str
+    hotkey: Hotkey
+    active: bool
+    axon_info: AxonInfo
     stake: float
     rank: float
-    trust: float
-    consensus: float
-    incentive: float
-    dividends: float
     emission: float
+    incentive: float
+    consensus: float
+    trust: float
+    validator_trust: float
+    dividends: float
+    last_update: int
+    validator_permit: bool
+    pruning_score: int
+
+
+class AxonInfo(BaseModel):
+    ip: str
+    port: int
+    protocol: int
 
 
 class Metagraph(BaseModel):
     block: int
     block_hash: str
-    neurons: list[Neuron]
+    neurons: dict[Hotkey, Neuron]
+
+    def get_neuron(self, hotkey: Hotkey) -> Neuron | None:
+        return self.neurons.get(hotkey, None)
+
+    def get_neurons(self) -> list[Neuron]:
+        return list(self.neurons.values())
+
+    def get_active_neurons(self) -> list[Neuron]:
+        return [neuron for neuron in self.neurons.values() if neuron.active]

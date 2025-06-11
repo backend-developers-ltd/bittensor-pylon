@@ -1,12 +1,15 @@
 import asyncio
 import logging
 
-from app.bittensor_client import cache_metagraph
+from app.bittensor_client import (
+    cache_metagraph,
+    commit_weights,
+    fetch_last_weight_commit_block,
+    get_latest_weights,
+)
 from app.settings import settings
-from app.utils import get_epoch_containing_block
+from app.utils import CommitWindow, get_epoch_containing_block
 
-FETCH_LATEST_INTERVAL_SECONDS = 10
-FETCH_HYPERPARAMS_INTERVAL_SECONDS = 60
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +23,7 @@ async def fetch_latest_hyperparams_task(app, stop_event: asyncio.Event):
             await fetch_hyperparams(app)
         except Exception as e:
             logger.error(f"Failed to fetch subnet hyperparameters: {e}", exc_info=True)
-        await asyncio.wait([stop_task], timeout=FETCH_HYPERPARAMS_INTERVAL_SECONDS)
+        await asyncio.wait([stop_task], timeout=settings.fetch_hyperparams_task_interval_seconds)
 
 
 async def fetch_hyperparams(app):
@@ -32,6 +35,65 @@ async def fetch_hyperparams(app):
         if old_v != v:
             logger.debug(f"Subnet hyperparame update: {k}: {old_v} -> {v}")
             app.state.hyperparams[k] = v
+
+
+async def set_weights_periodically_task(app, stop_event: asyncio.Event):
+    """
+    Periodically checks conditions and commits weights to the Bittensor network.
+    Commits weights every N tempos, only if within the specified commit window.
+    """
+
+    stop_task = asyncio.create_task(stop_event.wait())
+    last_successful_commit_block = await fetch_last_weight_commit_block(app) or 0
+    logger.info(f"Initial last successful commit block: {last_successful_commit_block}")
+
+    while not stop_event.is_set():
+        await asyncio.wait([stop_task], timeout=settings.weight_commit_check_task_interval_seconds)
+
+        try:
+            current_block = app.state.latest_block
+            if current_block is None:
+                logger.error("Could not retrieve current block. Retrying later.")
+                continue
+
+            # Check if we need to commit weights
+            window = CommitWindow(current_block)
+            tempos_since_last_commit = (current_block - last_successful_commit_block) // settings.tempo
+
+            logger.debug(
+                f"Checking weight commit conditions: current_block={current_block}, "
+                f"last_commit_block={last_successful_commit_block}, tempos_passed={tempos_since_last_commit}, "
+                f"required_tempos={settings.commit_reveal_cycle_length}, "
+                f"commit_window=({window.commit_start} - {window.commit_stop})"
+            )
+
+            if tempos_since_last_commit < settings.commit_reveal_cycle_length:
+                logger.debug("Not enough tempos passed. Skipping weight commit")
+                continue
+
+            if current_block not in window.commit_window:
+                logger.debug("Not in commit window. Skipping weight commit")
+                continue
+
+            # Commit weights
+            logger.info(
+                f"Attempting to commit weights at block {current_block} for epoch starting at {app.state.current_epoch_start}"
+            )
+            weights_to_set = await get_latest_weights(app)
+            if not weights_to_set:
+                logger.warning("No weights returned by get_latest_weights. Skipping commit for this cycle.")
+                continue
+
+            logger.info(f"Found {len(weights_to_set)} weights to set. Committing...")
+            try:
+                await commit_weights(app, weights_to_set)
+                logger.info("Successfully committed weights.")
+                last_successful_commit_block = current_block
+            except Exception as commit_exc:
+                logger.error(f"Failed to commit weights: {commit_exc}", exc_info=True)
+
+        except Exception as e:
+            logger.error(f"Error in periodic weight setting task outer loop: {e}", exc_info=True)
 
 
 async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
@@ -46,4 +108,4 @@ async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
                 logger.info(f"Cached latest metagraph for block {new_block.number}")
         except Exception as e:
             logger.error(f"Error fetching latest metagraph: {e}", exc_info=True)
-        await asyncio.wait([stop_task], timeout=FETCH_LATEST_INTERVAL_SECONDS)
+        await asyncio.wait([stop_task], timeout=settings.fetch_latest_metagraph_task_interval_seconds)

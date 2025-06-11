@@ -21,11 +21,11 @@ def make_request(url: str) -> dict:
 
 
 def main():
-    test_metagraph()
-    test_weights()
+    check_metagraph()
+    check_weights()
 
 
-def test_metagraph():
+def check_metagraph():
     latest_block = make_request(f"{API_URL}/latest_block")
     block_number = latest_block.get("block")
     if block_number is None:
@@ -52,7 +52,7 @@ def test_metagraph():
     assert times[1] * 5 < times[0]
 
 
-def test_weights():
+def check_weights():
     test_hotkey = "test_hotkey_123"
 
     # Set weight
