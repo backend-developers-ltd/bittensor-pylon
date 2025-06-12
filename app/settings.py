@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     # subnet epoch length
     tempo: int = 360
 
-    # commit-reveal interval settings
-    commit_reveal_cycle_length: int = 3  # Number of tempos to wait between weight commitments
+    # commit-reveal cycle settings
+    commit_cycle_length: int = 3  # Number of tempos to wait between weight commitments
     commit_window_start_offset: int = 180  # Offset from interval start to begin commit window
     commit_window_end_buffer: int = 10  # Buffer at the end of commit window before interval ends
 

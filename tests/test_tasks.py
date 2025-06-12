@@ -21,7 +21,7 @@ TEST_CHECK_INTERVAL = 0.01  # seconds, for fast checking
 @pytest.fixture
 def mock_app(monkeypatch):
     monkeypatch.setattr(app_settings, "tempo", TEST_TEMPO)
-    monkeypatch.setattr(app_settings, "commit_reveal_cycle_length", TEST_COMMIT_CYCLE_LENGTH)
+    monkeypatch.setattr(app_settings, "commit_cycle_length", TEST_COMMIT_CYCLE_LENGTH)
     monkeypatch.setattr(app_settings, "weight_commit_check_task_interval_seconds", TEST_CHECK_INTERVAL)
     monkeypatch.setattr(app_settings, "commit_window_start_offset", TEST_COMMIT_WINDOW_START_OFFSET)
     monkeypatch.setattr(app_settings, "commit_window_end_buffer", TEST_COMMIT_WINDOW_END_BUFFER)

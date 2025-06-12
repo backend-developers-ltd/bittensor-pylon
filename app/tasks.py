@@ -63,11 +63,11 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
             logger.debug(
                 f"Checking weight commit conditions: current_block={current_block}, "
                 f"last_commit_block={last_successful_commit_block}, tempos_passed={tempos_since_last_commit}, "
-                f"required_tempos={settings.commit_reveal_cycle_length}, "
+                f"required_tempos={settings.commit_cycle_length}, "
                 f"commit_window=({window.commit_start} - {window.commit_stop})"
             )
 
-            if tempos_since_last_commit < settings.commit_reveal_cycle_length:
+            if tempos_since_last_commit < settings.commit_cycle_length:
                 logger.debug("Not enough tempos passed. Skipping weight commit")
                 continue
 
