@@ -57,20 +57,19 @@ async def get_metagraph(app: Litestar, block_number: int) -> Metagraph:
     return app.state.metagraph_cache[block_number]
 
 
-async def get_latest_weights(app: Litestar) -> dict[int, float]:
+async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     """
     Fetches the latest weights from the database for the current epoch.
     """
-    # Get neurons from the latest metagraph
-    latest_block = app.state.latest_block
-    metagraph = app.state.metagraph_cache[latest_block]
+    # Get neurons from the metagraph
+    metagraph = app.state.metagraph_cache.get(block)
     neurons = metagraph.get_active_neurons()
 
     # Fetch neurons weights from db for the current epoch
-    epoch = app.state.current_epoch_start.epoch_start
+    epoch = app.state.current_epoch_start
     if epoch is None:
         logger.warning("Epoch not available in app state. Cannot fetch db weights.")
-        return
+        return None
 
     weights = await get_neurons_weights(neurons, epoch)
     logger.info(f"Current db weights for epoch {epoch}: {weights}")

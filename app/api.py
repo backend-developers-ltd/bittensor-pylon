@@ -6,12 +6,27 @@ from litestar import Request, Response, get, post, put
 from app import db
 from app.bittensor_client import (
     commit_weights,
-    get_latest_weights,
     get_metagraph,
+    get_weights,
 )
+from app.settings import settings
 from app.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
+
+
+def validator_only(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        if not settings.am_i_a_validator:
+            logger.warning(f"Not running as validator: can't access {func.__name__}")
+            return Response(
+                status_code=403,
+                content={"detail": "This endpoint is available only for validators."},
+            )
+        return await func(*args, **kwargs)
+
+    return wrapper
 
 
 def safe_endpoint(func):
@@ -98,6 +113,7 @@ async def hyperparams(request: Request) -> dict:
 
 
 @put("/update_weight")
+@validator_only
 @safe_endpoint
 async def update_weight(request: Request) -> dict:
     """
@@ -118,6 +134,7 @@ async def update_weight(request: Request) -> dict:
 
 
 @put("/set_weight")
+@validator_only
 @safe_endpoint
 async def set_weight(request: Request) -> dict:
     """
@@ -155,13 +172,14 @@ async def raw_weights(request: Request) -> dict:
 
 
 @post("/force_commit_weights")
+@validator_only
 @safe_endpoint
 async def force_commit_weights(request: Request) -> dict:
     """
     Commit the latest weights from the db to the subnet now.
     """
     block = get_latest_block(request)
-    weights = await get_latest_weights(request.app, block)
+    weights = await get_weights(request.app, block)
     if not weights:
         msg = "Could not retrieve weights from db to commit"
         logger.warning(msg)

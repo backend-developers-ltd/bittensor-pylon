@@ -5,7 +5,7 @@ from app.bittensor_client import (
     cache_metagraph,
     commit_weights,
     fetch_last_weight_commit_block,
-    get_latest_weights,
+    get_weights,
 )
 from app.settings import settings
 from app.utils import CommitWindow, get_epoch_containing_block
@@ -79,7 +79,8 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
             logger.info(
                 f"Attempting to commit weights at block {current_block} for epoch starting at {app.state.current_epoch_start}"
             )
-            weights_to_set = await get_latest_weights(app)
+
+            weights_to_set = await get_weights(app, current_block)
             if not weights_to_set:
                 logger.warning("No weights returned by get_latest_weights. Skipping commit for this cycle.")
                 continue
@@ -87,7 +88,7 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
             logger.info(f"Found {len(weights_to_set)} weights to set. Committing...")
             try:
                 await commit_weights(app, weights_to_set)
-                logger.info("Successfully committed weights.")
+                logger.info(f"Successfully committed weights at block {current_block}")
                 last_successful_commit_block = current_block
             except Exception as commit_exc:
                 logger.error(f"Failed to commit weights: {commit_exc}", exc_info=True)

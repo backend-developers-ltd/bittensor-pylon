@@ -2,17 +2,21 @@ import pytest
 from litestar.testing import TestClient
 
 from app.main import create_app
-from tests.conftest import get_mock_metagraph
+from app.settings import settings
+from app.utils import get_epoch_containing_block
+from tests.conftest import MockBittensorClient, get_mock_metagraph
+
+EPOCH = 1500
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setattr(settings, "am_i_a_validator", True)
     test_app = create_app(tasks=[])
     with TestClient(test_app) as test_client:
-        latest_block = 12
-        test_client.app.state.latest_block = latest_block
-        test_client.app.state.metagraph_cache = {latest_block: get_mock_metagraph(latest_block)}
-        test_client.app.state.current_epoch_start = 35736
+        test_client.app.state.latest_block = EPOCH
+        test_client.app.state.metagraph_cache = {EPOCH: get_mock_metagraph(EPOCH)}
+        test_client.app.state.current_epoch_start = get_epoch_containing_block(EPOCH).epoch_start
         yield test_client
 
 
@@ -20,7 +24,7 @@ def test_latest_metagraph__success(client):
     resp = client.get("/metagraph")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["block"] == 12
+    assert data["block"] == EPOCH
     assert data["block_hash"] == "0xabc"
     assert len(data["neurons"]) == 3
 
@@ -32,10 +36,10 @@ def test_latest_metagraph__no_block(client):
 
 
 def test_metagraph__block_number_success(client):
-    resp = client.get("/metagraph/12")
+    resp = client.get(f"/metagraph/{EPOCH}")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["block"] == 12
+    assert data["block"] == EPOCH
     assert data["block_hash"] == "0xabc"
     assert len(data["neurons"]) == 3
 
@@ -44,7 +48,7 @@ def test_latest_block_success(client):
     resp = client.get("/latest_block")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["block"] == 12
+    assert data["block"] == EPOCH
 
 
 def test_latest_block_no_block(client):
@@ -54,7 +58,7 @@ def test_latest_block_no_block(client):
 
 
 def test_block_hash_success(client):
-    resp = client.get("/block_hash/12")
+    resp = client.get(f"/block_hash/{EPOCH}")
     assert resp.status_code == 200
     data = resp.json()
     assert data["block_hash"] == "0xabc"
@@ -82,8 +86,15 @@ def test_weights__set_update_requests(client):
     assert weights[hotkey] == initial_weight + delta
 
     # Query with missing epoch should not find it
-    resp4 = client.get("/raw_weights?epoch=1")
+    resp4 = client.get("/raw_weights?epoch=2110")
     assert resp4.status_code == 404
+
+    # Test force commit
+    client.app.state.bittensor_client = MockBittensorClient()
+    resp5 = client.post("/force_commit_weights")
+    assert resp5.status_code == 201
+    assert resp5.json()["block"] == EPOCH
+    assert resp5.json()["committed_weights"] is not None
 
 
 def test_set_weights__missing_params(client):
@@ -106,3 +117,18 @@ def test_update_weight__missing_params(client):
     resp2 = client.put("/update_weight", json={"hotkey": "foo"})
     assert resp2.status_code == 400
     assert resp2.json().get("detail", "").startswith("Missing weight_delta")
+
+
+def test_validator_endpoints_forbidden(client, monkeypatch):
+    """
+    Tests that weight-setting endpoints are forbidden when not in validator mode.
+    """
+    monkeypatch.setattr(settings, "am_i_a_validator", False)
+    resp_set = client.put("/set_weight", json={"hotkey": "foo", "weight": 1.0})
+    assert resp_set.status_code == 403
+
+    resp_update = client.put("/update_weight", json={"hotkey": "foo", "weight_delta": 1.0})
+    assert resp_update.status_code == 403
+
+    resp_force_commit = client.post("/force_commit_weights")
+    assert resp_force_commit.status_code == 403

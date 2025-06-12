@@ -15,6 +15,7 @@ class MockSubnet:
             "alpha_low": 45875,
             "liquid_alpha_enabled": False,
         }
+        self.weights = AsyncMock()
 
     async def get_hyperparameters(self):
         return self._hyperparams.copy()
@@ -22,21 +23,22 @@ class MockSubnet:
     async def list_neurons(self, block_hash=None):
         return [get_mock_neuron(uid) for uid in range(3)]
 
-    async def weights(self):
-        return AsyncMock()
-
 
 class MockBittensorClient:
-    def __init__(self, netuid=1):
-        self._netuid = netuid
-        self._subnet = MockSubnet(netuid)
+    def __init__(self):
         self.block = MagicMock()
         self.block.return_value.get = AsyncMock(return_value=MagicMock(number=123, hash="0xabc"))
         self.head = MagicMock()
         self.head.get = AsyncMock(return_value=MagicMock(number=123, hash="0xabc"))
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
     def subnet(self, netuid):
-        return self._subnet
+        return MockSubnet(netuid)
 
 
 def get_mock_neuron(uid: int = 0):

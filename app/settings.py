@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str
 
+    # guard against validator specific endpoints
+    am_i_a_validator: bool = False
+
     # db settings
     bittensor_pylon_db: str = "sqlite+aiosqlite:///bittensor_pylon.sqlite3"
 

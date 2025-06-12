@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from freezegun import freeze_time
@@ -8,7 +8,7 @@ from litestar import Litestar
 from app.settings import settings as app_settings
 from app.tasks import set_weights_periodically_task
 from app.utils import get_epoch_containing_block
-from tests.conftest import get_mock_metagraph
+from tests.conftest import MockBittensorClient, get_mock_metagraph
 
 # Default settings for tests, can be overridden by monkeypatch
 TEST_TEMPO = 100
@@ -27,7 +27,7 @@ def mock_app(monkeypatch):
     monkeypatch.setattr(app_settings, "commit_window_end_buffer", TEST_COMMIT_WINDOW_END_BUFFER)
 
     app = Litestar(route_handlers=[])
-    app.state.bittensor_client = MagicMock()
+    app.state.bittensor_client = MockBittensorClient()
     return app
 
 
@@ -39,16 +39,16 @@ def update_app_state(app, block):
 
 @pytest.mark.asyncio
 @patch("app.tasks.commit_weights", new_callable=AsyncMock)
-@patch("app.tasks.get_latest_weights", new_callable=AsyncMock)
+@patch("app.tasks.get_weights", new_callable=AsyncMock)
 @patch("app.tasks.fetch_last_weight_commit_block", new_callable=AsyncMock)
 async def test_set_weights_commit_flow(
     mock_fetch_last_commit,
-    mock_get_latest_weights,
+    mock_get_weights,
     mock_commit_weights_call,
     mock_app,
 ):
     mock_fetch_last_commit.return_value = 0  # Start as if no prior commits
-    mock_get_latest_weights.return_value = {1: 0.5, 2: 0.5, 3: 0.5}
+    mock_get_weights.return_value = {1: 0.5, 2: 0.5, 3: 0.5}
 
     with freeze_time("2023-01-01") as freezer:
         stop_event = asyncio.Event()
@@ -80,8 +80,8 @@ async def test_set_weights_commit_flow(
         freezer.tick(TEST_CHECK_INTERVAL)
         await asyncio.sleep(0)
         await asyncio.sleep(0)  # make sure it gets to the await
-        mock_get_latest_weights.assert_called_once()
-        mock_get_latest_weights.reset_mock()
+        mock_get_weights.assert_called_once()
+        mock_get_weights.reset_mock()
         mock_commit_weights_call.assert_called_once()
         mock_commit_weights_call.reset_mock()
 
@@ -100,7 +100,7 @@ async def test_set_weights_commit_flow(
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         await asyncio.sleep(0)  # make sure it gets to the await
-        mock_get_latest_weights.assert_called_once()
+        mock_get_weights.assert_called_once()
         mock_commit_weights_call.assert_called_once()
 
         # --- Cleanup ---

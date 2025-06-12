@@ -9,6 +9,7 @@ from litestar import Litestar
 from app.api import (
     block_hash,
     epoch_start,
+    force_commit_weights,
     hyperparams,
     latest_block,
     latest_metagraph,
@@ -70,6 +71,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
             set_weight,
             raw_weights,
             update_weight,
+            force_commit_weights,
         ],
         on_startup=[partial(on_startup, tasks_to_run=tasks)],
         on_shutdown=[on_shutdown],
