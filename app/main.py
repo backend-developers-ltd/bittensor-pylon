@@ -10,11 +10,14 @@ from app.api import (
     block_hash,
     epoch_start,
     force_commit_weights,
+    get_commitment_endpoint,
+    get_commitments_endpoint,
     hyperparams,
     latest_block,
     latest_metagraph,
     metagraph,
     raw_weights,
+    set_commitment_endpoint,
     set_weight,
     update_weight,
 )
@@ -62,16 +65,22 @@ def create_app(tasks: list[Callable]) -> Litestar:
     """Creates a Litestar app with a specific set of background tasks."""
     return Litestar(
         route_handlers=[
+            # Bittensor state
             latest_block,
             block_hash,
             metagraph,
             latest_metagraph,
             epoch_start,
             hyperparams,
+            # Validator weights
             set_weight,
             raw_weights,
             update_weight,
             force_commit_weights,
+            # Commitments
+            get_commitment_endpoint,
+            get_commitments_endpoint,
+            set_commitment_endpoint,
         ],
         on_startup=[partial(on_startup, tasks_to_run=tasks)],
         on_shutdown=[on_shutdown],

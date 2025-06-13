@@ -69,7 +69,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     epoch = app.state.current_epoch_start
     if epoch is None:
         logger.warning("Epoch not available in app state. Cannot fetch db weights.")
-        return None
+        return {}
 
     weights = await get_neurons_weights(neurons, epoch)
     logger.info(f"Current db weights for epoch {epoch}: {weights}")
@@ -104,3 +104,41 @@ async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
         return None
 
     return neuron.last_update
+
+
+async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None) -> str | None:
+    """
+    Fetches a specific commitment (as hex) for a hotkey, optionally at a given block.
+    Uses netuid from settings and block_hash from metagraph cache.
+    """
+    netuid = settings.bittensor_netuid
+    bt_client: Bittensor = app.state.bittensor_client
+    block_hash = app.state.metagraph_cache.get(block).block_hash
+
+    commitment = await bt_client.subnet(netuid).commitments.get(hotkey, block_hash=block_hash)
+    return commitment.hex() if commitment is not None else None
+
+
+async def get_commitments(app: Litestar, block: int | None = None) -> dict[Hotkey, str]:
+    """
+    Fetches all commitments (hotkey: commitment_hex) for the configured subnet.
+    Optionally uses a specific block_hash.
+    """
+    netuid = settings.bittensor_netuid
+    bt_client: Bittensor = app.state.bittensor_client
+    block_hash = app.state.metagraph_cache.get(block).block_hash
+    commitments = await bt_client.subnet(netuid).commitments.fetch(block_hash=block_hash)
+    if commitments is None:
+        return {}
+    return {hotkey: data.hex() for hotkey, data in commitments.items()}
+
+
+async def set_commitment(app: Litestar, data: bytes):
+    """
+    Sets a commitment (hex string).
+    """
+    netuid = settings.bittensor_netuid
+    bt_client: Bittensor = app.state.bittensor_client
+    extrinsic = await bt_client.subnet(netuid).commitments.set(data=data)
+    print(f"extrinsic: {extrinsic}")
+    await extrinsic.wait_for_finalization()

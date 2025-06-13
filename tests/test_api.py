@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 from litestar.testing import TestClient
 
@@ -14,6 +16,7 @@ def client(monkeypatch):
     monkeypatch.setattr(settings, "am_i_a_validator", True)
     test_app = create_app(tasks=[])
     with TestClient(test_app) as test_client:
+        test_client.app.state.bittensor_client = MockBittensorClient()
         test_client.app.state.latest_block = EPOCH
         test_client.app.state.metagraph_cache = {EPOCH: get_mock_metagraph(EPOCH)}
         test_client.app.state.current_epoch_start = get_epoch_containing_block(EPOCH).epoch_start
@@ -92,7 +95,7 @@ def test_weights__set_update_requests(client):
     # Test force commit
     client.app.state.bittensor_client = MockBittensorClient()
     resp = client.post("/force_commit_weights")
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert resp.json()["block"] == EPOCH
     assert resp.json()["committed_weights"] is not None
 
@@ -132,3 +135,47 @@ def test_validator_endpoints_forbidden(client, monkeypatch):
 
     resp = client.post("/force_commit_weights")
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_commitment(client):
+    netuid = settings.bittensor_netuid
+    bt_client = client.app.state.bittensor_client
+    mock_get_commitment = bt_client.subnet(netuid).commitments.get
+    mock_fetch_commitments = bt_client.subnet(netuid).commitments.fetch
+
+    mock_get_commitment.return_value = b"0x1234"
+    hotkey = "hotkey"
+    resp = client.get(f"/get_commitment/{hotkey}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["hotkey"] == hotkey
+    assert data["commitment"] is not None
+
+    mock_get_commitment.return_value = None
+    resp = client.get("/get_commitment/hotkey_not_found")
+    assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"]
+
+    mock_fetch_commitments.return_value = {"hotkey": b"0x1234"}
+    resp = client.get("/get_commitments")
+    assert resp.status_code == 200
+    assert resp.json().keys() is not None
+
+
+@pytest.mark.asyncio
+async def test_set_commitment(client):
+    netuid = settings.bittensor_netuid
+    bt_client = client.app.state.bittensor_client
+    bt_client.subnet(netuid).commitments.set.return_value = AsyncMock()
+
+    resp = client.post("/set_commitment", json={"data_hex": "4466"})
+    assert resp.status_code == 200
+
+    resp = client.post("/set_commitment", json={})
+    assert resp.status_code == 400
+    assert "Missing 'data_hex'" in resp.json()["detail"]
+
+    resp = client.post("/set_commitment", json={"data_hex": "333"})
+    assert resp.status_code == 400
+    assert "Invalid 'data_hex'" in resp.json()["detail"]
