@@ -15,7 +15,16 @@ TEST_TEMPO = 100
 TEST_COMMIT_CYCLE_LENGTH = 2  # Every 2 tempos
 TEST_COMMIT_WINDOW_START_OFFSET = 50  # from start of tempo
 TEST_COMMIT_WINDOW_END_BUFFER = 10  # from end of tempo
-TEST_CHECK_INTERVAL = 0.01  # seconds, for fast checking
+TEST_CHECK_INTERVAL = 0.3  # seconds, for fast checking
+
+
+async def wait_for_mock_call(mock_obj, timeout=1.0, iterations=20):
+    """Waits for an AsyncMock or MagicMock to be called."""
+    for _ in range(iterations):
+        if mock_obj.called:
+            return True
+        await asyncio.sleep(0)
+    raise TimeoutError(f"Mock was not called within {timeout}s")
 
 
 @pytest.fixture
@@ -55,8 +64,8 @@ async def test_set_weights_commit_flow(
         task_handle = asyncio.create_task(set_weights_periodically_task(mock_app, stop_event))
 
         # Allow task to initialize and run the first check
-        freezer.tick(TEST_CHECK_INTERVAL * 1.5)
-        await asyncio.sleep(0)
+        freezer.tick(TEST_CHECK_INTERVAL)  # Ensure task wakes and processes
+        await asyncio.sleep(0)  # Allow the task to run its checks
         # The task should have fetched the last commit block on startup
         mock_fetch_last_commit.assert_called_once()
 
@@ -78,8 +87,9 @@ async def test_set_weights_commit_flow(
         )  # third block in the window
         update_app_state(mock_app, current_block_for_commit)  # metagraph cache should have latest block data
         freezer.tick(TEST_CHECK_INTERVAL)
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)  # make sure it gets to the await
+        assert await wait_for_mock_call(mock_get_weights)
+        assert await wait_for_mock_call(mock_commit_weights_call)
+
         mock_get_weights.assert_called_once()
         mock_get_weights.reset_mock()
         mock_commit_weights_call.assert_called_once()
@@ -97,9 +107,9 @@ async def test_set_weights_commit_flow(
         update_app_state(mock_app, current_block_for_second_commit)
 
         freezer.tick(TEST_CHECK_INTERVAL)
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)  # make sure it gets to the await
+        await wait_for_mock_call(mock_get_weights)
+        await wait_for_mock_call(mock_commit_weights_call)
+
         mock_get_weights.assert_called_once()
         mock_commit_weights_call.assert_called_once()
 

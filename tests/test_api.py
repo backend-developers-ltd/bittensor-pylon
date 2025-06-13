@@ -75,26 +75,26 @@ def test_weights__set_update_requests(client):
     assert resp.json()["weight"] == initial_weight
 
     # Update weight (add delta)
-    resp2 = client.put("/update_weight", json={"hotkey": hotkey, "weight_delta": delta})
-    assert resp2.status_code == 200
-    assert resp2.json()["weight"] == initial_weight + delta
+    resp = client.put("/update_weight", json={"hotkey": hotkey, "weight_delta": delta})
+    assert resp.status_code == 200
+    assert resp.json()["weight"] == initial_weight + delta
 
     # Check raw weights
-    resp3 = client.get("/raw_weights")
-    assert resp3.status_code == 200
-    weights = resp3.json()["weights"]
+    resp = client.get("/raw_weights")
+    assert resp.status_code == 200
+    weights = resp.json()["weights"]
     assert weights[hotkey] == initial_weight + delta
 
     # Query with missing epoch should not find it
-    resp4 = client.get("/raw_weights?epoch=2110")
-    assert resp4.status_code == 404
+    resp = client.get("/raw_weights?epoch=2110")
+    assert resp.status_code == 404
 
     # Test force commit
     client.app.state.bittensor_client = MockBittensorClient()
-    resp5 = client.post("/force_commit_weights")
-    assert resp5.status_code == 201
-    assert resp5.json()["block"] == EPOCH
-    assert resp5.json()["committed_weights"] is not None
+    resp = client.post("/force_commit_weights")
+    assert resp.status_code == 201
+    assert resp.json()["block"] == EPOCH
+    assert resp.json()["committed_weights"] is not None
 
 
 def test_set_weights__missing_params(client):
@@ -103,9 +103,9 @@ def test_set_weights__missing_params(client):
     assert resp.status_code == 400
     assert resp.json().get("detail", "").startswith("Missing hotkey")
     # Missing weight
-    resp2 = client.put("/set_weight", json={"hotkey": "foo"})
-    assert resp2.status_code == 400
-    assert resp2.json().get("detail", "").startswith("Missing weight")
+    resp = client.put("/set_weight", json={"hotkey": "foo"})
+    assert resp.status_code == 400
+    assert resp.json().get("detail", "").startswith("Missing weight")
 
 
 def test_update_weight__missing_params(client):
@@ -114,9 +114,9 @@ def test_update_weight__missing_params(client):
     assert resp.status_code == 400
     assert resp.json().get("detail", "").startswith("Missing hotkey")
     # Missing weight_delta
-    resp2 = client.put("/update_weight", json={"hotkey": "foo"})
-    assert resp2.status_code == 400
-    assert resp2.json().get("detail", "").startswith("Missing weight_delta")
+    resp = client.put("/update_weight", json={"hotkey": "foo"})
+    assert resp.status_code == 400
+    assert resp.json().get("detail", "").startswith("Missing weight_delta")
 
 
 def test_validator_endpoints_forbidden(client, monkeypatch):
@@ -124,11 +124,11 @@ def test_validator_endpoints_forbidden(client, monkeypatch):
     Tests that weight-setting endpoints are forbidden when not in validator mode.
     """
     monkeypatch.setattr(settings, "am_i_a_validator", False)
-    resp_set = client.put("/set_weight", json={"hotkey": "foo", "weight": 1.0})
-    assert resp_set.status_code == 403
+    resp = client.put("/set_weight", json={"hotkey": "foo", "weight": 1.0})
+    assert resp.status_code == 403
 
-    resp_update = client.put("/update_weight", json={"hotkey": "foo", "weight_delta": 1.0})
-    assert resp_update.status_code == 403
+    resp = client.put("/update_weight", json={"hotkey": "foo", "weight_delta": 1.0})
+    assert resp.status_code == 403
 
-    resp_force_commit = client.post("/force_commit_weights")
-    assert resp_force_commit.status_code == 403
+    resp = client.post("/force_commit_weights")
+    assert resp.status_code == 403
