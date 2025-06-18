@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from app.models import Hotkey, Neuron
 from app.settings import settings
 
 DB_PATH = settings.bittensor_pylon_db
@@ -39,12 +40,12 @@ async def init_db():
         raise
 
 
-async def _get_weight(session: AsyncSession, hotkey: str, epoch: int) -> Weight | None:
+async def _get_weight(session: AsyncSession, hotkey: Hotkey, epoch: int) -> Weight | None:
     weights = await session.execute(select(Weight).where((Weight.hotkey == hotkey) & (Weight.epoch == epoch)))
     return weights.scalars().first()
 
 
-async def set_weight(hotkey: str, weight: float, epoch: int) -> None:
+async def set_weight(hotkey: Hotkey, weight: float, epoch: int) -> None:
     async with SessionLocal() as session:
         existing_weight = await _get_weight(session, hotkey, epoch)
         if existing_weight:
@@ -55,7 +56,7 @@ async def set_weight(hotkey: str, weight: float, epoch: int) -> None:
         await session.commit()
 
 
-async def update_weight(hotkey: str, delta: float, epoch: int) -> float:
+async def update_weight(hotkey: Hotkey, delta: float, epoch: int) -> float:
     """
     Add delta to the weight for the given epoch. If no record exists, create one with delta as the weight.
     """
@@ -73,7 +74,7 @@ async def update_weight(hotkey: str, delta: float, epoch: int) -> float:
     return w
 
 
-async def get_raw_weights(epoch: int) -> dict[str, float]:
+async def get_raw_weights(epoch: int) -> dict[Hotkey, float]:
     """
     Fetch all miner weights for a given epoch.
     Returns a dict: {hotkey: weight}
@@ -82,3 +83,21 @@ async def get_raw_weights(epoch: int) -> dict[str, float]:
         result = await session.execute(select(Weight).where(Weight.epoch == epoch))
         weights = result.scalars().all()
         return {m.hotkey: m.weight for m in weights}
+
+
+async def get_neurons_weights(neurons: list[Neuron], epoch: int) -> dict[int, float]:
+    """
+    Returns a dict {uid: weight} for the given list of Neurons for the specified epoch.
+    """
+    if not neurons:
+        return {}
+
+    async with SessionLocal() as session:
+        # Get all weights for the neuron hotkeys in the given epoch
+        hotkeys = [neuron.hotkey for neuron in neurons]
+        result = await session.execute(
+            select(Weight.hotkey, Weight.weight).where((Weight.hotkey.in_(hotkeys)) & (Weight.epoch == epoch))
+        )
+
+        weights_by_hotkey = dict(result.all())
+        return {neuron.uid: weights_by_hotkey.get(neuron.hotkey, 0.0) for neuron in neurons}
