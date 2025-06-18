@@ -239,8 +239,6 @@ async def get_commitments_endpoint(request: Request) -> Response:
     block = request.query_params.get("block")
     block = get_latest_block(request) if block is None else int(block)
     commitments_map = await get_commitments(request.app, block)
-    if commitments_map is None:
-        return Response({"detail": "Error fetching commitments."}, status_code=500)
     return Response(commitments_map, status_code=200)
 
 

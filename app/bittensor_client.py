@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import asdict
 
@@ -133,7 +134,7 @@ async def get_commitments(app: Litestar, block: int | None = None) -> dict[Hotke
     return {hotkey: data.hex() for hotkey, data in commitments.items()}
 
 
-async def set_commitment(app: Litestar, data: bytes):
+async def set_commitment(app: Litestar, data: bytes, timeout: int = 30):
     """
     Sets a commitment (hex string).
     """
@@ -141,4 +142,5 @@ async def set_commitment(app: Litestar, data: bytes):
     bt_client: Bittensor = app.state.bittensor_client
     extrinsic = await bt_client.subnet(netuid).commitments.set(data=data)
     print(f"extrinsic: {extrinsic}")
-    await extrinsic.wait_for_finalization()
+    async with asyncio.timeout(timeout):
+        await extrinsic.wait_for_finalization()

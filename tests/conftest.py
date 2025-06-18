@@ -27,15 +27,12 @@ class MockSubnet:
 
 class MockBittensorClient:
     def __init__(self):
-        self.wallet = MagicMock()  # Mock wallet attribute
+        self.wallet = MagicMock()
         self.block = MagicMock()
-        self.block.return_value.get = AsyncMock(
-            return_value=MagicMock(number=0, hash="0xabc")
-        )  # Default block for tests
+        self.block.return_value.get = AsyncMock(return_value=MagicMock(number=0, hash="0xabc"))
         self.head = MagicMock()
-        # Ensure latest_block in app.state defaults to 0 for tests if not overridden
         self.head.get = AsyncMock(return_value=MagicMock(number=0, hash="0xabc"))
-        self._subnets = {}  # Cache for subnet mocks
+        self._subnets = {}
 
     async def __aenter__(self):
         return self
@@ -43,20 +40,10 @@ class MockBittensorClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def set_commitment(self, hotkey, data, block_hash=None):
-        # This is a placeholder, actual logic is in app.bittensor_client
-        # and relies on subnet().commitments.set being mocked.
-        pass
-
     def subnet(self, netuid):
         if netuid not in self._subnets:
             self._subnets[netuid] = MockSubnet(netuid)
         return self._subnets[netuid]
-
-    def get_commitment(self, hotkey, block_hash=None):
-        # This is a placeholder, actual logic is in app.bittensor_client
-        # and relies on subnet().commitments.get being mocked.
-        return "0x1234"  # Default, should be overridden by specific test mocks
 
 
 def get_mock_neuron(uid: int = 0):
@@ -81,10 +68,8 @@ def get_mock_neuron(uid: int = 0):
 
 
 def get_mock_metagraph(block: int):
-    # This function should just return a Metagraph object,
-    # cache initialization should happen in a fixture or test setup.
     return Metagraph(
         block=block,
-        block_hash="0xabc",  # Consistent hash for testing
+        block_hash="0xabc",
         neurons={neuron.hotkey: neuron for neuron in [get_mock_neuron(uid) for uid in range(3)]},
     )

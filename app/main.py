@@ -56,8 +56,7 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
 async def on_shutdown(app: Litestar) -> None:
     logger.debug("Litestar app shutdown")
     app.state._stop_event.set()
-    for task in app.state._background_tasks:
-        await task
+    await asyncio.gather(*app.state._background_tasks)
     await app.state.bittensor_client.__aexit__(None, None, None)
 
 
