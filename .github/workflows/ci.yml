@@ -29,5 +29,5 @@ jobs:
       - name: Create dotenv file
         run: cp ./app/envs/test_env.template .env
 
-      - name: Run tests with nox
+      - name: Run unit tests with nox
         run: nox -s test
