@@ -7,7 +7,8 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.db import DB_PATH, Base  # Ensure all models are imported for Alembic autogenerate
+from app.db import Base  # Ensure all models are imported for Alembic autogenerate
+from app.settings import settings
 
 # Ensure the project root is in sys.path for correct local module imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -21,7 +22,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_online():
-    connectable = create_async_engine(DB_PATH, poolclass=pool.NullPool)
+    connectable = create_async_engine(settings.pylon_db_uri, poolclass=pool.NullPool)
 
     def do_run_migrations_sync(connection):
         context.configure(

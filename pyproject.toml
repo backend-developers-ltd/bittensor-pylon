@@ -13,11 +13,13 @@ dependencies = [
     "turbobt>=0.0.3",
     "litestar[standard]",
     "cachetools",
+    "docker",
     "requests",
     "bittensor_wallet",
     "sqlalchemy",
     "aiosqlite",
-    "alembic"
+    "alembic",
+    "tenacity",
 ]
 
 [project.optional-dependencies]
