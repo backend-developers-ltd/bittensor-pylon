@@ -5,6 +5,7 @@ from functools import partial
 
 from cachetools import TTLCache
 from litestar import Litestar
+from litestar.openapi.config import OpenAPIConfig
 
 from app.api import (
     block_hash,
@@ -81,6 +82,11 @@ def create_app(tasks: list[Callable]) -> Litestar:
             get_commitments_endpoint,
             set_commitment_endpoint,
         ],
+        openapi_config=OpenAPIConfig(
+            title="Bittensor Pylon API",
+            version="1.0.0",
+            description="REST API for the bittensor-pylon service.",
+        ),
         on_startup=[partial(on_startup, tasks_to_run=tasks)],
         on_shutdown=[on_shutdown],
     )
