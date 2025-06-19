@@ -10,7 +10,7 @@ requires-python = "==3.12.*"
 dependencies = [
     "pydantic-settings",
     "pydantic",
-    "turbobt>=0.0.3",
+    "turbobt>=0.0.8",
     "litestar[standard]",
     "cachetools",
     "docker",
@@ -19,7 +19,7 @@ dependencies = [
     "sqlalchemy",
     "aiosqlite",
     "alembic",
-    "tenacity",
+    "tenacity"
 ]
 
 [project.optional-dependencies]
