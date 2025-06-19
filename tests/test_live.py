@@ -10,6 +10,8 @@ from pylon_client import PylonClient
 PYLON_TEST_BASE_URL = "http://localhost"
 PYLON_TEST_PORT = 8000
 
+# TODO: use turbobt simulator
+
 
 @pytest_asyncio.fixture(scope="function")
 async def pylon_client_setup():
@@ -32,6 +34,7 @@ async def pylon_client_setup():
             await client.stop_pylon_service(container)
 
 
+@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
     """
@@ -66,6 +69,7 @@ async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
     )
 
 
+@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_client_weights(pylon_client_setup: PylonClient):
     """
@@ -84,3 +88,21 @@ async def test_client_weights(pylon_client_setup: PylonClient):
     assert get_resp and "weights" in get_resp, "Invalid weights response: {get_resp}"
     weights_dict = get_resp.get("weights")
     assert weights_dict[test_hotkey] == 50.0, f"Expected {test_hotkey} weight to be 50.0"
+
+
+@pytest.mark.skip
+@pytest.mark.asyncio
+async def test_client_hyperparams(pylon_client_setup: PylonClient):
+    """
+    Tests setting, updating, and retrieving hyperparams via the PylonClient.
+    """
+    client = pylon_client_setup
+
+    hyperparams = await client.get_hyperparams()
+    assert hyperparams and hyperparams != {}, "No hyperparams found: {hyperparams}"
+    assert hyperparams.get("tempo") == 360, "Expected tempo to be 360"
+
+    await client.set_hyperparam("tempo", 999)
+    hyperparams = await client.get_hyperparams()
+    assert hyperparams and hyperparams != {}, "No hyperparams found: {hyperparams}"
+    assert hyperparams.get("tempo") == 999, "Expected tempo to be 999"

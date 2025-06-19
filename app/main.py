@@ -13,12 +13,13 @@ from app.api import (
     force_commit_weights,
     get_commitment_endpoint,
     get_commitments_endpoint,
-    hyperparams,
+    get_hyperparams_endpoint,
     latest_block,
     latest_metagraph,
     metagraph,
     raw_weights,
     set_commitment_endpoint,
+    set_hyperparam_endpoint,
     set_weight,
     update_weight,
 )
@@ -71,7 +72,9 @@ def create_app(tasks: list[Callable]) -> Litestar:
             metagraph,
             latest_metagraph,
             epoch_start,
-            hyperparams,
+            # Hyperparams
+            get_hyperparams_endpoint,
+            set_hyperparam_endpoint,
             # Validator weights
             set_weight,
             raw_weights,
