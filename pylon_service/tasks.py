@@ -1,14 +1,14 @@
 import asyncio
 import logging
 
-from app.bittensor_client import (
+from pylon_service.bittensor_client import (
     cache_metagraph,
     commit_weights,
     fetch_last_weight_commit_block,
     get_weights,
 )
-from app.settings import settings
-from app.utils import CommitWindow, get_epoch_containing_block
+from pylon_service.settings import settings
+from pylon_service.utils import CommitWindow, get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
 

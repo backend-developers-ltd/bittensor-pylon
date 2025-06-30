@@ -3,8 +3,8 @@ import logging
 
 from litestar import Request, Response, get, post, put
 
-from app import db
-from app.bittensor_client import (
+from pylon_service import db
+from pylon_service.bittensor_client import (
     commit_weights,
     get_commitment,
     get_commitments,
@@ -13,8 +13,8 @@ from app.bittensor_client import (
     set_commitment,
     set_hyperparam,
 )
-from app.settings import settings
-from app.utils import get_epoch_containing_block
+from pylon_service.settings import settings
+from pylon_service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +284,7 @@ async def get_commitments_endpoint(request: Request) -> Response:
 @safe_endpoint
 async def set_commitment_endpoint(request: Request) -> Response:
     """
-    Set a commitment for the app's wallet on the configured subnet.
+    Set a commitment for the pylon_service's wallet on the configured subnet.
     Body: {"data_hex": "<commitment_hex_string>"}
     """
     data = await request.json()

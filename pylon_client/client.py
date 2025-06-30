@@ -7,7 +7,7 @@ import httpx
 from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.models import Epoch, Metagraph
+from pylon_service.models import Epoch, Metagraph
 
 logger = logging.getLogger(__name__)
 

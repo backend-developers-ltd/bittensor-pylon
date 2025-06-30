@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 import pytest
 from litestar.testing import TestClient
 
-from app.main import create_app
-from app.settings import settings
-from app.utils import get_epoch_containing_block
+from pylon_service.main import create_app
+from pylon_service.settings import settings
+from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
 EPOCH = 1500

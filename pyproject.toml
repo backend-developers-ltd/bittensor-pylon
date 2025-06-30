@@ -50,3 +50,6 @@ ignore = [
 
 [tool.uv]
 # uv-specific settings can go here
+
+[tool.setuptools]
+packages = ["pylon_client", "pylon_service"]

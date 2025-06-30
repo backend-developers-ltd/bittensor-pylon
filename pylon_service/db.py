@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from app.models import Hotkey, Neuron
-from app.settings import settings
+from pylon_service.models import Hotkey, Neuron
+from pylon_service.settings import settings
 
 engine = create_async_engine(settings.pylon_db_uri, echo=True, future=True)
 SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)

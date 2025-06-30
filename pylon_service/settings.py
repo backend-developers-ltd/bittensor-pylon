@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     pylon_docker_image_name: str = "bittensor_pylon"
 
     # db
-    pylon_db_uri: str = "sqlite+aiosqlite:///app/pylon.db"
+    pylon_db_uri: str = "sqlite+aiosqlite:///pylon_service/pylon.db"
     pylon_db_path: str = "./pylon.db"
 
     # subnet epoch length

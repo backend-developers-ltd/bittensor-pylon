@@ -7,8 +7,8 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.db import Base  # Ensure all models are imported for Alembic autogenerate
-from app.settings import settings
+from pylon_service.db import Base  # Ensure all models are imported for Alembic autogenerate
+from pylon_service.settings import settings
 
 # Ensure the project root is in sys.path for correct local module imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))

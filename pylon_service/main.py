@@ -7,7 +7,7 @@ from cachetools import TTLCache
 from litestar import Litestar
 from litestar.openapi.config import OpenAPIConfig
 
-from app.api import (
+from pylon_service.api import (
     block_hash,
     epoch_start,
     force_commit_weights,
@@ -23,10 +23,14 @@ from app.api import (
     set_weight,
     update_weight,
 )
-from app.bittensor_client import create_bittensor_client
-from app.db import init_db
-from app.settings import settings
-from app.tasks import fetch_latest_hyperparams_task, fetch_latest_metagraph_task, set_weights_periodically_task
+from pylon_service.bittensor_client import create_bittensor_client
+from pylon_service.db import init_db
+from pylon_service.settings import settings
+from pylon_service.tasks import (
+    fetch_latest_hyperparams_task,
+    fetch_latest_metagraph_task,
+    set_weights_periodically_task,
+)
 
 logger = logging.getLogger(__name__)
 

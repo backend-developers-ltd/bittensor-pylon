@@ -1,5 +1,6 @@
-from app.models import Epoch
-from app.settings import settings
+from pylon_service.models import Epoch
+
+from .settings import settings
 
 
 def get_epoch_containing_block(

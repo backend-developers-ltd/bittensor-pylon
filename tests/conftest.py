@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
-from app.models import AxonInfo, Metagraph, Neuron
+from pylon_service.models import AxonInfo, Metagraph, Neuron
 
 
 class MockSubnet:
