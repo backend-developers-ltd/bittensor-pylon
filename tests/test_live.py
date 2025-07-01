@@ -4,13 +4,12 @@ import time
 import pytest
 import pytest_asyncio
 
-from app.settings import Settings
-from pylon_client import PylonClient
+from pylon_client.client import PylonClient
 
 PYLON_TEST_BASE_URL = "http://localhost"
 PYLON_TEST_PORT = 8000
 
-# TODO: use turbobt simulator
+# TODO: use turbobt simulator, rename this file, mock envvars settings
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -22,10 +21,7 @@ async def pylon_client_setup():
     container = None
     try:
         async with client as active_client:
-            env_vars = Settings().model_dump()
-            container = await active_client.start_pylon_service(
-                env_vars=env_vars, image_name=env_vars["pylon_docker_image_name"]
-            )
+            container = await active_client.start_pylon_service()
             yield active_client
     except Exception as e:
         pytest.fail(f"Pylon service setup failed: {e}")
@@ -69,40 +65,26 @@ async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
     )
 
 
-@pytest.mark.skip
-@pytest.mark.asyncio
-async def test_client_weights(pylon_client_setup: PylonClient):
-    """
-    Tests setting, updating, and retrieving weights via the PylonClient.
-    """
-    client = pylon_client_setup
-    test_hotkey = "hotkey_101"
-
-    set_resp = await client.set_weight(test_hotkey, 42.0)
-    assert set_resp and set_resp.get("weight") == 42.0, f"Expected {test_hotkey} weight to be set to 42.0"
-
-    update_resp = await client.update_weight(test_hotkey, 8.0)
-    assert update_resp and update_resp.get("weight") == 50.0, f"Expected {test_hotkey} weight to be updated to 50.0"
-
-    get_resp = await client.get_raw_weights()
-    assert get_resp and "weights" in get_resp, "Invalid weights response: {get_resp}"
-    weights_dict = get_resp.get("weights")
-    assert weights_dict[test_hotkey] == 50.0, f"Expected {test_hotkey} weight to be 50.0"
+async def set_and_check_weight(client, hotkey, value):
+    resp = await client.set_weight(hotkey, value)
+    assert resp and resp.get("weight") == value, f"Expected {hotkey} weight to be set to {value}"
 
 
-@pytest.mark.skip
-@pytest.mark.asyncio
-async def test_client_hyperparams(pylon_client_setup: PylonClient):
-    """
-    Tests setting, updating, and retrieving hyperparams via the PylonClient.
-    """
-    client = pylon_client_setup
+async def update_and_check_weight(client, hotkey, value, expected):
+    resp = await client.update_weight(hotkey, value)
+    assert resp and resp.get("weight") == expected, f"expected {hotkey} weight to be updated to {expected}"
 
+
+async def check_raw_weights(client, epoch: int | None, expected_dict):
+    resp = await client.get_raw_weights(epoch)
+    assert resp and "weights" in resp, "Invalid weights response: {resp}"
+    # assert resp.get("epoch") == epoch
+    weights_dict = resp.get("weights")
+    assert weights_dict == expected_dict
+
+
+async def set_and_check_hyperparam(client, param, value):
+    await client.set_hyperparam(param, value)
     hyperparams = await client.get_hyperparams()
     assert hyperparams and hyperparams != {}, "No hyperparams found: {hyperparams}"
-    assert hyperparams.get("tempo") == 360, "Expected tempo to be 360"
-
-    await client.set_hyperparam("tempo", 999)
-    hyperparams = await client.get_hyperparams()
-    assert hyperparams and hyperparams != {}, "No hyperparams found: {hyperparams}"
-    assert hyperparams.get("tempo") == 999, "Expected tempo to be 999"
+    assert hyperparams.get(param) == value, f"Expected {param} to be {value}"

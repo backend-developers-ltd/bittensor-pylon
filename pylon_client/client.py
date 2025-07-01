@@ -8,6 +8,7 @@ from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from pylon_service.models import Epoch, Metagraph
+from pylon_service.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class PylonClient:
         timeout: float = 10.0,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
+        client: AsyncClient | None = None,
     ):
         """Initializes the PylonClient.
 
@@ -49,6 +51,7 @@ class PylonClient:
             timeout: The timeout for requests in seconds.
             max_retries: The maximum number of retries for failed requests.
             backoff_factor: The backoff factor for exponential backoff between retries.
+            client: An optional pre-configured httpx.AsyncClient.
         """
         self.port = port  # keep for docker mapping
         self.base_url = f"{base_url}:{self.port}"
@@ -56,16 +59,18 @@ class PylonClient:
         self._limits = Limits(max_connections=100, max_keepalive_connections=20)
         self._max_retries = max_retries
         self._backoff_factor = backoff_factor
-        self._client: AsyncClient | None = None
+        self._client = client
+        self._should_close_client = client is None
 
         self._managed_container = None
 
     async def __aenter__(self) -> "PylonClient":
-        self._client = AsyncClient(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
+        if self._client is None:
+            self._client = AsyncClient(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._client:
+        if self._client and self._should_close_client:
             await self._client.aclose()
 
     @property
@@ -76,17 +81,16 @@ class PylonClient:
 
     async def start_pylon_service(
         self,
-        env_vars: dict,
-        image_name: str = "bittensor-pylon",
         timeout: float = 10.0,
     ):
+        settings = Settings()
         docker_client = docker.from_env()
         container = docker_client.containers.run(
-            image_name,
+            settings.pylon_docker_image_name,
             detach=True,
             ports={"8000/tcp": self.port},
-            volumes={env_vars["pylon_db_path"]: {"bind": "/app/pylon.db", "mode": "rw"}},
-            environment=env_vars,
+            volumes={settings.pylon_db_path: {"bind": "/app/pylon.db", "mode": "rw"}},
+            environment=settings.model_dump(),
         )
         await asyncio.wait_for(self._wait_for_pylon_service(), timeout=timeout)
         logger.info(f"Pylon container {container.short_id} started.")
