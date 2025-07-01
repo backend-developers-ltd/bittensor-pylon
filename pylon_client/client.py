@@ -10,25 +10,24 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from pylon_service.models import Epoch, Metagraph
 from pylon_service.settings import Settings
 
+from .constants import (
+    ENDPOINT_BLOCK_HASH,
+    ENDPOINT_EPOCH,
+    ENDPOINT_FORCE_COMMIT_WEIGHTS,
+    ENDPOINT_GET_COMMITMENT,
+    ENDPOINT_GET_COMMITMENTS,
+    ENDPOINT_HYPERPARAMS,
+    ENDPOINT_LATEST_BLOCK,
+    ENDPOINT_METAGRAPH,
+    ENDPOINT_RAW_WEIGHTS,
+    ENDPOINT_SET_COMMITMENT,
+    ENDPOINT_SET_HYPERPARAM,
+    ENDPOINT_SET_WEIGHT,
+    ENDPOINT_UPDATE_WEIGHT,
+)
+from .mock import MockHandler
+
 logger = logging.getLogger(__name__)
-
-# API endpoint paths
-ENDPOINT_LATEST_BLOCK = "/latest_block"
-ENDPOINT_METAGRAPH = "/metagraph"
-ENDPOINT_BLOCK_HASH = "/block_hash/{block_number}"
-ENDPOINT_EPOCH = "/epoch"
-
-ENDPOINT_HYPERPARAMS = "/hyperparams"
-ENDPOINT_SET_HYPERPARAM = "/set_hyperparam"
-
-ENDPOINT_UPDATE_WEIGHT = "/update_weight"
-ENDPOINT_SET_WEIGHT = "/set_weight"
-ENDPOINT_RAW_WEIGHTS = "/raw_weights"
-ENDPOINT_FORCE_COMMIT_WEIGHTS = "/force_commit_weights"
-
-ENDPOINT_GET_COMMITMENT = "/get_commitment/{hotkey}"
-ENDPOINT_GET_COMMITMENTS = "/get_commitments"
-ENDPOINT_SET_COMMITMENT = "/set_commitment"
 
 
 class PylonClient:
@@ -42,6 +41,7 @@ class PylonClient:
         max_retries: int = 3,
         backoff_factor: float = 0.5,
         client: AsyncClient | None = None,
+        mock_data_path: str | None = None,
     ):
         """Initializes the PylonClient.
 
@@ -52,8 +52,9 @@ class PylonClient:
             max_retries: The maximum number of retries for failed requests.
             backoff_factor: The backoff factor for exponential backoff between retries.
             client: An optional pre-configured httpx.AsyncClient.
+            mock_data_path: Path to a JSON file with mock data to run the client in mock mode.
         """
-        self.port = port  # keep for docker mapping
+        self.port = port
         self.base_url = f"{base_url}:{self.port}"
         self._timeout = Timeout(timeout)
         self._limits = Limits(max_connections=100, max_keepalive_connections=20)
@@ -61,8 +62,21 @@ class PylonClient:
         self._backoff_factor = backoff_factor
         self._client = client
         self._should_close_client = client is None
-
         self._managed_container = None
+        self.mock = None
+        self.override = None
+
+        if mock_data_path:
+            self._setup_mock_client(mock_data_path)
+
+    def _setup_mock_client(self, mock_data_path: str):
+        """Configures the client to use a mock transport."""
+        mock_handler = MockHandler(mock_data_path, self.base_url)
+        transport = mock_handler.get_transport()
+        self._client = AsyncClient(transport=transport, base_url=self.base_url)
+        self._should_close_client = True
+        self.mock = mock_handler.mock
+        self.override = mock_handler.override
 
     async def __aenter__(self) -> "PylonClient":
         if self._client is None:

@@ -29,6 +29,7 @@ dev = [
     "nox",
     "pytest",
     "pytest-asyncio>=1.0.0",
+    "pytest-httpx",
 ]
 format = [
     "ruff",
@@ -53,3 +54,4 @@ ignore = [
 
 [tool.setuptools]
 packages = ["pylon_client", "pylon_service"]
+

@@ -1,0 +1,67 @@
+{
+  "metagraph": {
+    "block": 12345,
+    "block_hash": "0xabc123",
+    "neurons": {
+      "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": {
+        "uid": 0,
+        "coldkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "active": true,
+        "axon_info": {"ip": "127.0.0.1", "port": 8091, "protocol": 4},
+        "stake": 10000.0,
+        "rank": 0.1,
+        "emission": 0.01,
+        "incentive": 0.1,
+        "consensus": 0.9,
+        "trust": 0.9,
+        "validator_trust": 0.9,
+        "dividends": 0.01,
+        "last_update": 12340,
+        "validator_permit": true,
+        "pruning_score": 0
+      },
+      "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": {
+        "uid": 1,
+        "coldkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        "hotkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        "active": true,
+        "axon_info": {"ip": "127.0.0.1", "port": 8092, "protocol": 4},
+        "stake": 20000.0,
+        "rank": 0.2,
+        "emission": 0.02,
+        "incentive": 0.2,
+        "consensus": 0.8,
+        "trust": 0.8,
+        "validator_trust": 0.8,
+        "dividends": 0.02,
+        "last_update": 12341,
+        "validator_permit": false,
+        "pruning_score": 0
+      }
+    }
+  },
+  "epoch": {"epoch_start": 12000, "epoch_end": 12999},
+  "hyperparams": {
+    "rho": 10,
+    "kappa": 32767,
+    "immunity_period": 7200,
+    "min_allowed_weights": 1,
+    "max_weight_limit": 1000,
+    "tempo": 99,
+    "min_difficulty": 1,
+    "max_difficulty": 1,
+    "weights_version": 2013,
+    "weights_rate_limit": 100,
+    "bonds_moving_avg": 900000,
+    "max_allowed_validators": 128
+  },
+  "weights": {
+    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": 0.5,
+    "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": 0.5
+  },
+  "commitments": {
+    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": "0x1234",
+    "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": "0x5678"
+  }
+}
