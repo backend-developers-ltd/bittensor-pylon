@@ -30,10 +30,13 @@ dev = [
     "pytest",
     "pytest-asyncio>=1.0.0",
     "pytest-httpx",
+    "turbobt>=0.0.8",
 ]
 format = [
     "ruff",
-    "ty"
+    "ty",
+    "pyright",
+    "freezegun"
 ]
 
 [tool.ruff]

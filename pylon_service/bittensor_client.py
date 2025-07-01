@@ -78,7 +78,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     return weights
 
 
-async def commit_weights(app: Litestar, weights: dict[Hotkey, float]):
+async def commit_weights(app: Litestar, weights: dict[int, float]):
     """
     Commits weights to the subnet.
     """
@@ -173,14 +173,10 @@ async def set_hyperparam(app: Litestar, name: str, value: Any, timeout: int = 30
         async with asyncio.timeout(timeout):
             await extrinsic.wait_for_finalization()
 
-        if extrinsic.is_success:
-            logger.info(f"Successfully set hyperparameter '{name}' to '{value}'.")
-            return
-
-        error_message = extrinsic.error_message or "Unknown error"
-        raise Exception(f"Failed to set hyperparameter '{name}': {error_message}")
+        logger.info(f"Successfully set hyperparameter '{name}' to '{value}'.")
+        return
 
     except TimeoutError:
         raise Exception(f"Timed out setting hyperparameter '{name}' after {timeout} seconds.")
     except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+        raise Exception(f"Failed to set hyperparameter '{name}' - an unexpected error occurred: {e}")

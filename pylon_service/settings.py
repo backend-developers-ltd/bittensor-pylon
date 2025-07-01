@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # bittensor
     bittensor_netuid: int
-    bittensor_network: str
+    bittensor_network: str = "finney"
     bittensor_wallet_name: str
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str

@@ -8,7 +8,7 @@ from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from pylon_service.models import Epoch, Metagraph
-from pylon_service.settings import Settings
+from pylon_service.settings import settings
 
 from .constants import (
     ENDPOINT_BLOCK_HASH,
@@ -75,7 +75,7 @@ class PylonClient:
         transport = mock_handler.get_transport()
         self._client = AsyncClient(transport=transport, base_url=self.base_url)
         self._should_close_client = True
-        self.mock = mock_handler.mock
+        self.mock = mock_handler.hooks
         self.override = mock_handler.override
 
     async def __aenter__(self) -> "PylonClient":
@@ -97,7 +97,6 @@ class PylonClient:
         self,
         timeout: float = 10.0,
     ):
-        settings = Settings()
         docker_client = docker.from_env()
         container = docker_client.containers.run(
             settings.pylon_docker_image_name,
@@ -110,7 +109,7 @@ class PylonClient:
         logger.info(f"Pylon container {container.short_id} started.")
         return container
 
-    async def stop_pylon_service(self, container: docker.models.containers.Container):
+    async def stop_pylon_service(self, container: Any):
         container.stop()
         container.remove()
         logger.info("Pylon container stopped and removed.")

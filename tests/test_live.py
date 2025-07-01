@@ -56,8 +56,9 @@ async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
         times.append(elapsed)
 
         for res in results:
-            assert res and res.neurons, f"Invalid metagraph response: {res.__keys__()}"
-            assert len(res.neurons) > 0, f"No neurons in metagraph response: {res.__keys__()}"
+            assert res is not None, "Metagraph response is None"
+            assert res.neurons, f"Invalid metagraph response: {res.model_dump().keys()}"
+            assert len(res.neurons) > 0, f"No neurons in metagraph response: {res.model_dump().keys()}"
 
     # the second round should be faster than the first due to caching
     assert times[1] * 2 < times[0], (

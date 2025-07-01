@@ -24,6 +24,7 @@ def format(session):
     session.run("uv", "pip", "install", ".[format]")
     session.run("ruff", "format", ".")
     session.run("ruff", "check", "--fix", ".")
+    session.run("pyright")
     # session.run("uvx", "ty", "check")
 
 

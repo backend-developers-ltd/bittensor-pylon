@@ -25,7 +25,7 @@ class MockHandler:
         self._overrides: dict[str, Any] = {}
 
         # MagicMocks for call assertions
-        self.mock = SimpleNamespace(
+        self.hooks = SimpleNamespace(
             get_latest_block=MagicMock(),
             get_metagraph=MagicMock(),
             get_hyperparams=MagicMock(),
@@ -36,7 +36,7 @@ class MockHandler:
 
     def override(self, endpoint_name: str, json_response: dict[str, Any], status_code: int = 200):
         """Overrides the default mock response for a specific endpoint."""
-        if not hasattr(self.mock, endpoint_name):
+        if not hasattr(self.hooks, endpoint_name):
             raise AttributeError(f"MockHandler has no endpoint named '{endpoint_name}'")
         self._overrides[endpoint_name] = {"json": json_response, "status_code": status_code}
 
@@ -61,34 +61,34 @@ class MockHandler:
 
     # --- Mock Callbacks ---
     def _latest_block_callback(self, request: httpx.Request) -> httpx.Response:
-        self.mock.get_latest_block()
+        self.hooks.get_latest_block()
         if "get_latest_block" in self._overrides:
             override = self._overrides["get_latest_block"]
             return httpx.Response(override["status_code"], json=override["json"])
         return httpx.Response(200, json={"block": self.mock_data["metagraph"]["block"]})
 
     def _metagraph_callback(self, request: httpx.Request) -> httpx.Response:
-        self.mock.get_metagraph()
+        self.hooks.get_metagraph()
         if "get_metagraph" in self._overrides:
             override = self._overrides["get_metagraph"]
             return httpx.Response(override["status_code"], json=override["json"])
         return httpx.Response(200, json=self.mock_data["metagraph"])
 
     def _hyperparams_callback(self, request: httpx.Request) -> httpx.Response:
-        self.mock.get_hyperparams()
+        self.hooks.get_hyperparams()
         if "get_hyperparams" in self._overrides:
             override = self._overrides["get_hyperparams"]
             return httpx.Response(override["status_code"], json=override["json"])
         return httpx.Response(200, json=self.mock_data["hyperparams"])
 
     def _set_weight_callback(self, request: httpx.Request) -> httpx.Response:
-        self.mock.set_weight()
+        self.hooks.set_weight()
         return httpx.Response(200, json={"detail": "Weight set successfully"})
 
     def _update_weight_callback(self, request: httpx.Request) -> httpx.Response:
-        self.mock.update_weight()
+        self.hooks.update_weight()
         return httpx.Response(200, json={"detail": "Weight updated successfully"})
 
     def _set_commitment_callback(self, request: httpx.Request) -> httpx.Response:
-        self.mock.set_commitment()
+        self.hooks.set_commitment()
         return httpx.Response(200, json={"detail": "Commitment set successfully"})

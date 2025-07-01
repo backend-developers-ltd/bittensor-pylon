@@ -52,7 +52,7 @@ def get_mock_neuron(uid: int = 0):
         hotkey=f"mock_hotkey_{uid}",
         coldkey=f"mock_coldkey_{uid}",
         active=True,
-        axon_info=AxonInfo(ip="127.0.0.1", port=8080, protocol=1).model_dump(),
+        axon_info=AxonInfo(ip="127.0.0.1", port=8080, protocol=1),
         stake=1.0,
         rank=0.5,
         trust=0.5,

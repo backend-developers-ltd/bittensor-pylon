@@ -17,7 +17,8 @@ if project_root not in sys.path:
 
 
 config = context.config
-fileConfig(config.config_file_name)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 target_metadata = Base.metadata
 
 
