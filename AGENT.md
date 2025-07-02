@@ -1,11 +1,8 @@
-# Bittensor Pylon
+# Bittensor Pylon Agent Instructions
 
-**Bittensor Pylon** is a high-performance, asynchronous proxy for a Bittensor subnet. It acts as a robust bridge between external applications and the Bittensor blockchain.
+## Guidelines:
 
-This repository contains two main packages:
-
--   **`pylon_service`**: The core REST API service. This is the main application that runs as a server, connects to the Bittensor network, caches data, and exposes the API endpoints.
--   **`pylon_client`**: A lightweight client library. This package provides a convenient Python interface for interacting with the `pylon_service` API, allowing other applications to easily consume its data.
+Use nox to run the test suite `nox -s test` and format the codebase `nox -s format` after any changes and ensure that both of these commands pass.
 
 
 ## Architecture
@@ -57,69 +54,6 @@ These tasks are managed by the application lifecycle events in `pylon_service/ma
 -   **Configuration**: `pydantic-settings`
 -   **Caching**: `cachetools`
 -   **Containerization**: Docker
-
-
-## Development
-
-### Setup
-
-Clone the repository and install the dependencies:
-
-```bash
-uv pip install -e .[dev]
-```
-
-### Running the Application
-
-Locally:
-
-```bash
-uvicorn pylon_service.main:app --host 0.0.0.0 --port 8000
-```
-
-With Docker:
-
-```bash
-PYLON_DOCKER_IMAGE_NAME="bittensor_pylon" PYLON_DB_PATH="data/pylon.db" ./docker-run.sh
-```
-
-### Testing
-
-Run the test suite using Nox:
-
-```bash
-nox -s test
-```
-
-To format the codebase, run:
-
-```bash
-nox -s format
-```
-
-
-### Configuration
-
-Create a `.env` file from the example and add your configuration:
-
-```bash
-cp .env.example .env
-# Edit .env with your wallet and network details
-```
-
-### Database Migrations
-
-Before running the application for the first time, apply the database migrations.
-
-If you've changed the database models in `pylon_service/db.py`, generate a new migration script:
-```bash
-nox -s generate-migration -- "Your migration message"
-```
-
-Then, apply the migrations to the database:
-```bash
-alembic upgrade head
-```
 
 
 ## turbobt Features
