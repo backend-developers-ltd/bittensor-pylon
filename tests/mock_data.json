@@ -3,10 +3,10 @@
     "block": 12345,
     "block_hash": "0xabc123",
     "neurons": {
-      "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": {
+      "hotkey1": {
         "uid": 0,
-        "coldkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        "hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "coldkey": "coldkey1",
+        "hotkey": "hotkey1",
         "active": true,
         "axon_info": {"ip": "127.0.0.1", "port": 8091, "protocol": 4},
         "stake": 10000.0,
@@ -21,10 +21,10 @@
         "validator_permit": true,
         "pruning_score": 0
       },
-      "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": {
+      "hotkey2": {
         "uid": 1,
-        "coldkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
-        "hotkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+        "coldkey": "coldkey2",
+        "hotkey": "hotkey2",
         "active": true,
         "axon_info": {"ip": "127.0.0.1", "port": 8092, "protocol": 4},
         "stake": 20000.0,
@@ -57,11 +57,11 @@
     "max_allowed_validators": 128
   },
   "weights": {
-    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": 0.5,
-    "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": 0.5
+    "hotkey1": 0.5,
+    "hotkey2": 0.5
   },
   "commitments": {
-    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": "0x1234",
-    "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": "0x5678"
+    "hotkey1": "0x1234",
+    "hotkey2": "0x5678"
   }
 }

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any
+from typing import Any, cast
 
 import docker
 import httpx
@@ -72,7 +72,7 @@ class PylonClient:
     def _setup_mock_client(self, mock_data_path: str):
         """Configures the client to use a mock transport."""
         mock_handler = MockHandler(mock_data_path, self.base_url)
-        transport = mock_handler.get_transport()
+        transport = httpx.ASGITransport(app=cast(Any, mock_handler.mock_app))
         self._client = AsyncClient(transport=transport, base_url=self.base_url)
         self._should_close_client = True
         self.mock = mock_handler.hooks
