@@ -114,5 +114,5 @@ alembic upgrade head
 
 ---
 
-For more information on the architecture and API endpoints please see [AGENT.md](AGENT.md).
+For more information on the architecture and API endpoints please see [ARCHITECTURE.md](ARCHITECTURE.md).
 

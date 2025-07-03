@@ -1,11 +1,5 @@
-# Bittensor Pylon Agent Instructions
+# Bittensor Pylon Architecture
 
-## Guidelines:
-
-Use nox to run the test suite `nox -s test` and format the codebase `nox -s format` after any changes and ensure that both of these commands pass.
-
-
-## Architecture
 
 The application is designed with a clear separation of concerns, organized into the following core components:
 
