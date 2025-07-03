@@ -14,6 +14,7 @@ from pylon_service.api import (
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
+    health_check,
     latest_block,
     latest_metagraph,
     metagraph,
@@ -70,6 +71,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
     """Creates a Litestar app with a specific set of background tasks."""
     return Litestar(
         route_handlers=[
+            health_check,
             # Bittensor state
             latest_block,
             block_hash,

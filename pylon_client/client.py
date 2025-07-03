@@ -1,14 +1,11 @@
-import asyncio
 import logging
 from typing import Any, cast
 
-import docker
 import httpx
 from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from pylon_service.models import Epoch, Metagraph
-from pylon_service.settings import settings
 
 from .constants import (
     ENDPOINT_BLOCK_HASH,
@@ -62,7 +59,6 @@ class PylonClient:
         self._backoff_factor = backoff_factor
         self._client = client
         self._should_close_client = client is None
-        self._managed_container = None
         self.mock = None
         self.override = None
 
@@ -92,40 +88,6 @@ class PylonClient:
         if self._client is None:
             raise RuntimeError("Client has not been initialized. Use 'async with PylonClient() as client:' syntax.")
         return self._client
-
-    async def start_pylon_service(
-        self,
-        timeout: float = 10.0,
-    ):
-        docker_client = docker.from_env()
-        container = docker_client.containers.run(
-            settings.pylon_docker_image_name,
-            detach=True,
-            ports={"8000/tcp": self.port},
-            volumes={settings.pylon_db_path: {"bind": "/app/pylon.db", "mode": "rw"}},
-            environment=settings.model_dump(),
-        )
-        await asyncio.wait_for(self._wait_for_pylon_service(), timeout=timeout)
-        logger.info(f"Pylon container {container.short_id} started.")
-        return container
-
-    async def stop_pylon_service(self, container: Any):
-        container.stop()
-        container.remove()
-        logger.info("Pylon container stopped and removed.")
-
-    async def _wait_for_pylon_service(self):
-        await asyncio.sleep(1)
-        while not await self._check_pylon_service():
-            await asyncio.sleep(1)
-
-    async def _check_pylon_service(self):
-        try:
-            await self.get_latest_block()
-        except Exception as e:
-            logger.error(f"Pylon service check failed: {e}")
-            return False
-        return True
 
     @retry(
         stop=stop_after_attempt(3),
