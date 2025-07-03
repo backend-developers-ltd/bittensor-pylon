@@ -1,10 +1,9 @@
 import asyncio
+import subprocess
 import datetime
 import logging
 from typing import Any
 
-from alembic import command as alembic_command
-from alembic.config import Config as AlembicConfig
 from sqlalchemy import DateTime, Float, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.future import select
@@ -34,15 +33,27 @@ class Weight(Base):
         DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
     )
 
+async def run_alembic_upgrade():
+    # Create a coroutine that runs the alembic command
+    process = await asyncio.create_subprocess_exec(
+        "alembic", "upgrade", "head", 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+
+    if process.returncode != 0:
+        raise RuntimeError(f"Alembic upgrade failed: {stderr.decode()}")
+
+    return stdout.decode()
+
 
 # For easy import in main
 async def init_db():
     logger.info("Applying database migrations...")
     try:
-        alembic_cfg = AlembicConfig("alembic.ini")
-        # alembic_cfg.set_main_option("sqlalchemy.url", settings.pylon_db_uri)
-        logger.info(f"Running Alembic upgrade head ... {alembic_cfg.get_main_option('sqlalchemy.url')}, {settings}")
-        await asyncio.to_thread(alembic_command.upgrade, alembic_cfg, "head")
+        logger.info(f"Running Alembic upgrade head...")
+        await run_alembic_upgrade()
         logger.info("Database migrations applied successfully.")
     except Exception as e:
         logger.error(f"Error applying database migrations: {e}", exc_info=True)

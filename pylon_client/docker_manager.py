@@ -35,7 +35,7 @@ class PylonDockerManager:
                 settings.pylon_docker_image_name,
                 detach=True,
                 ports={"8000/tcp": self.client.port},
-                volumes={os.path.abspath(settings.pylon_db_path): {"bind": "/app/pylon.db", "mode": "rw"}},
+                volumes={settings.pylon_db_dir: {"bind": "/app/db/", "mode": "rw"}},
                 environment=settings.model_dump(),
             )
             await self._wait_for_service()

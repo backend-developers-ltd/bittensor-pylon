@@ -8,13 +8,13 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from pylon_service.db import Base  # Ensure all models are imported for Alembic autogenerate
-from pylon_service.settings import settings
-
 # Ensure the project root is in sys.path for correct local module imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+from pylon_service.db import Base  # Ensure all models are imported for Alembic autogenerate
+from pylon_service.settings import settings
 
 # Setup logging for this script
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

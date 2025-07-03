@@ -32,7 +32,7 @@ uvicorn pylon_service.main:app --host 0.0.0.0 --port 8000
 
 or with Docker:
 ```bash
-PYLON_DOCKER_IMAGE_NAME="bittensor_pylon" PYLON_DB_PATH="data/pylon.db" ./docker-run.sh
+PYLON_DOCKER_IMAGE_NAME="bittensor_pylon" PYLON_DB_DIR="data/" ./docker-run.sh
 ```
 
 ### Using the Pylon Client
