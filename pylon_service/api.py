@@ -56,11 +56,12 @@ def safe_endpoint(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
+            logger.info(f"Endpoint '{func.__name__}' hit.")
             return await func(*args, **kwargs)
         except Exception as e:
             error_message = f"Error in endpoint {func.__name__}: {e}"
             logger.error(error_message, exc_info=True)
-            return Response(status_code=500, content=error_message)
+            return Response(status_code=500, content={"detail": error_message})
 
     return wrapper
 
@@ -79,6 +80,12 @@ def get_current_epoch(request: Request):
     if epoch is None:
         raise RuntimeError("Current epoch not available. Try again later.")
     return epoch
+
+
+@get("/health")
+async def health_check() -> Response:
+    """A simple health check endpoint."""
+    return Response(status_code=200, content={"status": "ok"})
 
 
 @get("/latest_block")

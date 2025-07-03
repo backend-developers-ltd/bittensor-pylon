@@ -5,39 +5,27 @@ import pytest
 import pytest_asyncio
 
 from pylon_client.client import PylonClient
+from pylon_client.docker_manager import PylonDockerManager
 
-PYLON_TEST_BASE_URL = "http://localhost"
-PYLON_TEST_PORT = 8000
-
-# TODO: use turbobt simulator, rename this file, mock envvars settings
+PYLON_TEST_PORT = 8001
 
 
-@pytest_asyncio.fixture(scope="function")
-async def pylon_client_setup():
+@pytest_asyncio.fixture
+async def client():
     """
     Pytest fixture to initialize PylonClient and manage the Pylon Docker service.
     """
-    client = PylonClient(base_url=PYLON_TEST_BASE_URL, port=PYLON_TEST_PORT, timeout=30.0)
-    container = None
-    try:
-        async with client as active_client:
-            container = await active_client.start_pylon_service()
-            yield active_client
-    except Exception as e:
-        pytest.fail(f"Pylon service setup failed: {e}")
-    finally:
-        if container:
-            await client.stop_pylon_service(container)
+    client = PylonClient(port=PYLON_TEST_PORT)
+    manager = PylonDockerManager(client=client)
+    async with client, manager:
+        yield client
 
 
-@pytest.mark.skip
 @pytest.mark.asyncio
-async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
+async def test_client_metagraph_caching(client: PylonClient):
     """
     Test metagraph caching by comparing querying time for multiple metagraph fetches not in cache vs cached metagraph fetches.
     """
-    client = pylon_client_setup
-
     # get block for reference
     latest_block_resp = await client.get_latest_block()
     assert latest_block_resp and "block" in latest_block_resp, "Could not get latest block"
@@ -64,28 +52,3 @@ async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
     assert times[1] * 2 < times[0], (
         f"Cache speed-up assertion failed: {times[1]:.2f}s not significantly faster than {times[0]:.2f}s"
     )
-
-
-async def set_and_check_weight(client, hotkey, value):
-    resp = await client.set_weight(hotkey, value)
-    assert resp and resp.get("weight") == value, f"Expected {hotkey} weight to be set to {value}"
-
-
-async def update_and_check_weight(client, hotkey, value, expected):
-    resp = await client.update_weight(hotkey, value)
-    assert resp and resp.get("weight") == expected, f"expected {hotkey} weight to be updated to {expected}"
-
-
-async def check_raw_weights(client, epoch: int | None, expected_dict):
-    resp = await client.get_raw_weights(epoch)
-    assert resp and "weights" in resp, "Invalid weights response: {resp}"
-    # assert resp.get("epoch") == epoch
-    weights_dict = resp.get("weights")
-    assert weights_dict == expected_dict
-
-
-async def set_and_check_hyperparam(client, param, value):
-    await client.set_hyperparam(param, value)
-    hyperparams = await client.get_hyperparams()
-    assert hyperparams and hyperparams != {}, "No hyperparams found: {hyperparams}"
-    assert hyperparams.get(param) == value, f"Expected {param} to be {value}"

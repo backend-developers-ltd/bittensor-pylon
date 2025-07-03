@@ -37,11 +37,15 @@ class Weight(Base):
 
 # For easy import in main
 async def init_db():
+    logger.info("Applying database migrations...")
     try:
         alembic_cfg = AlembicConfig("alembic.ini")
+        # alembic_cfg.set_main_option("sqlalchemy.url", settings.pylon_db_uri)
+        logger.info(f"Running Alembic upgrade head ... {alembic_cfg.get_main_option('sqlalchemy.url')}, {settings}")
         await asyncio.to_thread(alembic_command.upgrade, alembic_cfg, "head")
+        logger.info("Database migrations applied successfully.")
     except Exception as e:
-        logger.error(f"Error applying database migrations: {e}")
+        logger.error(f"Error applying database migrations: {e}", exc_info=True)
         raise
 
 

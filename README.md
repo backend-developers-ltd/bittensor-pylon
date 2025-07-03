@@ -43,15 +43,14 @@ Below is a brief example of how to use the client:
 ```python
 import asyncio
 from pylon_client.client import PylonClient
+from pylon_client.docker_manager import PylonDockerManager
 
 async def main():
-    async with PylonClient(base_url="localhost", port=8000) as client:
-        container = await client.start_pylon_service()
-
-        latest_block = await client.get_latest_block()
-        print(f"The latest block is: {latest_block}")
-
-        await client.stop_pylon_service(container)
+    async with PylonClient(port=port) as client:
+        # start the Pylon service docker container manually or use the PylonDockerManager
+        async with PylonDockerManager(client=client):
+            latest_block = await client.get_latest_block()
+            print(f"The latest block is: {latest_block}")
 
 if __name__ == "__main__":
     asyncio.run(main())
