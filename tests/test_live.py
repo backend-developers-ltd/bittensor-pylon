@@ -5,39 +5,28 @@ import pytest
 import pytest_asyncio
 
 from pylon_client.client import PylonClient
+from pylon_client.docker_manager import PylonDockerManager
 
-PYLON_TEST_BASE_URL = "http://localhost"
-PYLON_TEST_PORT = 8000
-
-# TODO: use turbobt simulator, rename this file, mock envvars settings
+PYLON_TEST_PORT = 8001
 
 
-@pytest_asyncio.fixture(scope="function")
-async def pylon_client_setup():
+@pytest_asyncio.fixture
+async def client():
     """
     Pytest fixture to initialize PylonClient and manage the Pylon Docker service.
     """
-    client = PylonClient(base_url=PYLON_TEST_BASE_URL, port=PYLON_TEST_PORT, timeout=30.0)
-    container = None
-    try:
-        async with client as active_client:
-            container = await active_client.start_pylon_service()
-            yield active_client
-    except Exception as e:
-        pytest.fail(f"Pylon service setup failed: {e}")
-    finally:
-        if container:
-            await client.stop_pylon_service(container)
+    client = PylonClient(port=PYLON_TEST_PORT)
+    manager = PylonDockerManager(client=client)
+    async with client, manager:
+        yield client
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 @pytest.mark.asyncio
-async def test_client_metagraph_caching(pylon_client_setup: PylonClient):
+async def test_client_metagraph_caching(client: PylonClient):
     """
     Test metagraph caching by comparing querying time for multiple metagraph fetches not in cache vs cached metagraph fetches.
     """
-    client = pylon_client_setup
-
     # get block for reference
     latest_block_resp = await client.get_latest_block()
     assert latest_block_resp and "block" in latest_block_resp, "Could not get latest block"

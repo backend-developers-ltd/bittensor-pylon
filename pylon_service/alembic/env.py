@@ -7,14 +7,14 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from pylon_service.db import Base  # Ensure all models are imported for Alembic autogenerate
-from pylon_service.settings import settings
-
 # Ensure the project root is in sys.path for correct local module imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Ensure all models are imported for Alembic autogenerate
+from pylon_service.db import Base  # noqa: E402
+from pylon_service.settings import settings  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:
@@ -29,9 +29,7 @@ def run_migrations_online():
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            compare_type=True,  # autogenerate
-            # include_schemas=True,  # multiple schemas
-            # version_table_schema=target_metadata.schema, # if alembic_version table is in a schema
+            compare_type=True,
         )
 
         with context.begin_transaction():

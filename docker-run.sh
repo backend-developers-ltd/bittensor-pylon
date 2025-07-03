@@ -5,6 +5,6 @@ docker build -t "$PYLON_DOCKER_IMAGE_NAME" .
 
 docker run --rm \
   --env-file .env \
-  -v "$(pwd)/$PYLON_DB_PATH:/app/$(basename "$PYLON_DB_PATH")" \
+  -v "$PYLON_DB_DIR:/app/db/" \
   -p "$DOCKER_HOST_PORT:8000" \
-  $PYLON_DOCKER_IMAGE_NAME
+  "$@" $PYLON_DOCKER_IMAGE_NAME
