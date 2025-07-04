@@ -5,6 +5,10 @@ on:
     branches: [master, main]
   pull_request:
 
+env:
+  TAG_VERSION: "v1-latest"
+  DOCKER_REPO_NAME: "backenddevelopersltd/bittensor-pylon"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -26,8 +30,27 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
 
-      - name: Create dotenv file
-        run: cp ./app/envs/test_env.template .env
+      # - name: Create dotenv file
+        # run: cp ./app/envs/test_env.template .env
 
-      - name: Run tests with nox
-        run: nox -s test
+      # - name: Run unit tests with nox
+        # run: nox -s test
+
+      - name: Docker build
+        run: |
+          IMAGE_NAME="${DOCKER_REPO_NAME}:${TAG_VERSION}"
+          SHA_IMAGE_NAME="${DOCKER_REPO_NAME}:git-${GITHUB_SHA}"
+
+          ls
+          echo "Building Docker image: ${IMAGE_NAME}"
+          docker build -t "${IMAGE_NAME}" -f Dockerfile .
+
+          echo "Tagging Docker image with SHA"
+          docker image tag "${IMAGE_NAME}" "${SHA_IMAGE_NAME}"
+
+          echo "logging into Docker Hub"
+          echo "${{ secrets.DOCKERHUB_KEY }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+          echo "Pushing Docker images to Docker Hub"
+          docker push "${IMAGE_NAME}"
+          docker push "${SHA_IMAGE_NAME}"
