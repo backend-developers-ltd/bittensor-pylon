@@ -2,10 +2,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 from litestar.testing import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.main import create_app
-from app.settings import settings
-from app.utils import get_epoch_containing_block
+from pylon_service import db
+from pylon_service.main import create_app
+from pylon_service.settings import settings
+from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
 EPOCH = 1500
@@ -13,6 +15,18 @@ EPOCH = 1500
 
 @pytest.fixture
 def client(monkeypatch):
+    # TODO: simplify this db mocking
+    test_db_uri = "sqlite+aiosqlite:////tmp/test_pylon.db"
+
+    monkeypatch.setattr(settings, "pylon_db_uri", test_db_uri)
+    monkeypatch.setenv("PYLON_DB_URI", test_db_uri)
+
+    new_engine = create_async_engine(test_db_uri, echo=False, future=True)
+    new_session_local = async_sessionmaker(bind=new_engine, class_=AsyncSession, expire_on_commit=False)
+
+    monkeypatch.setattr(db, "engine", new_engine)
+    monkeypatch.setattr(db, "SessionLocal", new_session_local)
+
     monkeypatch.setattr(settings, "am_i_a_validator", True)
     test_app = create_app(tasks=[])
     with TestClient(test_app) as test_client:

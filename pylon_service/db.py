@@ -1,42 +1,54 @@
 import asyncio
 import datetime
 import logging
+import subprocess
+from typing import Any
 
-from alembic import command as alembic_command
-from alembic.config import Config as AlembicConfig
-from sqlalchemy import Column, DateTime, Float, Integer, String
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.future import select
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.models import Hotkey, Neuron
-from app.settings import settings
+from pylon_service.models import Hotkey, Neuron
+from pylon_service.settings import settings
 
-DB_PATH = settings.bittensor_pylon_db
+engine = create_async_engine(settings.pylon_db_uri, echo=True, future=True)
+SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
-engine = create_async_engine(DB_PATH, echo=True, future=True)
-SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
 
 logger = logging.getLogger(__name__)
 
 
 class Weight(Base):
     __tablename__ = "weights"
-    id = Column(Integer, primary_key=True, index=True)
-    hotkey = Column(String, index=True, nullable=False)
-    epoch = Column(Integer, index=True, nullable=False)
-    weight = Column(Float, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    hotkey: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    epoch: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_at: Mapped[Any] = mapped_column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
 
 
 # For easy import in main
 async def init_db():
     try:
-        alembic_cfg = AlembicConfig("alembic.ini")
-        await asyncio.to_thread(alembic_command.upgrade, alembic_cfg, "head")
+        logger.info("Applying database migrations...")
+        process = await asyncio.create_subprocess_exec(
+            "alembic", "upgrade", "head", stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        _, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            raise RuntimeError(f"Alembic upgrade failed: {stderr.decode()}")
+
+        logger.info("Database migrations applied successfully.")
     except Exception as e:
-        logger.error(f"Error applying database migrations: {e}")
+        logger.error(f"Error applying database migrations: {e}", exc_info=True)
         raise
 
 
@@ -99,5 +111,5 @@ async def get_neurons_weights(neurons: list[Neuron], epoch: int) -> dict[int, fl
             select(Weight.hotkey, Weight.weight).where((Weight.hotkey.in_(hotkeys)) & (Weight.epoch == epoch))
         )
 
-        weights_by_hotkey = dict(result.all())
+        weights_by_hotkey = {row.hotkey: row.weight for row in result.all()}
         return {neuron.uid: weights_by_hotkey.get(neuron.hotkey, 0.0) for neuron in neurons}

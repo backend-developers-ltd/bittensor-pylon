@@ -1,15 +1,16 @@
 import asyncio
 import logging
 from dataclasses import asdict
+from typing import Any
 
 from bittensor_wallet import Wallet
 from litestar.app import Litestar
 from turbobt.block import Block
 from turbobt.client import Bittensor
 
-from app.db import get_neurons_weights
-from app.models import Hotkey, Metagraph, Neuron
-from app.settings import Settings, settings
+from pylon_service.db import get_neurons_weights
+from pylon_service.models import Hotkey, Metagraph, Neuron
+from pylon_service.settings import Settings, settings
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     return weights
 
 
-async def commit_weights(app: Litestar, weights: dict[Hotkey, float]):
+async def commit_weights(app: Litestar, weights: dict[int, float]):
     """
     Commits weights to the subnet.
     """
@@ -144,3 +145,38 @@ async def set_commitment(app: Litestar, data: bytes, timeout: int = 30):
     print(f"extrinsic: {extrinsic}")
     async with asyncio.timeout(timeout):
         await extrinsic.wait_for_finalization()
+
+
+async def set_hyperparam(app: Litestar, name: str, value: Any, timeout: int = 30):
+    """
+    Sets a hyperparameter on the subnet by dispatching to the correct sudo function.
+    """
+    netuid = settings.bittensor_netuid
+    bt_client: Bittensor = app.state.bittensor_client
+    wallet = get_bt_wallet(settings)
+
+    try:
+        extrinsic = None
+        if name == "tempo":
+            extrinsic = await bt_client.subtensor.admin_utils.sudo_set_tempo(netuid, int(value), wallet)
+        elif name == "weights_set_rate_limit":
+            extrinsic = await bt_client.subtensor.admin_utils.sudo_set_weights_set_rate_limit(
+                netuid, int(value), wallet
+            )
+        elif name == "commit_reveal_weights_enabled":
+            extrinsic = await bt_client.subtensor.admin_utils.sudo_set_commit_reveal_weights_enabled(
+                netuid, bool(value), wallet
+            )
+        else:
+            raise Exception(f"Hyperparameter '{name}' is not supported for modification.")
+
+        async with asyncio.timeout(timeout):
+            await extrinsic.wait_for_finalization()
+
+        logger.info(f"Successfully set hyperparameter '{name}' to '{value}'.")
+        return
+
+    except TimeoutError:
+        raise Exception(f"Timed out setting hyperparameter '{name}' after {timeout} seconds.")
+    except Exception as e:
+        raise Exception(f"Failed to set hyperparameter '{name}' - an unexpected error occurred: {e}")

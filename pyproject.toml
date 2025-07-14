@@ -10,14 +10,16 @@ requires-python = "==3.12.*"
 dependencies = [
     "pydantic-settings",
     "pydantic",
-    "turbobt>=0.0.3",
+    "turbobt>=0.0.8",
     "litestar[standard]",
     "cachetools",
+    "docker",
     "requests",
     "bittensor_wallet",
     "sqlalchemy",
     "aiosqlite",
-    "alembic"
+    "alembic",
+    "tenacity"
 ]
 
 [project.optional-dependencies]
@@ -27,10 +29,14 @@ dev = [
     "nox",
     "pytest",
     "pytest-asyncio>=1.0.0",
+    "pytest-httpx",
+    "turbobt>=0.0.8",
 ]
 format = [
     "ruff",
-    "ty"
+    "ty",
+    "pyright",
+    "freezegun"
 ]
 
 [tool.ruff]
@@ -48,3 +54,7 @@ ignore = [
 
 [tool.uv]
 # uv-specific settings can go here
+
+[tool.setuptools]
+packages = ["pylon_client", "pylon_service"]
+

@@ -1,5 +1,6 @@
+from ipaddress import IPv4Address
+
 from pydantic import BaseModel
-from turbobt.neuron import AxonInfo
 
 type Hotkey = str
 
@@ -7,6 +8,12 @@ type Hotkey = str
 class Epoch(BaseModel):
     epoch_start: int
     epoch_end: int
+
+
+class AxonInfo(BaseModel):
+    ip: IPv4Address
+    port: int
+    protocol: int
 
 
 class Neuron(BaseModel):
@@ -26,12 +33,6 @@ class Neuron(BaseModel):
     last_update: int
     validator_permit: bool
     pruning_score: int
-
-
-class AxonInfo(BaseModel):
-    ip: str
-    port: int
-    protocol: int
 
 
 class Metagraph(BaseModel):

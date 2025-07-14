@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git curl build-essential pkg-config libssl-dev
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
-ENV PATH="/root/.cargo/bin:${PATH}"
+ENV PATH="/root/.cargo/bin:/app/.venv/bin:${PATH}"
 
 # dependency files first
 COPY pyproject.toml uv.lock alembic.ini ./
@@ -17,10 +17,11 @@ COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
 RUN /bin/uv sync
 
 # the rest of the application code
-COPY app ./app
+COPY pylon_service ./pylon_service
 
 # database mounting
-VOLUME ["/app/bittensor_pylon.sqlite3"]
+VOLUME ["/app/db"]
 
 EXPOSE 8000
-CMD [".venv/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD [".venv/bin/python", "-m", "uvicorn", "pylon_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+

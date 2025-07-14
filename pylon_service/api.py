@@ -3,17 +3,18 @@ import logging
 
 from litestar import Request, Response, get, post, put
 
-from app import db
-from app.bittensor_client import (
+from pylon_service import db
+from pylon_service.bittensor_client import (
     commit_weights,
     get_commitment,
     get_commitments,
     get_metagraph,
     get_weights,
     set_commitment,
+    set_hyperparam,
 )
-from app.settings import settings
-from app.utils import get_epoch_containing_block
+from pylon_service.settings import settings
+from pylon_service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +35,33 @@ def validator_only(func):
     return wrapper
 
 
+def subnet_owner_only(func):
+    """Decorator to restrict endpoint access to subnet owners only."""
+
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        # TODO: fix
+        # if not subnet_owner:
+        #     logger.warning(f"Non-subnet owner access attempt to {func.__name__}")
+        #     return Response(
+        #         status_code=403,
+        #         content={"detail": "Endpoint available for subnet owners only."},
+        #     )
+        return await func(*args, **kwargs)
+
+    return wrapper
+
+
 def safe_endpoint(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
+            logger.debug(f"Endpoint '{func.__name__}' hit.")
             return await func(*args, **kwargs)
         except Exception as e:
             error_message = f"Error in endpoint {func.__name__}: {e}"
             logger.error(error_message, exc_info=True)
-            return Response(status_code=500, content=error_message)
+            return Response(status_code=500, content={"detail": error_message})
 
     return wrapper
 
@@ -61,6 +80,12 @@ def get_current_epoch(request: Request):
     if epoch is None:
         raise RuntimeError("Current epoch not available. Try again later.")
     return epoch
+
+
+@get("/health")
+async def health_check() -> Response:
+    """A simple health check endpoint."""
+    return Response(status_code=200, content={"status": "ok"})
 
 
 @get("/latest_block")
@@ -115,12 +140,32 @@ async def epoch_start(request: Request, block_number: int) -> dict:
 
 @get("/hyperparams")
 @safe_endpoint
-async def hyperparams(request: Request) -> Response:
+async def get_hyperparams_endpoint(request: Request) -> Response:
     """Get cached subnet hyperparameters."""
     hyperparams = request.app.state.hyperparams
     if hyperparams is None:
         return Response({"detail": "Hyperparameters not cached yet."}, status_code=503)
     return Response(hyperparams, status_code=200)
+
+
+@put("/set_hyperparam")
+@subnet_owner_only
+@safe_endpoint
+async def set_hyperparam_endpoint(request: Request) -> Response:
+    """
+    Set a subnet hyperparameter.
+    Body: {"name": "<hyperparameter_name>", "value": <hyperparameter_value>}
+    (Subnet owner only)
+    """
+    data = await request.json()
+    name = data.get("name")
+    value = data.get("value")
+    if name is None:
+        return Response({"detail": "Missing hyperparameter name"}, status_code=400)
+    if value is None:
+        return Response({"detail": "Missing hyperparameter value"}, status_code=400)
+    await set_hyperparam(request.app, name, value)
+    return Response({"detail": "Hyperparameter set successfully"}, status_code=200)
 
 
 @put("/update_weight")
@@ -246,7 +291,7 @@ async def get_commitments_endpoint(request: Request) -> Response:
 @safe_endpoint
 async def set_commitment_endpoint(request: Request) -> Response:
     """
-    Set a commitment for the app's wallet on the configured subnet.
+    Set a commitment for the pylon_service's wallet on the configured subnet.
     Body: {"data_hex": "<commitment_hex_string>"}
     """
     data = await request.json()

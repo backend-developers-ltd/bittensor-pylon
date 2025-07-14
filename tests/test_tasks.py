@@ -5,9 +5,9 @@ import pytest
 from freezegun import freeze_time
 from litestar import Litestar
 
-from app.settings import settings as app_settings
-from app.tasks import set_weights_periodically_task
-from app.utils import get_epoch_containing_block
+from pylon_service.settings import settings as app_settings
+from pylon_service.tasks import set_weights_periodically_task
+from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
 # Default settings for tests, can be overridden by monkeypatch
@@ -47,9 +47,9 @@ def update_app_state(app, block):
 
 
 @pytest.mark.asyncio
-@patch("app.tasks.commit_weights", new_callable=AsyncMock)
-@patch("app.tasks.get_weights", new_callable=AsyncMock)
-@patch("app.tasks.fetch_last_weight_commit_block", new_callable=AsyncMock)
+@patch("pylon_service.tasks.commit_weights", new_callable=AsyncMock)
+@patch("pylon_service.tasks.get_weights", new_callable=AsyncMock)
+@patch("pylon_service.tasks.fetch_last_weight_commit_block", new_callable=AsyncMock)
 async def test_set_weights_commit_flow(
     mock_fetch_last_commit,
     mock_get_weights,

@@ -1,0 +1,67 @@
+{
+  "metagraph": {
+    "block": 12345,
+    "block_hash": "0xabc123",
+    "neurons": {
+      "hotkey1": {
+        "uid": 0,
+        "coldkey": "coldkey1",
+        "hotkey": "hotkey1",
+        "active": true,
+        "axon_info": {"ip": "127.0.0.1", "port": 8091, "protocol": 4},
+        "stake": 10000.0,
+        "rank": 0.1,
+        "emission": 0.01,
+        "incentive": 0.1,
+        "consensus": 0.9,
+        "trust": 0.9,
+        "validator_trust": 0.9,
+        "dividends": 0.01,
+        "last_update": 12340,
+        "validator_permit": true,
+        "pruning_score": 0
+      },
+      "hotkey2": {
+        "uid": 1,
+        "coldkey": "coldkey2",
+        "hotkey": "hotkey2",
+        "active": true,
+        "axon_info": {"ip": "127.0.0.1", "port": 8092, "protocol": 4},
+        "stake": 20000.0,
+        "rank": 0.2,
+        "emission": 0.02,
+        "incentive": 0.2,
+        "consensus": 0.8,
+        "trust": 0.8,
+        "validator_trust": 0.8,
+        "dividends": 0.02,
+        "last_update": 12341,
+        "validator_permit": false,
+        "pruning_score": 0
+      }
+    }
+  },
+  "epoch": {"epoch_start": 12000, "epoch_end": 12999},
+  "hyperparams": {
+    "rho": 10,
+    "kappa": 32767,
+    "immunity_period": 7200,
+    "min_allowed_weights": 1,
+    "max_weight_limit": 1000,
+    "tempo": 99,
+    "min_difficulty": 1,
+    "max_difficulty": 1,
+    "weights_version": 2013,
+    "weights_rate_limit": 100,
+    "bonds_moving_avg": 900000,
+    "max_allowed_validators": 128
+  },
+  "weights": {
+    "hotkey1": 0.5,
+    "hotkey2": 0.5
+  },
+  "commitments": {
+    "hotkey1": "0x1234",
+    "hotkey2": "0x5678"
+  }
+}
