@@ -54,10 +54,13 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
         task = asyncio.create_task(task_func(app, app.state._stop_event))
         app.state._background_tasks.append(task)
 
-    # Log all registered routes
     logger.debug("Registered routes:")
     for route in app.routes:
         logger.debug(f"{route.path} -> {getattr(route, 'handler', None)}")
+
+    logger.info("Env vars:")
+    for key, value in settings.dict().items():
+        logger.info(f"{key} = {value}")
 
 
 async def on_shutdown(app: Litestar) -> None:

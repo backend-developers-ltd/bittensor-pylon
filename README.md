@@ -7,40 +7,37 @@
 - **REST API Service** (`pylon_service`): High-performance server that connects to Bittensor, caches subnet data, and exposes REST endpoints
 - **Python Client Library** (`pylon_client`): Simple async client for consuming the API with built-in retry logic and mock support
 
+Full API documentation is available at `/schema/swagger` when the service is running.
+
+
 ## Quick Start
-
-### Using Docker (Recommended)
-
-1. **Pull and run the service:**
-   ```bash
-   docker pull backenddevelopersltd/bittensor-pylon:v1-latest
-   docker run --rm \
-     --env-file .env \
-     -v "$(pwd)/data:/app/db/" \
-     -p 8000:8000 \
-     backenddevelopersltd/bittensor-pylon:v1-latest
-   ```
-
-2. **Access the API:**
-   - API endpoints: `http://localhost:8000`
-   - API documentation: `http://localhost:8000/schema/swagger`
 
 ### Configuration
 
 Create a `.env` file with your Bittensor settings:
 
 ```bash
-# Copy the template
+# Copy the template and edit it
 cp pylon_service/envs/test_env.template .env
-
-# Edit with your settings
-BITTENSOR_NETUID=12
-BITTENSOR_NETWORK=finney
-BITTENSOR_WALLET_NAME=your-wallet-name
-BITTENSOR_WALLET_HOTKEY_NAME=your-hotkey-name
-BITTENSOR_WALLET_PATH=~/.bittensor/wallets/your-wallet-name/
-AM_I_A_VALIDATOR=True
 ```
+
+### Run the service
+
+Using official docker image:
+
+```bash
+docker pull backenddevelopersltd/bittensor-pylon:v1-latest
+docker run --rm --env-file .env -v "$(pwd)/data:/app/db/" -p 8000:8000 backenddevelopersltd/bittensor-pylon:v1-latest
+```
+
+or building and running locally:
+```bash
+./docker-run.sh
+```
+
+Test the endpoints at `http://localhost:8000/schema/swagger`
+
+
 
 ## Using the Python Client
 
@@ -117,55 +114,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## API Endpoints
-
-Key endpoints available:
-
-- `GET /latest_block` - Get the latest processed block number
-- `GET /metagraph` - Get metagraph data for latest or specific block
-- `GET /hyperparams` - Get cached subnet hyperparameters
-- `GET /epoch` - Get current epoch information
-- `POST /set_weight` - Set validator weights (validators only)
-- `POST /update_weight` - Update validator weights by delta (validators only)
-- `POST /force_commit_weights` - Force commit weights to subnet (validators only)
-
-Full API documentation is available at `/schema/swagger` when the service is running.
-
 ## Development
-
-### Local Development Setup
-
-1. **Clone and install:**
-   ```bash
-   git clone https://github.com/backend-developers-ltd/bittensor-pylon.git
-   cd bittensor-pylon
-   uv pip install -e .[dev]
-   ```
-
-2. **Configure environment:**
-   ```bash
-   cp pylon_service/envs/test_env.template .env
-   # Edit .env with your Bittensor settings
-   ```
-
-3. **Set up database:**
-   ```bash
-   alembic upgrade head
-   ```
-
-4. **Run locally:**
-   ```bash
-   uvicorn pylon_service.main:app --host 0.0.0.0 --port 8000
-   ```
-
-### Development with Docker
-
-Build and run locally:
-```bash
-PYLON_DOCKER_IMAGE_NAME="bittensor_pylon" PYLON_DB_DIR="data/" ./docker-run.sh
-```
-
-### Testing and Code Quality
 
 Run tests:
 ```bash
@@ -178,14 +127,12 @@ Format and lint code:
 nox -s format                  # Format code with ruff and run type checking
 ```
 
-### Database Migrations
-
 Generate new migrations after model changes:
 ```bash
 nox -s generate-migration -- "Your migration message"
 ```
 
-Apply migrations:
+Apply database migrations:
 ```bash
 alembic upgrade head
 ```
