@@ -118,22 +118,22 @@ def test_set_weights__missing_params(client):
     # Missing hotkey
     resp = client.put("/set_weight", json={"weight": 1.0})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing hotkey")
+    assert "Validation failed" in resp.json().get("detail", "")
     # Missing weight
     resp = client.put("/set_weight", json={"hotkey": "foo"})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing weight")
+    assert "Validation failed" in resp.json().get("detail", "")
 
 
 def test_update_weight__missing_params(client):
     # Missing hotkey
     resp = client.put("/update_weight", json={"weight_delta": 1.0})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing hotkey")
+    assert "Validation failed" in resp.json().get("detail", "")
     # Missing weight_delta
     resp = client.put("/update_weight", json={"hotkey": "foo"})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing weight_delta")
+    assert "Validation failed" in resp.json().get("detail", "")
 
 
 def test_validator_endpoints_forbidden(client, monkeypatch):
@@ -188,7 +188,7 @@ async def test_set_commitment(client):
 
     resp = client.post("/set_commitment", json={})
     assert resp.status_code == 400
-    assert "Missing 'data_hex'" in resp.json()["detail"]
+    assert "Validation failed" in resp.json()["detail"]
 
     resp = client.post("/set_commitment", json={"data_hex": "333"})
     assert resp.status_code == 400

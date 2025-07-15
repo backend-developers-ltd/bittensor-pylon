@@ -5,6 +5,26 @@ from pydantic import BaseModel
 type Hotkey = str
 
 
+# Request models for API endpoints
+class SetHyperparamRequest(BaseModel):
+    name: str
+    value: float | int | str | bool
+
+
+class UpdateWeightRequest(BaseModel):
+    hotkey: str
+    weight_delta: float
+
+
+class SetWeightRequest(BaseModel):
+    hotkey: str
+    weight: float
+
+
+class SetCommitmentRequest(BaseModel):
+    data_hex: str
+
+
 class Epoch(BaseModel):
     epoch_start: int
     epoch_end: int

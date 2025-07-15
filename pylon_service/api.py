@@ -13,6 +13,12 @@ from pylon_service.bittensor_client import (
     set_commitment,
     set_hyperparam,
 )
+from pylon_service.models import (
+    SetCommitmentRequest,
+    SetHyperparamRequest,
+    SetWeightRequest,
+    UpdateWeightRequest,
+)
 from pylon_service.settings import settings
 from pylon_service.utils import get_epoch_containing_block
 
@@ -151,65 +157,39 @@ async def get_hyperparams_endpoint(request: Request) -> Response:
 @put("/set_hyperparam")
 @subnet_owner_only
 @safe_endpoint
-async def set_hyperparam_endpoint(request: Request) -> Response:
+async def set_hyperparam_endpoint(request: Request, data: SetHyperparamRequest) -> Response:
     """
     Set a subnet hyperparameter.
-    Body: {"name": "<hyperparameter_name>", "value": <hyperparameter_value>}
     (Subnet owner only)
     """
-    data = await request.json()
-    name = data.get("name")
-    value = data.get("value")
-    if name is None:
-        return Response({"detail": "Missing hyperparameter name"}, status_code=400)
-    if value is None:
-        return Response({"detail": "Missing hyperparameter value"}, status_code=400)
-    await set_hyperparam(request.app, name, value)
+    await set_hyperparam(request.app, data.name, data.value)
     return Response({"detail": "Hyperparameter set successfully"}, status_code=200)
 
 
 @put("/update_weight")
 @validator_only
 @safe_endpoint
-async def update_weight(request: Request) -> Response:
+async def update_weight(request: Request, data: UpdateWeightRequest) -> Response:
     """
     Update a hotkey's weight by a delta for the current epoch.
-    Body: {"hotkey": "<ss58_hotkey>", "weight_delta": <float>}
     (Validator only)
     """
-    data = await request.json()
-    hotkey = data.get("hotkey")
-    delta = data.get("weight_delta")
-    if hotkey is None:
-        return Response({"detail": "Missing hotkey"}, status_code=400)
-    if delta is None:
-        return Response({"detail": "Missing weight_delta"}, status_code=400)
-
     epoch = get_current_epoch(request)
-    weight = await db.update_weight(hotkey, delta, epoch)
-    return Response({"hotkey": hotkey, "weight": weight, "epoch": epoch}, status_code=200)
+    weight = await db.update_weight(data.hotkey, data.weight_delta, epoch)
+    return Response({"hotkey": data.hotkey, "weight": weight, "epoch": epoch}, status_code=200)
 
 
 @put("/set_weight")
 @validator_only
 @safe_endpoint
-async def set_weight(request: Request) -> Response:
+async def set_weight(request: Request, data: SetWeightRequest) -> Response:
     """
     Set a hotkey's weight for the current epoch.
-    Body: {"hotkey": "<ss58_hotkey>", "weight": <float>}
     (Validator only)
     """
-    data = await request.json()
-    hotkey = data.get("hotkey")
-    weight = data.get("weight")
-    if hotkey is None:
-        return Response({"detail": "Missing hotkey"}, status_code=400)
-    if weight is None:
-        return Response({"detail": "Missing weight"}, status_code=400)
-
     epoch = get_current_epoch(request)
-    await db.set_weight(hotkey, weight, epoch)
-    return Response({"hotkey": hotkey, "weight": weight, "epoch": epoch}, status_code=200)
+    await db.set_weight(data.hotkey, data.weight, epoch)
+    return Response({"hotkey": data.hotkey, "weight": data.weight, "epoch": epoch}, status_code=200)
 
 
 # TODO: refactor to epochs_ago ?
@@ -289,18 +269,13 @@ async def get_commitments_endpoint(request: Request) -> Response:
 
 @post("/set_commitment")
 @safe_endpoint
-async def set_commitment_endpoint(request: Request) -> Response:
+async def set_commitment_endpoint(request: Request, data: SetCommitmentRequest) -> Response:
     """
     Set a commitment for the pylon_service's wallet on the configured subnet.
-    Body: {"data_hex": "<commitment_hex_string>"}
     """
-    data = await request.json()
-    data_hex = data.get("data_hex")
-    if not data_hex:
-        return Response({"detail": "Missing 'data_hex' in request body"}, status_code=400)
     try:
-        data = bytes.fromhex(data_hex)
+        commitment_data = bytes.fromhex(data.data_hex)
     except ValueError:
         return Response({"detail": "Invalid 'data_hex' in request body"}, status_code=400)
-    await set_commitment(request.app, data)
+    await set_commitment(request.app, commitment_data)
     return Response({"detail": "Commitment successfully set"}, status_code=200)
