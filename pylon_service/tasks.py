@@ -100,13 +100,22 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
 async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
     stop_task = asyncio.create_task(stop_event.wait())
     while not stop_event.is_set():
+        # try fetch latest block from turbobt
+        new_block = None
         try:
             new_block = await app.state.bittensor_client.head.get()
-            if app.state.latest_block is None or new_block.number != app.state.latest_block:
+        except Exception as e:
+            logger.error(f"Error fetching latest block: {e}", exc_info=True)
+            await asyncio.wait([stop_task], timeout=settings.fetch_latest_metagraph_task_interval_seconds)
+            continue
+
+        if app.state.latest_block is None or new_block.number != app.state.latest_block:
+            try:
                 await cache_metagraph(app, new_block)
                 app.state.latest_block = new_block.number
                 app.state.current_epoch_start = get_epoch_containing_block(new_block.number).epoch_start
                 logger.info(f"Cached latest metagraph for block {new_block.number}")
-        except Exception as e:
-            logger.error(f"Error fetching latest metagraph: {e}", exc_info=True)
+            except Exception as e:
+                logger.error(f"Error caching metagraph for block {new_block.number}: {e}", exc_info=True)
+
         await asyncio.wait([stop_task], timeout=settings.fetch_latest_metagraph_task_interval_seconds)
