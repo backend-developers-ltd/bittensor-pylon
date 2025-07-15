@@ -24,7 +24,6 @@ async def client(monkeypatch):
         yield client
 
 
-@pytest.mark.skip  # TODO: fix in CI
 @pytest.mark.asyncio
 async def test_client_metagraph_caching(client: PylonClient):
     """
@@ -58,7 +57,6 @@ async def test_client_metagraph_caching(client: PylonClient):
     )
 
 
-@pytest.mark.skip  # TODO: fix in CI
 @pytest.mark.asyncio
 async def test_weights_endpoints(client: PylonClient):
     """

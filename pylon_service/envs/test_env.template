@@ -6,6 +6,9 @@ BITTENSOR_WALLET_PATH=~/.bittensor/wallets/validator-test/
 
 AM_I_A_VALIDATOR=True
 
+# Docker configuration
+PYLON_DOCKER_IMAGE_NAME=bittensor_pylon
+
 COMMIT_CYCLE_LENGTH=3
 COMMIT_WINDOW_START_OFFSET=180
 COMMIT_WINDOW_END_BUFFER=10
