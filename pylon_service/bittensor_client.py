@@ -92,20 +92,21 @@ async def commit_weights(app: Litestar, weights: dict[int, float]):
         raise
 
 
-# TODO: replace with CRV3WeightsCommitted ? as last_update might not be reliable
+# TODO: fix last_update fetching or replace with CRV3WeightsCommitted ?
 async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
     """
     Fetches the block number of the last successful weight commitment
     """
-    hotkey = settings.bittensor_wallet_hotkey_name
-    metagraph = await get_metagraph(app, app.state.latest_block)
-    neuron = metagraph.get_neuron(hotkey)
-
-    if neuron is None:
-        logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
-        return None
-
-    return neuron.last_update
+    return 0
+    # hotkey = settings.bittensor_wallet_hotkey_name
+    # metagraph = await get_metagraph(app, app.state.latest_block)
+    # neuron = metagraph.get_neuron(hotkey)
+    #
+    # if neuron is None:
+    #     logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
+    #     return None
+    #
+    # return neuron.last_update
 
 
 async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None) -> str | None:
