@@ -11,18 +11,19 @@ from litestar.status_codes import HTTP_404_NOT_FOUND
 
 from .constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_COMMITMENT,
+    ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
     ENDPOINT_FORCE_COMMIT_WEIGHTS,
-    ENDPOINT_GET_COMMITMENT,
-    ENDPOINT_GET_COMMITMENTS,
-    ENDPOINT_GET_WEIGHTS,
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
+    ENDPOINT_LATEST_METAGRAPH,
     ENDPOINT_METAGRAPH,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_UPDATE_WEIGHT,
+    ENDPOINT_WEIGHTS,
 )
 
 
@@ -90,7 +91,7 @@ class MockHandler:
                 return response
             return Response({"block": self.mock_data["metagraph"]["block"]})
 
-        @get([ENDPOINT_METAGRAPH, f"{ENDPOINT_METAGRAPH}/{{block_number:int}}"])
+        @get([ENDPOINT_LATEST_METAGRAPH, ENDPOINT_METAGRAPH])
         async def get_metagraph(block_number: int | None = None) -> Response:
             self.hooks.get_metagraph(block_number=block_number)
             if response := self._get_override_response("get_metagraph"):
@@ -139,7 +140,7 @@ class MockHandler:
                 return response
             return Response({"detail": "Weight set successfully"})
 
-        @get(ENDPOINT_GET_WEIGHTS)
+        @get(ENDPOINT_WEIGHTS)
         async def get_weights(request: Request) -> Response:
             epoch_str = request.query_params.get("epoch")
             epoch = int(epoch_str) if epoch_str else None
@@ -158,7 +159,7 @@ class MockHandler:
                 return response
             return Response({"detail": "Weights committed successfully"})
 
-        @get(ENDPOINT_GET_COMMITMENT.format(hotkey="{hotkey:str}"))
+        @get(ENDPOINT_COMMITMENT.format(hotkey="{hotkey:str}"))
         async def get_commitment(hotkey: str, request: Request) -> Response:
             block_str = request.query_params.get("block")
             block = int(block_str) if block_str else None
@@ -170,7 +171,7 @@ class MockHandler:
                 return Response({"hotkey": hotkey, "commitment": commitment})
             raise NotFoundException(detail="Commitment not found")
 
-        @get(ENDPOINT_GET_COMMITMENTS)
+        @get(ENDPOINT_COMMITMENTS)
         async def get_commitments(request: Request) -> Response:
             block_str = request.query_params.get("block")
             block = int(block_str) if block_str else None

@@ -38,7 +38,7 @@ def client(monkeypatch):
 
 
 def test_latest_metagraph__success(client):
-    resp = client.get("/metagraph")
+    resp = client.get("/latest_metagraph")
     assert resp.status_code == 200
     data = resp.json()
     assert data["block"] == EPOCH
@@ -48,7 +48,7 @@ def test_latest_metagraph__success(client):
 
 def test_latest_metagraph__no_block(client):
     client.app.state.latest_block = None
-    resp = client.get("/metagraph")
+    resp = client.get("/latest_metagraph")
     assert resp.status_code == 500
 
 
@@ -97,13 +97,13 @@ def test_weights__set_update_requests(client):
     assert resp.json()["weight"] == initial_weight + delta
 
     # Check raw weights
-    resp = client.get("/get_weights")
+    resp = client.get("/weights")
     assert resp.status_code == 200
     weights = resp.json()["weights"]
     assert weights[hotkey] == initial_weight + delta
 
     # Query with missing epoch should not find it
-    resp = client.get("/get_weights?epoch=2110")
+    resp = client.get("/weights?epoch=2110")
     assert resp.status_code == 404
 
     # Test force commit
@@ -160,19 +160,19 @@ async def test_get_commitment(client):
 
     mock_get_commitment.return_value = b"0x1234"
     hotkey = "hotkey"
-    resp = client.get(f"/get_commitment/{hotkey}")
+    resp = client.get(f"/commitment/{hotkey}")
     assert resp.status_code == 200
     data = resp.json()
     assert data["hotkey"] == hotkey
     assert data["commitment"] is not None
 
     mock_get_commitment.return_value = None
-    resp = client.get("/get_commitment/hotkey_not_found")
+    resp = client.get("/commitment/hotkey_not_found")
     assert resp.status_code == 404
     assert "not found" in resp.json()["detail"]
 
     mock_fetch_commitments.return_value = {"hotkey": b"0x1234"}
-    resp = client.get("/get_commitments")
+    resp = client.get("/commitments")
     assert resp.status_code == 200
     assert resp.json().keys() is not None
 

@@ -68,7 +68,8 @@ The service exposes several endpoints to interact with the subnet:
 
 ### Core Bittensor Data
 - `/latest_block`: Get the latest processed block number
-- `/metagraph`: Get the metagraph for the latest block or a specific block
+- `/latest_metagraph`: Get the metagraph for the latest block
+- `/metagraph/{block_number}`: Get the metagraph for a specific block number
 - `/block_hash/{block_number}`: Get the block hash for a specific block number
 - `/epoch`: Get information about the current or a specific epoch
 - `/hyperparams`: Get cached subnet hyperparameters
@@ -76,12 +77,12 @@ The service exposes several endpoints to interact with the subnet:
 ### Weight Management (Off-chain in DB)
 - `/update_weight`: Update a hotkey's weight by a delta
 - `/set_weight`: Set a hotkey's weight
-- `/get_weights`: Get weights for a given epoch
+- `/weights`: Get weights for a given epoch
 - `/force_commit_weights`: Force a commit of the current DB weights to the subnet
 
 ### Commitment Operations
-- `/get_commitment/{hotkey}`: Get a specific commitment for a hotkey
-- `/get_commitments`: Get all commitments for the subnet
+- `/commitment/{hotkey}`: Get a specific commitment for a hotkey
+- `/commitments`: Get all commitments for the subnet
 - `/set_commitment`: Set a commitment for the app's wallet
 
 ### Subnet Configuration
@@ -102,7 +103,7 @@ The service exposes several endpoints to interact with the subnet:
 - **Weight Operations**: Functionalities for on-chain weight setting and commitments
 - **Asynchronous Design**: All network and blockchain operations within `turbobt` are inherently asynchronous, crucial for performance
 
-Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/get_weights` API endpoints for performance reasons.
+Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/weights` API endpoints for performance reasons.
 
 ## Configuration
 

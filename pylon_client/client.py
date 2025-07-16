@@ -9,18 +9,18 @@ from pylon_service.models import Epoch, Metagraph
 
 from .constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_COMMITMENT,
+    ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
     ENDPOINT_FORCE_COMMIT_WEIGHTS,
-    ENDPOINT_GET_COMMITMENT,
-    ENDPOINT_GET_COMMITMENTS,
-    ENDPOINT_GET_WEIGHTS,
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
-    ENDPOINT_METAGRAPH,
+    ENDPOINT_LATEST_METAGRAPH,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_UPDATE_WEIGHT,
+    ENDPOINT_WEIGHTS,
 )
 from .mock import MockHandler
 
@@ -111,7 +111,7 @@ class PylonClient:
         return await self._request("get", ENDPOINT_LATEST_BLOCK)
 
     async def get_metagraph(self, block_number: int | None = None) -> Metagraph | None:
-        endpoint = f"{ENDPOINT_METAGRAPH}/{block_number}" if block_number else ENDPOINT_METAGRAPH
+        endpoint = f"/metagraph/{block_number}" if block_number else ENDPOINT_LATEST_METAGRAPH
         data = await self._request("get", endpoint)
         return Metagraph(**data) if data else None
 
@@ -137,18 +137,18 @@ class PylonClient:
 
     async def get_weights(self, epoch: int | None = None) -> dict | None:
         params = {"epoch": epoch} if epoch else {}
-        return await self._request("get", ENDPOINT_GET_WEIGHTS, params=params)
+        return await self._request("get", ENDPOINT_WEIGHTS, params=params)
 
     async def force_commit_weights(self) -> dict | None:
         return await self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)
 
     async def get_commitment(self, hotkey: str, block: int | None = None) -> dict | None:
         params = {"block": block} if block else {}
-        return await self._request("get", ENDPOINT_GET_COMMITMENT.format(hotkey=hotkey), params=params)
+        return await self._request("get", ENDPOINT_COMMITMENT.format(hotkey=hotkey), params=params)
 
     async def get_commitments(self, block: int | None = None) -> dict | None:
         params = {"block": block} if block else {}
-        return await self._request("get", ENDPOINT_GET_COMMITMENTS, params=params)
+        return await self._request("get", ENDPOINT_COMMITMENTS, params=params)
 
     async def set_commitment(self, data_hex: str) -> dict | None:
         return await self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})

@@ -102,7 +102,7 @@ async def latest_block(request: Request) -> dict:
     return {"block": block}
 
 
-@get("/metagraph")
+@get("/latest_metagraph")
 @safe_endpoint
 async def latest_metagraph(request: Request) -> dict:
     """Get the metagraph for the latest block from cache."""
@@ -193,7 +193,7 @@ async def set_weight_endpoint(request: Request, data: SetWeightRequest) -> Respo
 
 
 # TODO: refactor to epochs_ago ?
-@get("/get_weights")
+@get("/weights")
 @safe_endpoint
 async def get_weights_endpoint(request: Request) -> Response:
     """
@@ -238,7 +238,7 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
 # TODO: wip, to update, to be register endpoints
 
 
-@get("/get_commitment/{hotkey:str}")
+@get("/commitment/{hotkey:str}")
 @safe_endpoint
 async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     """
@@ -254,7 +254,7 @@ async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     return Response({"hotkey": hotkey, "commitment": commitment}, status_code=200)
 
 
-@get("/get_commitments")
+@get("/commitments")
 @safe_endpoint
 async def get_commitments_endpoint(request: Request) -> Response:
     """
