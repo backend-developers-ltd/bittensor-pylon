@@ -14,10 +14,9 @@ EPOCH = 1500
 
 
 @pytest.fixture
-def client(monkeypatch):
-    # TODO: simplify this db mocking
-    test_db_uri = "sqlite+aiosqlite:////tmp/test_pylon.db"
-
+def client(monkeypatch, temp_db_config):
+    # mock db uri for local unit tests
+    test_db_uri = temp_db_config["db_uri"]
     monkeypatch.setattr(settings, "pylon_db_uri", test_db_uri)
     monkeypatch.setenv("PYLON_DB_URI", test_db_uri)
 

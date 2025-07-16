@@ -12,11 +12,13 @@ PYLON_TEST_PORT = 8001
 
 
 @pytest_asyncio.fixture
-async def client(monkeypatch):
+async def client(monkeypatch, temp_db_config):
     """
     Pytest fixture to initialize PylonClient and manage the Pylon Docker service
-    with validator mode enabled.
+    with validator mode enabled and temporary database configuration.
     """
+    # mock db dir for docker based tests
+    monkeypatch.setattr(settings, "pylon_db_dir", temp_db_config["db_dir"])
     monkeypatch.setattr(settings, "am_i_a_validator", True)
     client = PylonClient(port=PYLON_TEST_PORT)
     manager = PylonDockerManager(client=client)
