@@ -91,8 +91,8 @@ async def update_and_check_weight(client, hotkey, value, expected):
     assert resp and resp.get("weight") == expected, f"expected {hotkey} weight to be updated to {expected}"
 
 
-async def check_weights(client, epoch: int | None, expected_dict):
-    resp = await client.get_weights(epoch)
+async def check_weights(client, block: int | None, expected_dict):
+    resp = await client.get_weights(block)
     assert resp and "weights" in resp, "Invalid weights response: {resp}"
     # assert resp.get("epoch") == epoch
     weights_dict = resp.get("weights")

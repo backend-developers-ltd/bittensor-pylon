@@ -52,7 +52,7 @@ def test_latest_metagraph__no_block(client):
     assert resp.status_code == 500
 
 
-def test_metagraph__block_number_success(client):
+def test_metagraph__block_success(client):
     resp = client.get(f"/metagraph/{EPOCH}")
     assert resp.status_code == 200
     data = resp.json()
@@ -97,13 +97,13 @@ def test_weights__set_update_requests(client):
     assert resp.json()["weight"] == initial_weight + delta
 
     # Check raw weights
-    resp = client.get("/weights")
+    resp = client.get("/latest_weights")
     assert resp.status_code == 200
     weights = resp.json()["weights"]
     assert weights[hotkey] == initial_weight + delta
 
-    # Query with missing epoch should not find it
-    resp = client.get("/weights?epoch=2110")
+    # Query with missing block should not find it
+    resp = client.get("/weights/2110")
     assert resp.status_code == 404
 
     # Test force commit

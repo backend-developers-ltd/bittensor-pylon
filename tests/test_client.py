@@ -1,29 +1,19 @@
 import json
-from enum import Enum
 
 import pytest
 from httpx import HTTPStatusError
 
 from pylon_client.client import PylonClient
+from pylon_service.constants import (
+    ENDPOINT_COMMITMENT,
+    ENDPOINT_HYPERPARAMS,
+    ENDPOINT_LATEST_BLOCK,
+    ENDPOINT_SET_WEIGHT,
+    endpoint_name,
+)
 
 MOCK_DATA_PATH = "./tests/mock_data.json"
 MOCK_DATA = json.load(open(MOCK_DATA_PATH))
-
-
-class Endpoint(str, Enum):
-    GET_LATEST_BLOCK = "get_latest_block"
-    GET_METAGRAPH = "get_metagraph"
-    GET_BLOCK_HASH = "get_block_hash"
-    GET_EPOCH = "get_epoch"
-    GET_HYPERPARAMS = "get_hyperparams"
-    SET_HYPERPARAM = "set_hyperparam"
-    UPDATE_WEIGHT = "update_weight"
-    SET_WEIGHT = "set_weight"
-    GET_WEIGHTS = "get_weights"
-    FORCE_COMMIT_WEIGHTS = "force_commit_weights"
-    GET_COMMITMENT = "get_commitment"
-    GET_COMMITMENTS = "get_commitments"
-    SET_COMMITMENT = "set_commitment"
 
 
 @pytest.fixture
@@ -41,7 +31,7 @@ async def test_pylon_client_get_latest_block(mock_pylon_client: PylonClient):
         response = await client.get_latest_block()
         assert response is not None
         assert response["block"] == MOCK_DATA["metagraph"]["block"]
-    client.mock.get_latest_block.assert_called_once()  # type: ignore
+    client.mock.latest_block.assert_called_once()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -52,18 +42,18 @@ async def test_pylon_client_get_metagraph(mock_pylon_client: PylonClient):
         assert response is not None
         assert response.block == MOCK_DATA["metagraph"]["block"]
         assert len(response.neurons) == len(MOCK_DATA["metagraph"]["neurons"])
-    client.mock.get_metagraph.assert_called_with(block_number=None)  # type: ignore
+    client.mock.latest_metagraph.assert_called_with()  # type: ignore
 
 
 @pytest.mark.asyncio
 async def test_pylon_client_get_block_hash(mock_pylon_client: PylonClient):
     """Tests that the PylonClient can correctly get a block hash."""
     async with mock_pylon_client as client:
-        block_number = MOCK_DATA["metagraph"]["block"]
-        response = await client.get_block_hash(block_number)
+        block = MOCK_DATA["metagraph"]["block"]
+        response = await client.get_block_hash(block)
         assert response is not None
         assert response["block_hash"] == MOCK_DATA["metagraph"]["block_hash"]
-    client.mock.get_block_hash.assert_called_with(block_number=block_number)  # type: ignore
+    client.mock.block_hash.assert_called_with(block=block)  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -74,7 +64,7 @@ async def test_pylon_client_get_epoch(mock_pylon_client: PylonClient):
         assert response is not None
         assert response.epoch_start == MOCK_DATA["epoch"]["epoch_start"]
         assert response.epoch_end == MOCK_DATA["epoch"]["epoch_end"]
-    client.mock.get_epoch.assert_called_with(block_number=None)  # type: ignore
+    client.mock.epoch.assert_called_with(block=None)  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -84,7 +74,7 @@ async def test_pylon_client_get_hyperparams(mock_pylon_client: PylonClient):
         response = await client.get_hyperparams()
         assert response is not None
         assert response == MOCK_DATA["hyperparams"]
-    client.mock.get_hyperparams.assert_called_once()  # type: ignore
+    client.mock.hyperparams.assert_called_once()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -103,8 +93,8 @@ async def test_pylon_client_get_weights(mock_pylon_client: PylonClient):
     async with mock_pylon_client as client:
         response = await client.get_weights()
         assert response is not None
-        assert response == MOCK_DATA["weights"]
-    client.mock.get_weights.assert_called_with(epoch=None)  # type: ignore
+        assert response == {"epoch": 1440, "weights": MOCK_DATA["weights"]}
+    client.mock.weights.assert_called_with(block=None)  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -126,7 +116,7 @@ async def test_pylon_client_get_commitment(mock_pylon_client: PylonClient):
         assert response is not None
         expected = MOCK_DATA["commitments"][hotkey]
         assert response == {"commitment": expected, "hotkey": hotkey}
-    client.mock.get_commitment.assert_called_with(hotkey=hotkey, block=None)  # type: ignore
+    client.mock.commitment.assert_called_with(hotkey=hotkey, block=None)  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -136,31 +126,31 @@ async def test_pylon_client_get_commitments(mock_pylon_client: PylonClient):
         response = await client.get_commitments()
         assert response is not None
         assert response == MOCK_DATA["commitments"]
-    client.mock.get_commitments.assert_called_with(block=None)  # type: ignore
+    client.mock.commitments.assert_called_with(block=None)  # type: ignore
 
 
 @pytest.mark.asyncio
 async def test_pylon_client_override_response(mock_pylon_client: PylonClient):
     """Tests that a default mock response can be overridden for a specific test."""
-    new_block_number = 99999
-    mock_pylon_client.override(Endpoint.GET_LATEST_BLOCK, {"block": new_block_number})  # type: ignore
+    new_block = 99999
+    mock_pylon_client.override(endpoint_name(ENDPOINT_LATEST_BLOCK), {"block": new_block})  # type: ignore
     async with mock_pylon_client as client:
         response = await client.get_latest_block()
         assert response is not None
-        assert response["block"] == new_block_number
-    client.mock.get_latest_block.assert_called_once()  # type: ignore
+        assert response["block"] == new_block
+    client.mock.latest_block.assert_called_once()  # type: ignore
 
 
 @pytest.mark.asyncio
 async def test_pylon_client_handles_error(mock_pylon_client: PylonClient):
     """Tests that the PylonClient correctly handles an error response from the server."""
     mock_pylon_client.override(  # type: ignore
-        Endpoint.GET_LATEST_BLOCK, {"detail": "Internal Server Error"}, status_code=500
+        endpoint_name(ENDPOINT_LATEST_BLOCK), {"detail": "Internal Server Error"}, status_code=500
     )
     async with mock_pylon_client as client:
         with pytest.raises(HTTPStatusError):
             await client.get_latest_block()
-    client.mock.get_latest_block.assert_called_once()  # type: ignore
+    client.mock.latest_block.assert_called_once()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -198,19 +188,19 @@ async def test_pylon_client_override_get_commitment(mock_pylon_client: PylonClie
     """Tests that the get_commitment mock response can be overridden."""
     hotkey = "hotkey_override"
     commitment = "0xdeadbeef"
-    mock_pylon_client.override(Endpoint.GET_COMMITMENT, {"hotkey": hotkey, "commitment": commitment})  # type: ignore
+    mock_pylon_client.override(endpoint_name(ENDPOINT_COMMITMENT), {"hotkey": hotkey, "commitment": commitment})  # type: ignore
     async with mock_pylon_client as client:
         response = await client.get_commitment(hotkey)
         assert response is not None
         assert response["hotkey"] == hotkey
         assert response["commitment"] == commitment
-    client.mock.get_commitment.assert_called_with(hotkey=hotkey, block=None)  # type: ignore
+    client.mock.commitment.assert_called_with(hotkey=hotkey, block=None)  # type: ignore
 
 
 @pytest.mark.asyncio
 async def test_pylon_client_override_set_weight(mock_pylon_client: PylonClient):
     """Tests that the set_weight mock response can be overridden."""
-    mock_pylon_client.override(Endpoint.SET_WEIGHT, {"detail": "Custom success message"})  # type: ignore
+    mock_pylon_client.override(endpoint_name(ENDPOINT_SET_WEIGHT), {"detail": "Custom success message"})  # type: ignore
     async with mock_pylon_client as client:
         response = await client.set_weight("some_hotkey", 0.99)
         assert response is not None
@@ -220,10 +210,10 @@ async def test_pylon_client_override_set_weight(mock_pylon_client: PylonClient):
 
 @pytest.mark.asyncio
 async def test_pylon_client_override_error_response(mock_pylon_client: PylonClient):
-    """Tests that an error response can be injected for any endpoint."""
-    mock_pylon_client.override(Endpoint.GET_HYPERPARAMS, {"detail": "Forbidden"}, status_code=403)  # type: ignore
+    """Tests that an error response can be injected for any endpoint_name(ENDPOINT_"""
+    mock_pylon_client.override(endpoint_name(ENDPOINT_HYPERPARAMS), {"detail": "Forbidden"}, status_code=403)  # type: ignore
     async with mock_pylon_client as client:
         with pytest.raises(HTTPStatusError) as exc_info:
             await client.get_hyperparams()
         assert exc_info.value.response.status_code == 403
-    client.mock.get_hyperparams.assert_called_once()  # type: ignore
+    client.mock.hyperparams.assert_called_once()  # type: ignore

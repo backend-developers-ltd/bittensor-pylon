@@ -13,6 +13,24 @@ from pylon_service.bittensor_client import (
     set_commitment,
     set_hyperparam,
 )
+from pylon_service.constants import (
+    ENDPOINT_BLOCK_HASH,
+    ENDPOINT_COMMITMENT,
+    ENDPOINT_COMMITMENTS,
+    ENDPOINT_EPOCH,
+    ENDPOINT_EPOCH_BLOCK,
+    ENDPOINT_FORCE_COMMIT_WEIGHTS,
+    ENDPOINT_HYPERPARAMS,
+    ENDPOINT_LATEST_BLOCK,
+    ENDPOINT_LATEST_METAGRAPH,
+    ENDPOINT_LATEST_WEIGHTS,
+    ENDPOINT_METAGRAPH,
+    ENDPOINT_SET_COMMITMENT,
+    ENDPOINT_SET_HYPERPARAM,
+    ENDPOINT_SET_WEIGHT,
+    ENDPOINT_UPDATE_WEIGHT,
+    ENDPOINT_WEIGHTS_TYPED,
+)
 from pylon_service.models import (
     SetCommitmentRequest,
     SetHyperparamRequest,
@@ -74,10 +92,10 @@ def safe_endpoint(func):
 
 def get_latest_block(request: Request) -> int:
     """Helper to get the latest block number from app state."""
-    block_number = request.app.state.latest_block
-    if block_number is None:
+    block = request.app.state.latest_block
+    if block is None:
         raise RuntimeError("Latest block not available. Try again later.")
-    return block_number
+    return block
 
 
 def get_current_epoch(request: Request):
@@ -94,7 +112,7 @@ async def health_check() -> Response:
     return Response(status_code=200, content={"status": "ok"})
 
 
-@get("/latest_block")
+@get(ENDPOINT_LATEST_BLOCK)
 @safe_endpoint
 async def latest_block(request: Request) -> dict:
     """Get the latest processed block number."""
@@ -102,7 +120,7 @@ async def latest_block(request: Request) -> dict:
     return {"block": block}
 
 
-@get("/latest_metagraph")
+@get(ENDPOINT_LATEST_METAGRAPH)
 @safe_endpoint
 async def latest_metagraph(request: Request) -> dict:
     """Get the metagraph for the latest block from cache."""
@@ -111,24 +129,24 @@ async def latest_metagraph(request: Request) -> dict:
     return metagraph.model_dump()
 
 
-@get("/metagraph/{block_number:int}")
+@get(ENDPOINT_METAGRAPH)
 @safe_endpoint
-async def metagraph(request: Request, block_number: int) -> dict:
+async def metagraph(request: Request, block: int) -> dict:
     """Get the metagraph for a specific block number."""
-    metagraph = await get_metagraph(request.app, block_number)
+    metagraph = await get_metagraph(request.app, block)
     return metagraph.model_dump()
 
 
 # TODO: optimize call to not fetch metagraph - just the hash?
-@get("/block_hash/{block_number:int}")
+@get(ENDPOINT_BLOCK_HASH)
 @safe_endpoint
-async def block_hash(request: Request, block_number: int) -> dict:
+async def block_hash(request: Request, block: int) -> dict:
     """Get the block hash for a specific block number."""
-    metagraph = await get_metagraph(request.app, block_number)
+    metagraph = await get_metagraph(request.app, block)
     return {"block_hash": metagraph.block_hash}
 
 
-@get("/epoch")
+@get(ENDPOINT_EPOCH)
 @safe_endpoint
 async def latest_epoch_start_endpoint(request: Request) -> dict:
     """Get information about the current epoch start."""
@@ -136,15 +154,15 @@ async def latest_epoch_start_endpoint(request: Request) -> dict:
     return epoch.model_dump()
 
 
-@get("/epoch/{block_number:int}")
+@get(ENDPOINT_EPOCH_BLOCK)
 @safe_endpoint
-async def epoch_start_endpoint(request: Request, block_number: int) -> dict:
+async def epoch_start_endpoint(request: Request, block: int) -> dict:
     """Get epoch information for the epoch containing the given block number."""
-    epoch = get_epoch_containing_block(block_number)
+    epoch = get_epoch_containing_block(block)
     return epoch.model_dump()
 
 
-@get("/hyperparams")
+@get(ENDPOINT_HYPERPARAMS)
 @safe_endpoint
 async def get_hyperparams_endpoint(request: Request) -> Response:
     """Get cached subnet hyperparameters."""
@@ -154,7 +172,7 @@ async def get_hyperparams_endpoint(request: Request) -> Response:
     return Response(hyperparams, status_code=200)
 
 
-@put("/set_hyperparam")
+@put(ENDPOINT_SET_HYPERPARAM)
 @subnet_owner_only
 @safe_endpoint
 async def set_hyperparam_endpoint(request: Request, data: SetHyperparamRequest) -> Response:
@@ -166,7 +184,7 @@ async def set_hyperparam_endpoint(request: Request, data: SetHyperparamRequest) 
     return Response({"detail": "Hyperparameter set successfully"}, status_code=200)
 
 
-@put("/update_weight")
+@put(ENDPOINT_UPDATE_WEIGHT)
 @validator_only
 @safe_endpoint
 async def update_weight_endpoint(request: Request, data: UpdateWeightRequest) -> Response:
@@ -179,7 +197,7 @@ async def update_weight_endpoint(request: Request, data: UpdateWeightRequest) ->
     return Response({"hotkey": data.hotkey, "weight": weight, "epoch": epoch}, status_code=200)
 
 
-@put("/set_weight")
+@put(ENDPOINT_SET_WEIGHT)
 @validator_only
 @safe_endpoint
 async def set_weight_endpoint(request: Request, data: SetWeightRequest) -> Response:
@@ -193,23 +211,33 @@ async def set_weight_endpoint(request: Request, data: SetWeightRequest) -> Respo
 
 
 # TODO: refactor to epochs_ago ?
-@get("/weights")
+@get(ENDPOINT_LATEST_WEIGHTS)
 @safe_endpoint
-async def get_weights_endpoint(request: Request) -> Response:
+async def latest_weights_endpoint(request: Request) -> Response:
     """
-    Get raw weights for a given epoch (defaults to current epoch).
-    Query param: 'epoch' (int, epoch start block)
+    Get raw weights for the current epoch.
     """
-    epoch = request.query_params.get("epoch", None)
-    epoch = int(epoch) if epoch is not None else get_current_epoch(request)
-    epoch = get_epoch_containing_block(epoch).epoch_start  # in case epoch start block is incorrect
+    epoch = get_current_epoch(request)
     weights = await db.get_hotkey_weights_dict(epoch)
     if weights == {}:
         return Response({"detail": "Epoch weights not found"}, status_code=404)
     return Response({"epoch": epoch, "weights": weights}, status_code=200)
 
 
-@post("/force_commit_weights")
+@get(ENDPOINT_WEIGHTS_TYPED)
+@safe_endpoint
+async def weights_endpoint(request: Request, block: int) -> Response:
+    """
+    Get raw weights for the epoch containing the specified block.
+    """
+    epoch = get_epoch_containing_block(block).epoch_start
+    weights = await db.get_hotkey_weights_dict(epoch)
+    if weights == {}:
+        return Response({"detail": "Epoch weights not found"}, status_code=404)
+    return Response({"epoch": epoch, "weights": weights}, status_code=200)
+
+
+@post(ENDPOINT_FORCE_COMMIT_WEIGHTS)
 @validator_only
 @safe_endpoint
 async def force_commit_weights_endpoint(request: Request) -> Response:
@@ -238,7 +266,7 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
 # TODO: wip, to update, to be register endpoints
 
 
-@get("/commitment/{hotkey:str}")
+@get(ENDPOINT_COMMITMENT)
 @safe_endpoint
 async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     """
@@ -254,7 +282,7 @@ async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     return Response({"hotkey": hotkey, "commitment": commitment}, status_code=200)
 
 
-@get("/commitments")
+@get(ENDPOINT_COMMITMENTS)
 @safe_endpoint
 async def get_commitments_endpoint(request: Request) -> Response:
     """
@@ -267,7 +295,7 @@ async def get_commitments_endpoint(request: Request) -> Response:
     return Response(commitments_map, status_code=200)
 
 
-@post("/set_commitment")
+@post(ENDPOINT_SET_COMMITMENT)
 @safe_endpoint
 async def set_commitment_endpoint(request: Request, data: SetCommitmentRequest) -> Response:
     """

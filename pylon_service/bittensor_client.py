@@ -41,22 +41,22 @@ async def create_bittensor_client() -> Bittensor:
         raise
 
 
-async def cache_metagraph(app: Litestar, block: Block):
-    neurons = await app.state.bittensor_client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block.hash)  # type: ignore
-    block_number = block.number
-    if type(block_number) is not int:
+async def cache_metagraph(app: Litestar, block_obj: Block):
+    block, block_hash = block_obj.number, block_obj.hash
+    neurons = await app.state.bittensor_client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block_hash)  # type: ignore
+    if type(block) is not int:
         raise ValueError("Block number is not an integer")
     neurons = [Neuron.model_validate(asdict(neuron)) for neuron in neurons]
     neurons = {neuron.hotkey: neuron for neuron in neurons}
-    metagraph = Metagraph(block=block_number, block_hash=block.hash, neurons=neurons)
-    app.state.metagraph_cache[block_number] = metagraph
+    metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
+    app.state.metagraph_cache[block] = metagraph
 
 
-async def get_metagraph(app: Litestar, block_number: int) -> Metagraph:
-    if block_number not in app.state.metagraph_cache:
-        block = await app.state.bittensor_client.block(block_number).get()
-        await cache_metagraph(app, block)
-    return app.state.metagraph_cache[block_number]
+async def get_metagraph(app: Litestar, block: int) -> Metagraph:
+    if block not in app.state.metagraph_cache:
+        block_obj = await app.state.bittensor_client.block(block).get()
+        await cache_metagraph(app, block_obj)
+    return app.state.metagraph_cache[block]
 
 
 async def get_weights(app: Litestar, block: int) -> dict[int, float]:

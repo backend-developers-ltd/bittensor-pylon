@@ -9,7 +9,7 @@ from litestar.exceptions import NotFoundException
 from litestar.response import Response
 from litestar.status_codes import HTTP_404_NOT_FOUND
 
-from .constants import (
+from pylon_service.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -18,6 +18,7 @@ from .constants import (
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
     ENDPOINT_LATEST_METAGRAPH,
+    ENDPOINT_LATEST_WEIGHTS,
     ENDPOINT_METAGRAPH,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
@@ -28,18 +29,19 @@ from .constants import (
 
 
 class MockHooks(SimpleNamespace):
-    get_latest_block: MagicMock
-    get_metagraph: MagicMock
-    get_block_hash: MagicMock
-    get_epoch: MagicMock
-    get_hyperparams: MagicMock
+    latest_block: MagicMock
+    latest_metagraph: MagicMock
+    metagraph: MagicMock
+    block_hash: MagicMock
+    epoch: MagicMock
+    hyperparams: MagicMock
     set_hyperparam: MagicMock
     update_weight: MagicMock
     set_weight: MagicMock
-    get_weights: MagicMock
+    weights: MagicMock
     force_commit_weights: MagicMock
-    get_commitment: MagicMock
-    get_commitments: MagicMock
+    commitment: MagicMock
+    commitments: MagicMock
     set_commitment: MagicMock
 
 
@@ -51,18 +53,19 @@ class MockHandler:
             self.mock_data = json.load(f)
         self._overrides: dict[str, Any] = {}
         self.hooks = MockHooks(
-            get_latest_block=MagicMock(),
-            get_metagraph=MagicMock(),
-            get_block_hash=MagicMock(),
-            get_epoch=MagicMock(),
-            get_hyperparams=MagicMock(),
+            latest_block=MagicMock(),
+            latest_metagraph=MagicMock(),
+            metagraph=MagicMock(),
+            block_hash=MagicMock(),
+            epoch=MagicMock(),
+            hyperparams=MagicMock(),
             set_hyperparam=MagicMock(),
             update_weight=MagicMock(),
             set_weight=MagicMock(),
-            get_weights=MagicMock(),
+            weights=MagicMock(),
             force_commit_weights=MagicMock(),
-            get_commitment=MagicMock(),
-            get_commitments=MagicMock(),
+            commitment=MagicMock(),
+            commitments=MagicMock(),
             set_commitment=MagicMock(),
         )
         # The base_url is not used by the mock app but is kept for client compatibility
@@ -85,37 +88,44 @@ class MockHandler:
         """Creates a Litestar app with all the mock endpoints."""
 
         @get(ENDPOINT_LATEST_BLOCK)
-        async def get_latest_block() -> Response:
-            self.hooks.get_latest_block()
-            if response := self._get_override_response("get_latest_block"):
+        async def latest_block() -> Response:
+            self.hooks.latest_block()
+            if response := self._get_override_response("latest_block"):
                 return response
             return Response({"block": self.mock_data["metagraph"]["block"]})
 
-        @get([ENDPOINT_LATEST_METAGRAPH, ENDPOINT_METAGRAPH])
-        async def get_metagraph(block_number: int | None = None) -> Response:
-            self.hooks.get_metagraph(block_number=block_number)
-            if response := self._get_override_response("get_metagraph"):
+        @get(ENDPOINT_LATEST_METAGRAPH)
+        async def latest_metagraph() -> Response:
+            self.hooks.latest_metagraph()
+            if response := self._get_override_response("latest_metagraph"):
                 return response
             return Response(self.mock_data["metagraph"])
 
-        @get(ENDPOINT_BLOCK_HASH.format(block_number="{block_number:int}"))
-        async def get_block_hash(block_number: int) -> Response:
-            self.hooks.get_block_hash(block_number=block_number)
-            if response := self._get_override_response("get_block_hash"):
+        @get(ENDPOINT_METAGRAPH)
+        async def metagraph(block: int) -> Response:
+            self.hooks.metagraph(block=block)
+            if response := self._get_override_response("metagraph"):
+                return response
+            return Response(self.mock_data["metagraph"])
+
+        @get(ENDPOINT_BLOCK_HASH)
+        async def block_hash(block: int) -> Response:
+            self.hooks.block_hash(block=block)
+            if response := self._get_override_response("block_hash"):
                 return response
             return Response({"block_hash": self.mock_data["metagraph"]["block_hash"]})
 
-        @get([ENDPOINT_EPOCH, f"{ENDPOINT_EPOCH}/{{block_number:int}}"])
-        async def get_epoch(block_number: int | None = None) -> Response:
-            self.hooks.get_epoch(block_number=block_number)
-            if response := self._get_override_response("get_epoch"):
+        @get([ENDPOINT_EPOCH, f"{ENDPOINT_EPOCH}/{{block:int}}"])
+        async def epoch(block: int | None = None) -> Response:
+            self.hooks.epoch(block=block)
+            if response := self._get_override_response("epoch"):
                 return response
             return Response(self.mock_data["epoch"])
 
         @get(ENDPOINT_HYPERPARAMS)
-        async def get_hyperparams() -> Response:
-            self.hooks.get_hyperparams()
-            if response := self._get_override_response("get_hyperparams"):
+        async def hyperparams() -> Response:
+            self.hooks.hyperparams()
+            if response := self._get_override_response("hyperparams"):
                 return response
             return Response(self.mock_data["hyperparams"])
 
@@ -140,17 +150,21 @@ class MockHandler:
                 return response
             return Response({"detail": "Weight set successfully"})
 
-        @get(ENDPOINT_WEIGHTS)
-        async def get_weights(request: Request) -> Response:
-            epoch_str = request.query_params.get("epoch")
-            epoch = int(epoch_str) if epoch_str else None
-            self.hooks.get_weights(epoch=epoch)
-            if response := self._get_override_response("get_weights"):
+        @get(ENDPOINT_LATEST_WEIGHTS)
+        async def latest_weights() -> Response:
+            self.hooks.weights(block=None)
+            if response := self._get_override_response("weights"):
                 return response
-            mock_weights = self.mock_data.get("weights", {})
-            if epoch is not None and mock_weights.get("epoch") != epoch:
-                raise NotFoundException(detail="Epoch weights not found")
-            return Response(mock_weights)
+            weights_data = self.mock_data.get("weights", {})
+            return Response({"epoch": 1440, "weights": weights_data})
+
+        @get(ENDPOINT_WEIGHTS)
+        async def weights(block: int) -> Response:
+            self.hooks.weights(block=block)
+            if response := self._get_override_response("weights"):
+                return response
+            weights_data = self.mock_data.get("weights", {})
+            return Response({"epoch": 1440, "weights": weights_data})
 
         @post(ENDPOINT_FORCE_COMMIT_WEIGHTS)
         async def force_commit_weights() -> Response:
@@ -159,12 +173,12 @@ class MockHandler:
                 return response
             return Response({"detail": "Weights committed successfully"})
 
-        @get(ENDPOINT_COMMITMENT.format(hotkey="{hotkey:str}"))
-        async def get_commitment(hotkey: str, request: Request) -> Response:
+        @get(ENDPOINT_COMMITMENT)
+        async def commitment(hotkey: str, request: Request) -> Response:
             block_str = request.query_params.get("block")
             block = int(block_str) if block_str else None
-            self.hooks.get_commitment(hotkey=hotkey, block=block)
-            if response := self._get_override_response("get_commitment"):
+            self.hooks.commitment(hotkey=hotkey, block=block)
+            if response := self._get_override_response("commitment"):
                 return response
             commitment = self.mock_data["commitments"].get(hotkey)
             if commitment:
@@ -172,11 +186,11 @@ class MockHandler:
             raise NotFoundException(detail="Commitment not found")
 
         @get(ENDPOINT_COMMITMENTS)
-        async def get_commitments(request: Request) -> Response:
+        async def commitments(request: Request) -> Response:
             block_str = request.query_params.get("block")
             block = int(block_str) if block_str else None
-            self.hooks.get_commitments(block=block)
-            if response := self._get_override_response("get_commitments"):
+            self.hooks.commitments(block=block)
+            if response := self._get_override_response("commitments"):
                 return response
             return Response(self.mock_data["commitments"])
 
@@ -192,18 +206,20 @@ class MockHandler:
 
         return Litestar(
             route_handlers=[
-                get_latest_block,
-                get_metagraph,
-                get_block_hash,
-                get_epoch,
-                get_hyperparams,
+                latest_block,
+                latest_metagraph,
+                metagraph,
+                block_hash,
+                epoch,
+                hyperparams,
                 set_hyperparam,
                 update_weight,
                 set_weight,
-                get_weights,
+                latest_weights,
+                weights,
                 force_commit_weights,
-                get_commitment,
-                get_commitments,
+                commitment,
+                commitments,
                 set_commitment,
             ],
             exception_handlers={HTTP_404_NOT_FOUND: not_found_handler},

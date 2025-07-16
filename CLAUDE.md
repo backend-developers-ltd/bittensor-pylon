@@ -69,15 +69,16 @@ The service exposes several endpoints to interact with the subnet:
 ### Core Bittensor Data
 - `/latest_block`: Get the latest processed block number
 - `/latest_metagraph`: Get the metagraph for the latest block
-- `/metagraph/{block_number}`: Get the metagraph for a specific block number
-- `/block_hash/{block_number}`: Get the block hash for a specific block number
+- `/metagraph/{block}`: Get the metagraph for a specific block number
+- `/block_hash/{block}`: Get the block hash for a specific block number
 - `/epoch`: Get information about the current or a specific epoch
 - `/hyperparams`: Get cached subnet hyperparameters
 
 ### Weight Management (Off-chain in DB)
 - `/update_weight`: Update a hotkey's weight by a delta
 - `/set_weight`: Set a hotkey's weight
-- `/weights`: Get weights for a given epoch
+- `/latest_weights`: Get weights for the current epoch
+- `/weights/{block}`: Get weights for the epoch containing the specified block
 - `/force_commit_weights`: Force a commit of the current DB weights to the subnet
 
 ### Commitment Operations
@@ -95,7 +96,7 @@ The service exposes several endpoints to interact with the subnet:
 ### Key turbobt Features Used
 - **Blockchain Interaction**:
   - `Bittensor.head.get()`: Fetches the latest block from the blockchain
-  - `Bittensor.block(block_number).get()`: Retrieves a specific block by its number
+  - `Bittensor.block(block).get()`: Retrieves a specific block by its number
   - `Bittensor.subnet(netuid)`: Accesses a specific subnet
     - `Subnet.list_neurons(block_hash)`: Lists all neurons within a subnet for a given block
     - `Subnet.get_hyperparameters()`: Fetches the hyperparameters for a subnet
@@ -103,7 +104,7 @@ The service exposes several endpoints to interact with the subnet:
 - **Weight Operations**: Functionalities for on-chain weight setting and commitments
 - **Asynchronous Design**: All network and blockchain operations within `turbobt` are inherently asynchronous, crucial for performance
 
-Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/weights` API endpoints for performance reasons.
+Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/latest_weights`, `/weights/{block}` API endpoints for performance reasons.
 
 ## Configuration
 
@@ -119,6 +120,12 @@ Environment variables configured via `.env` file (template at `pylon_service/env
 - Mock data available in `tests/mock_data.json`
 - Client has built-in mock mode for testing: `PylonClient(mock_data_path="path/to/mock_data.json")`
 - Test environment template must be copied to `.env` before running tests
+
+### Mock Client Features
+- **Hook tracking**: All endpoints have `MagicMock` hooks for verifying calls (e.g., `mock.latest_metagraph.assert_called()`)
+- **Response overrides**: Use `override()` method to customize responses per endpoint
+- **Separate hooks**: `latest_metagraph` and `metagraph` have distinct hooks and override keys for independent mocking
+- **Error simulation**: Supports 404 responses and custom status codes via overrides
 
 ## Development Workflow
 

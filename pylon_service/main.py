@@ -14,15 +14,16 @@ from pylon_service.api import (
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
-    get_weights_endpoint,
     health_check,
     latest_block,
     latest_metagraph,
+    latest_weights_endpoint,
     metagraph,
     set_commitment_endpoint,
     set_hyperparam_endpoint,
     set_weight_endpoint,
     update_weight_endpoint,
+    weights_endpoint,
 )
 from pylon_service.bittensor_client import create_bittensor_client
 from pylon_service.db import init_db
@@ -86,7 +87,8 @@ def create_app(tasks: list[Callable]) -> Litestar:
             set_hyperparam_endpoint,
             # Validator weights
             set_weight_endpoint,
-            get_weights_endpoint,
+            latest_weights_endpoint,
+            weights_endpoint,
             update_weight_endpoint,
             force_commit_weights_endpoint,
             # Commitments
