@@ -13,10 +13,10 @@ from .constants import (
     ENDPOINT_FORCE_COMMIT_WEIGHTS,
     ENDPOINT_GET_COMMITMENT,
     ENDPOINT_GET_COMMITMENTS,
+    ENDPOINT_GET_WEIGHTS,
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
     ENDPOINT_METAGRAPH,
-    ENDPOINT_RAW_WEIGHTS,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
@@ -135,9 +135,9 @@ class PylonClient:
     async def set_weight(self, hotkey: str, weight: float) -> dict | None:
         return await self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
 
-    async def get_raw_weights(self, epoch: int | None = None) -> dict | None:
+    async def get_weights(self, epoch: int | None = None) -> dict | None:
         params = {"epoch": epoch} if epoch else {}
-        return await self._request("get", ENDPOINT_RAW_WEIGHTS, params=params)
+        return await self._request("get", ENDPOINT_GET_WEIGHTS, params=params)
 
     async def force_commit_weights(self) -> dict | None:
         return await self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)

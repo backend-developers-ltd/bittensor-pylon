@@ -8,7 +8,7 @@ from litestar.app import Litestar
 from turbobt.block import Block
 from turbobt.client import Bittensor
 
-from pylon_service.db import get_neurons_weights
+from pylon_service.db import get_uid_weights_dict
 from pylon_service.models import Hotkey, Metagraph, Neuron
 from pylon_service.settings import Settings, settings
 
@@ -73,7 +73,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
         logger.warning("Epoch not available in app state. Cannot fetch db weights.")
         return {}
 
-    weights = await get_neurons_weights(neurons, epoch)
+    weights = await get_uid_weights_dict(neurons, epoch)
     logger.info(f"Current db weights for epoch {epoch}: {weights}")
     return weights
 

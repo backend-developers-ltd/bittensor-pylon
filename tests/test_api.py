@@ -97,13 +97,13 @@ def test_weights__set_update_requests(client):
     assert resp.json()["weight"] == initial_weight + delta
 
     # Check raw weights
-    resp = client.get("/raw_weights")
+    resp = client.get("/get_weights")
     assert resp.status_code == 200
     weights = resp.json()["weights"]
     assert weights[hotkey] == initial_weight + delta
 
     # Query with missing epoch should not find it
-    resp = client.get("/raw_weights?epoch=2110")
+    resp = client.get("/get_weights?epoch=2110")
     assert resp.status_code == 404
 
     # Test force commit

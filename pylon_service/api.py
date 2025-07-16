@@ -130,7 +130,7 @@ async def block_hash(request: Request, block_number: int) -> dict:
 
 @get("/epoch")
 @safe_endpoint
-async def latest_epoch_start(request: Request) -> dict:
+async def latest_epoch_start_endpoint(request: Request) -> dict:
     """Get information about the current epoch start."""
     epoch = get_current_epoch(request)
     return epoch.model_dump()
@@ -138,7 +138,7 @@ async def latest_epoch_start(request: Request) -> dict:
 
 @get("/epoch/{block_number:int}")
 @safe_endpoint
-async def epoch_start(request: Request, block_number: int) -> dict:
+async def epoch_start_endpoint(request: Request, block_number: int) -> dict:
     """Get epoch information for the epoch containing the given block number."""
     epoch = get_epoch_containing_block(block_number)
     return epoch.model_dump()
@@ -169,7 +169,7 @@ async def set_hyperparam_endpoint(request: Request, data: SetHyperparamRequest) 
 @put("/update_weight")
 @validator_only
 @safe_endpoint
-async def update_weight(request: Request, data: UpdateWeightRequest) -> Response:
+async def update_weight_endpoint(request: Request, data: UpdateWeightRequest) -> Response:
     """
     Update a hotkey's weight by a delta for the current epoch.
     (Validator only)
@@ -182,7 +182,7 @@ async def update_weight(request: Request, data: UpdateWeightRequest) -> Response
 @put("/set_weight")
 @validator_only
 @safe_endpoint
-async def set_weight(request: Request, data: SetWeightRequest) -> Response:
+async def set_weight_endpoint(request: Request, data: SetWeightRequest) -> Response:
     """
     Set a hotkey's weight for the current epoch.
     (Validator only)
@@ -193,9 +193,9 @@ async def set_weight(request: Request, data: SetWeightRequest) -> Response:
 
 
 # TODO: refactor to epochs_ago ?
-@get("/raw_weights")
+@get("/get_weights")
 @safe_endpoint
-async def raw_weights(request: Request) -> Response:
+async def get_weights_endpoint(request: Request) -> Response:
     """
     Get raw weights for a given epoch (defaults to current epoch).
     Query param: 'epoch' (int, epoch start block)
@@ -203,7 +203,7 @@ async def raw_weights(request: Request) -> Response:
     epoch = request.query_params.get("epoch", None)
     epoch = int(epoch) if epoch is not None else get_current_epoch(request)
     epoch = get_epoch_containing_block(epoch).epoch_start  # in case epoch start block is incorrect
-    weights = await db.get_raw_weights(epoch)
+    weights = await db.get_hotkey_weights_dict(epoch)
     if weights == {}:
         return Response({"detail": "Epoch weights not found"}, status_code=404)
     return Response({"epoch": epoch, "weights": weights}, status_code=200)
@@ -212,7 +212,7 @@ async def raw_weights(request: Request) -> Response:
 @post("/force_commit_weights")
 @validator_only
 @safe_endpoint
-async def force_commit_weights(request: Request) -> Response:
+async def force_commit_weights_endpoint(request: Request) -> Response:
     """
     Force commit of current DB weights to the subnet.
     (Validator only)

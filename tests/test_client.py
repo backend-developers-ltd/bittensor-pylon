@@ -19,7 +19,7 @@ class Endpoint(str, Enum):
     SET_HYPERPARAM = "set_hyperparam"
     UPDATE_WEIGHT = "update_weight"
     SET_WEIGHT = "set_weight"
-    GET_RAW_WEIGHTS = "get_raw_weights"
+    GET_WEIGHTS = "get_weights"
     FORCE_COMMIT_WEIGHTS = "force_commit_weights"
     GET_COMMITMENT = "get_commitment"
     GET_COMMITMENTS = "get_commitments"
@@ -98,13 +98,13 @@ async def test_pylon_client_set_hyperparam(mock_pylon_client: PylonClient):
 
 
 @pytest.mark.asyncio
-async def test_pylon_client_get_raw_weights(mock_pylon_client: PylonClient):
-    """Tests that the PylonClient can correctly get raw weights."""
+async def test_pylon_client_get_weights(mock_pylon_client: PylonClient):
+    """Tests that the PylonClient can correctly get weights."""
     async with mock_pylon_client as client:
-        response = await client.get_raw_weights()
+        response = await client.get_weights()
         assert response is not None
         assert response == MOCK_DATA["weights"]
-    client.mock.get_raw_weights.assert_called_with(epoch=None)  # type: ignore
+    client.mock.get_weights.assert_called_with(epoch=None)  # type: ignore
 
 
 @pytest.mark.asyncio

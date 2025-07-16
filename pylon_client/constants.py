@@ -9,7 +9,7 @@ ENDPOINT_SET_HYPERPARAM = "/set_hyperparam"
 
 ENDPOINT_UPDATE_WEIGHT = "/update_weight"
 ENDPOINT_SET_WEIGHT = "/set_weight"
-ENDPOINT_RAW_WEIGHTS = "/raw_weights"
+ENDPOINT_GET_WEIGHTS = "/get_weights"
 ENDPOINT_FORCE_COMMIT_WEIGHTS = "/force_commit_weights"
 
 ENDPOINT_GET_COMMITMENT = "/get_commitment/{hotkey}"

@@ -78,7 +78,7 @@ async def test_weights_endpoints(client: PylonClient):
     # Set, update, and check the weight
     await set_and_check_weight(client, hotkey, initial_weight)
     await update_and_check_weight(client, hotkey, delta, expected_final_weight)
-    await check_raw_weights(client, epoch, {hotkey: expected_final_weight})
+    await check_weights(client, epoch, {hotkey: expected_final_weight})
 
 
 async def set_and_check_weight(client, hotkey, value):
@@ -91,8 +91,8 @@ async def update_and_check_weight(client, hotkey, value, expected):
     assert resp and resp.get("weight") == expected, f"expected {hotkey} weight to be updated to {expected}"
 
 
-async def check_raw_weights(client, epoch: int | None, expected_dict):
-    resp = await client.get_raw_weights(epoch)
+async def check_weights(client, epoch: int | None, expected_dict):
+    resp = await client.get_weights(epoch)
     assert resp and "weights" in resp, "Invalid weights response: {resp}"
     # assert resp.get("epoch") == epoch
     weights_dict = resp.get("weights")
@@ -127,7 +127,7 @@ async def set_and_check_hyperparam(client, param, value):
 #         await update_and_check_weight(hotkey_1, 1.0, 11.0)
 #
 #     with controller.pause_block(30):
-#         await check_raw_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
+#         await check_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
 #
 #     # after epoch pass
 #     with controller.pause_block(101):
@@ -135,6 +135,6 @@ async def set_and_check_hyperparam(client, param, value):
 #
 #     with controller.pause_block(110):
 #         # previous epoch weights
-#         await check_raw_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
+#         await check_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
 #         # current epoch weights
-#         await check_raw_weights(100, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 30.0})
+#         await check_weights(100, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 30.0})

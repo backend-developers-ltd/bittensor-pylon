@@ -15,10 +15,10 @@ from .constants import (
     ENDPOINT_FORCE_COMMIT_WEIGHTS,
     ENDPOINT_GET_COMMITMENT,
     ENDPOINT_GET_COMMITMENTS,
+    ENDPOINT_GET_WEIGHTS,
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
     ENDPOINT_METAGRAPH,
-    ENDPOINT_RAW_WEIGHTS,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
@@ -35,7 +35,7 @@ class MockHooks(SimpleNamespace):
     set_hyperparam: MagicMock
     update_weight: MagicMock
     set_weight: MagicMock
-    get_raw_weights: MagicMock
+    get_weights: MagicMock
     force_commit_weights: MagicMock
     get_commitment: MagicMock
     get_commitments: MagicMock
@@ -58,7 +58,7 @@ class MockHandler:
             set_hyperparam=MagicMock(),
             update_weight=MagicMock(),
             set_weight=MagicMock(),
-            get_raw_weights=MagicMock(),
+            get_weights=MagicMock(),
             force_commit_weights=MagicMock(),
             get_commitment=MagicMock(),
             get_commitments=MagicMock(),
@@ -139,12 +139,12 @@ class MockHandler:
                 return response
             return Response({"detail": "Weight set successfully"})
 
-        @get(ENDPOINT_RAW_WEIGHTS)
-        async def get_raw_weights(request: Request) -> Response:
+        @get(ENDPOINT_GET_WEIGHTS)
+        async def get_weights(request: Request) -> Response:
             epoch_str = request.query_params.get("epoch")
             epoch = int(epoch_str) if epoch_str else None
-            self.hooks.get_raw_weights(epoch=epoch)
-            if response := self._get_override_response("get_raw_weights"):
+            self.hooks.get_weights(epoch=epoch)
+            if response := self._get_override_response("get_weights"):
                 return response
             mock_weights = self.mock_data.get("weights", {})
             if epoch is not None and mock_weights.get("epoch") != epoch:
@@ -199,7 +199,7 @@ class MockHandler:
                 set_hyperparam,
                 update_weight,
                 set_weight,
-                get_raw_weights,
+                get_weights,
                 force_commit_weights,
                 get_commitment,
                 get_commitments,

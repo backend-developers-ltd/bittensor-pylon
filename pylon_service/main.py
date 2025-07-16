@@ -9,20 +9,20 @@ from litestar.openapi.config import OpenAPIConfig
 
 from pylon_service.api import (
     block_hash,
-    epoch_start,
-    force_commit_weights,
+    epoch_start_endpoint,
+    force_commit_weights_endpoint,
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
+    get_weights_endpoint,
     health_check,
     latest_block,
     latest_metagraph,
     metagraph,
-    raw_weights,
     set_commitment_endpoint,
     set_hyperparam_endpoint,
-    set_weight,
-    update_weight,
+    set_weight_endpoint,
+    update_weight_endpoint,
 )
 from pylon_service.bittensor_client import create_bittensor_client
 from pylon_service.db import init_db
@@ -80,15 +80,15 @@ def create_app(tasks: list[Callable]) -> Litestar:
             block_hash,
             metagraph,
             latest_metagraph,
-            epoch_start,
+            epoch_start_endpoint,
             # Hyperparams
             get_hyperparams_endpoint,
             set_hyperparam_endpoint,
             # Validator weights
-            set_weight,
-            raw_weights,
-            update_weight,
-            force_commit_weights,
+            set_weight_endpoint,
+            get_weights_endpoint,
+            update_weight_endpoint,
+            force_commit_weights_endpoint,
             # Commitments
             get_commitment_endpoint,
             get_commitments_endpoint,
