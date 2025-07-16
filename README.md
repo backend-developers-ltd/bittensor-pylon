@@ -21,6 +21,21 @@ Create a `.env` file with your Bittensor settings:
 cp pylon_service/envs/test_env.template .env
 ```
 
+#### Weight Committing Window
+
+Pylon commits weights within specific time windows every X epochs:
+```
+    0            180               350      360
+    |_____________|_________________|________|
+    |   OFFSET    |  COMMIT WINDOW  | BUFFER |
+```
+
+- **`COMMIT_WINDOW_START_OFFSET`** (default: 180): Blocks after epoch start before commits begin
+- **`COMMIT_WINDOW_END_BUFFER`** (default: 10): Blocks before epoch end when commits stop
+- **`COMMIT_CYCLE_LENGTH`** (default: 3): Number of epochs between weight commits
+
+Example: With defaults, the commit window is open from block 180 to block 350 of each epoch, and weights are committed every 3 epochs.
+
 ### Run the service
 
 Using official docker image:
