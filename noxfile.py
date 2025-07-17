@@ -14,7 +14,7 @@ nox.options.reuse_existing_virtualenvs = True
 @nox.session(name="test", python=PYTHON_VERSION)
 def test(session):
     """Run pytest with optional arguments forwarded from the command line."""
-    session.run("uv", "sync", "--extra", "dev")
+    session.run("uv", "sync", "--active", "--extra", "dev")
     session.run("pytest", "-s", "-vv", ".", *session.posargs)
 
 
