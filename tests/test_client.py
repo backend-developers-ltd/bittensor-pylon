@@ -210,7 +210,7 @@ async def test_pylon_client_override_set_weight(mock_pylon_client: PylonClient):
 
 @pytest.mark.asyncio
 async def test_pylon_client_override_error_response(mock_pylon_client: PylonClient):
-    """Tests that an error response can be injected for any endpoint_name(ENDPOINT_"""
+    """Tests that an error response can be injected for any endpoint."""
     mock_pylon_client.override(endpoint_name(ENDPOINT_HYPERPARAMS), {"detail": "Forbidden"}, status_code=403)  # type: ignore
     async with mock_pylon_client as client:
         with pytest.raises(HTTPStatusError) as exc_info:
