@@ -12,7 +12,7 @@ Bittensor Pylon is a high-performance, asynchronous proxy for a Bittensor subnet
 ## Development Commands
 
 ### Package Management
-- Install dependencies: `uv pip install -e .[dev]`
+- Install dependencies: `uv sync --extra dev`
 - Uses `uv` as the package manager (faster than pip)
 
 ### Testing
@@ -25,7 +25,7 @@ Bittensor Pylon is a high-performance, asynchronous proxy for a Bittensor subnet
 - Line length: 120 characters
 
 ### Database Operations
-- Generate migration: `nox -s generate-migration -- "Your migration message"`
+- Generate migration: `uv run alembic revision --autogenerate -m "Your migration message"`
 - Apply migrations: `alembic upgrade head`
 - Database uses SQLite with async support via `aiosqlite`
 
@@ -130,11 +130,11 @@ Environment variables configured via `.env` file (template at `pylon_service/env
 ## Development Workflow
 
 1. Create `.env` from template: `cp pylon_service/envs/test_env.template .env`
-2. Install dependencies: `uv pip install -e .[dev]`
+2. Install dependencies: `uv sync --extra dev`
 3. Run database migrations: `alembic upgrade head`
 4. Run tests: `nox -s test`
 5. Format code: `nox -s format`
-6. Run service: `uvicorn pylon_service.main:app --host 0.0.0.0 --port 8000`
+6. Run service: `uvicorn pylon_service.main:app --reload --host 127.0.0.1 --port 8000`
 
 ## Important Implementation Details
 

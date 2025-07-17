@@ -144,7 +144,7 @@ nox -s format                  # Format code with ruff and run type checking
 
 Generate new migrations after model changes:
 ```bash
-nox -s generate-migration -- "Your migration message"
+uv run alembic revision --autogenerate -m "Your migration message"
 ```
 
 Apply database migrations:
