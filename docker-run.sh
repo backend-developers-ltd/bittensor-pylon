@@ -13,4 +13,4 @@ docker run --rm \
   -v "$PYLON_DB_DIR:/app/db/" \
   -v "$HOME/.bittensor:/root/.bittensor" \
   -p "$DOCKER_HOST_PORT:8000" \
-  "$@" $PYLON_DOCKER_IMAGE_NAME
+  "$PYLON_DOCKER_IMAGE_NAME" "$@"
