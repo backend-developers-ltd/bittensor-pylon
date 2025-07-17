@@ -22,7 +22,6 @@ def get_bt_wallet(settings: Settings):
             hotkey=settings.bittensor_wallet_hotkey_name,
             path=settings.bittensor_wallet_path,
         )
-        logger.info(f"Wallet created successfully for hotkey '{settings.bittensor_wallet_hotkey_name}'")
         return wallet
     except Exception as e:
         logger.error(f"Failed to create wallet: {e}")
@@ -31,10 +30,11 @@ def get_bt_wallet(settings: Settings):
 
 async def create_bittensor_client() -> Bittensor:
     wallet = get_bt_wallet(settings)
+    network = settings.bittensor_network
     logger.info("Creating Bittensor client...")
     try:
-        client = Bittensor(wallet=wallet)
-        logger.info(f"Bittensor client created for wallet '{wallet}'")
+        client = Bittensor(wallet=wallet, uri=network)
+        logger.info(f"Bittensor client created for {wallet} on {network}")
         return client
     except Exception as e:
         logger.error(f"Failed to create Bittensor client: {e}")
@@ -64,7 +64,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     Fetches the latest weights from the database for the current epoch.
     """
     # Get neurons from the metagraph
-    metagraph = app.state.metagraph_cache.get(block)
+    metagraph = await get_metagraph(app, block)
     neurons = metagraph.get_active_neurons()
 
     # Fetch neurons weights from db for the current epoch
