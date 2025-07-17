@@ -20,8 +20,8 @@ async def client(monkeypatch, temp_db_config):
     # mock db dir for docker based tests
     monkeypatch.setattr(settings, "pylon_db_dir", temp_db_config["db_dir"])
     monkeypatch.setattr(settings, "am_i_a_validator", True)
-    client = PylonClient(port=PYLON_TEST_PORT)
-    manager = PylonDockerManager(client=client)
+    client = PylonClient(base_url=f"http://127.0.0.1:{PYLON_TEST_PORT}")
+    manager = PylonDockerManager(port=PYLON_TEST_PORT)
     async with client, manager:
         yield client
 

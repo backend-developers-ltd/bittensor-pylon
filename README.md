@@ -63,7 +63,8 @@ pip install git+https://github.com/backend-developers-ltd/bittensor-pylon.git
 
 ### Basic Usage
 
-The client automatically manages the Docker container for you:
+The client can connect to a running Pylon service. For production or long-lived services, you should run the Pylon service directly using Docker as described in the "Run the service" section.
+Use the PylonClient to connect with the running service:
 
 ```python
 import asyncio
@@ -71,32 +72,32 @@ from pylon_client.client import PylonClient
 from pylon_client.docker_manager import PylonDockerManager
 
 async def main():
-    async with PylonClient(port=8000) as client:
-        # (Optional) start/stop the service container
-        async with PylonDockerManager(client=client):
-            # Get latest block information
-            latest_block = await client.get_latest_block()
-            print(f"Latest block: {latest_block}")
-            
-            # Get metagraph data
-            metagraph = await client.get_metagraph()
-            print(f"Metagraph: {metagraph}")
-            
-            # Get hyperparameters
-            hyperparams = await client.get_hyperparams()
-            print(f"Hyperparams: {hyperparams}")
+    async with PylonClient(base_url="http://your-server.com:port") as client:
+        # Get latest block information
+        latest_block = await client.get_latest_block()
+        print(f"Latest block: {latest_block}")
+
+        # Get metagraph data
+        metagraph = await client.get_metagraph()
+        print(f"Metagraph: {metagraph}")
+
+        # Get hyperparameters
+        hyperparams = await client.get_hyperparams()
+        print(f"Hyperparams: {hyperparams}")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Or If you have a service already running elsewhere:
+If you need to manage the Pylon service programmatically you can use the `PylonDockerManager`. 
+It's a context manager that starts the Pylon service and stops it when the `async with` block is exited. Only suitable for ad-hoc use cases like scripts, short-lived tasks or testing.
 
 ```python
 async def main():
-    async with PylonClient(base_url="http://your-server.com", port=8000) as client:
-        latest_block = await client.get_latest_block()
-        ...
+    async with PylonClient(base_url="http://your-server.com:port") as client:
+        async with PylonDockerManager(port=port) as client:
+            latest_block = await client.get_latest_block()
+            ...
 
 ```
 
@@ -151,4 +152,3 @@ Apply database migrations:
 ```bash
 alembic upgrade head
 ```
-

@@ -107,8 +107,12 @@ def get_current_epoch(request: Request):
 
 
 @get("/health")
-async def health_check() -> Response:
-    """A simple health check endpoint."""
+async def health_check(request: Request) -> Response:
+    """
+    Service is considered healthy when a latest block has been fetched.
+    """
+    if request.app.state.latest_block is None:
+        return Response(status_code=503, content={"status": "loading"})
     return Response(status_code=200, content={"status": "ok"})
 
 

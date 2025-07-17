@@ -34,8 +34,7 @@ class PylonClient:
 
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1",
-        port: int = 8000,
+        base_url: str = "http://127.0.0.1:8000",
         timeout: float = 10.0,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
@@ -46,15 +45,13 @@ class PylonClient:
 
         Args:
             base_url: The base URL of the pylon service.
-            port: The port of the pylon service.
             timeout: The timeout for requests in seconds.
             max_retries: The maximum number of retries for failed requests.
             backoff_factor: The backoff factor for exponential backoff between retries.
             client: An optional pre-configured httpx.AsyncClient.
             mock_data_path: Path to a JSON file with mock data to run the client in mock mode.
         """
-        self.port = port
-        self.base_url = f"{base_url}:{self.port}"
+        self.base_url = base_url
         self._timeout = Timeout(timeout)
         self._limits = Limits(max_connections=100, max_keepalive_connections=20)
         self._max_retries = max_retries
