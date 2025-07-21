@@ -1,44 +1,70 @@
 # Bittensor Pylon
 
-**Bittensor Pylon** is a high-performance, asynchronous proxy for a Bittensor subnet. It acts as a robust bridge between external applications and the Bittensor blockchain.
+**Bittensor Pylon** is a high-performance, asynchronous proxy for Bittensor subnets. It provides fast, cached access to Bittensor blockchain data through a REST API, making it easy for applications to interact with the Bittensor network without direct blockchain calls.
 
-This repository contains two main packages:
+## What's Included
 
--   **`pylon_service`**: The core REST API service. This is the main application that runs as a server, connects to the Bittensor network, caches data, and exposes the API endpoints.
--   **`pylon_client`**: A lightweight client library. This package provides a convenient Python interface for interacting with the `pylon_service` API, allowing other applications to easily consume its data.
+- **REST API Service** (`pylon_service`): High-performance server that connects to Bittensor, caches subnet data, and exposes REST endpoints
+- **Python Client Library** (`pylon_client`): Simple async client for consuming the API with built-in retry logic and mock support
+
+Full API documentation is available at `/schema/swagger` when the service is running.
 
 
+## Quick Start
 
-## Development
+### Configuration
 
-### Setup and Configuration
+Create a `.env` file with your Bittensor settings:
 
-Clone the repository and install the dependencies:
 ```bash
-git clone https://github.com/your-repo/bittensor-pylon.git
-cd bittensor-pylon
-uv pip install -e .[dev]
+# Copy the template and edit it
+cp pylon_service/envs/test_env.template .env
 ```
 
-Configure the environment by creating a `.env` file based on the provided template (`pylon_service/envs/test_env.template`)
+#### Weight Committing Window
 
-
-### Running the Pylon Service
-
-locally:
-```bash
-uvicorn pylon_service.main:app --host 0.0.0.0 --port 8000
+Pylon commits weights within specific time windows every X epochs:
+```
+    0            180               350      360
+    |_____________|_________________|________|
+    |   OFFSET    |  COMMIT WINDOW  | BUFFER |
 ```
 
-or with Docker:
+- **`COMMIT_WINDOW_START_OFFSET`** (default: 180): Blocks after epoch start before commits begin
+- **`COMMIT_WINDOW_END_BUFFER`** (default: 10): Blocks before epoch end when commits stop
+- **`COMMIT_CYCLE_LENGTH`** (default: 3): Number of epochs between weight commits
+
+Example: With defaults, the commit window is open from block 180 to block 350 of each epoch, and weights are committed every 3 epochs.
+
+### Run the service
+
+Using official docker image:
+
 ```bash
-PYLON_DOCKER_IMAGE_NAME="bittensor_pylon" PYLON_DB_DIR="data/" ./docker-run.sh
+docker pull backenddevelopersltd/bittensor-pylon:v1-latest
+docker run --rm --env-file .env -v "$(pwd)/data:/app/db/" -p 8000:8000 backenddevelopersltd/bittensor-pylon:v1-latest
 ```
 
-### Using the Pylon Client
+or building and running locally:
+```bash
+./docker-run.sh
+```
+
+Test the endpoints at `http://localhost:8000/schema/swagger`
 
 
-Below is a brief example of how to use the client:
+
+## Using the Python Client
+
+Install the client library:
+```bash
+pip install git+https://github.com/backend-developers-ltd/bittensor-pylon.git
+```
+
+### Basic Usage
+
+The client can connect to a running Pylon service. For production or long-lived services, you should run the Pylon service directly using Docker as described in the "Run the service" section.
+Use the PylonClient to connect with the running service:
 
 ```python
 import asyncio
@@ -46,73 +72,83 @@ from pylon_client.client import PylonClient
 from pylon_client.docker_manager import PylonDockerManager
 
 async def main():
-    async with PylonClient(port=port) as client:
-        # start the Pylon service docker container manually or use the PylonDockerManager
-        async with PylonDockerManager(client=client):
-            latest_block = await client.get_latest_block()
-            print(f"The latest block is: {latest_block}")
+    async with PylonClient(base_url="http://your-server.com:port") as client:
+        # Get latest block information
+        latest_block = await client.get_latest_block()
+        print(f"Latest block: {latest_block}")
+
+        # Get metagraph data
+        metagraph = await client.get_metagraph()
+        print(f"Metagraph: {metagraph}")
+
+        # Get hyperparameters
+        hyperparams = await client.get_hyperparams()
+        print(f"Hyperparams: {hyperparams}")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-For testing, you can run the `PylonClient` in a mock mode by providing a path to a JSON file containing mock data. This allows you to test your application without a live `pylon_service` instance.
-The client's mock mode provides hooks for asserting that endpoints were called and allows you to override default mock responses for specific tests.
+If you need to manage the Pylon service programmatically you can use the `PylonDockerManager`. 
+It's a context manager that starts the Pylon service and stops it when the `async with` block is exited. Only suitable for ad-hoc use cases like scripts, short-lived tasks or testing.
+
+```python
+async def main():
+    async with PylonClient(base_url="http://your-server.com:port") as client:
+        async with PylonDockerManager(port=port) as client:
+            latest_block = await client.get_latest_block()
+            ...
+
+```
+
+### Mock Mode for Testing
+
+For testing without a live service:
 
 ```python
 import asyncio
 from pylon_client.client import PylonClient
 
-# Create a mock_data.json file with your desired responses:
-# {
-#   "metagraph": { "block": 12345, "neurons": [] },
-#   "hyperparams": { "rho": 10, "kappa": 32767 }
-# }
-
 async def main():
-    # Initialize the client with the path to your mock data
-    client = PylonClient(mock_data_path="path/to/mock_data.json")
-
+    # Use mock data from JSON file
+    client = PylonClient(mock_data_path="tests/mock_data.json")
+    
     async with client:
-        # The client will return data from your mock file
+        # Returns mock data
         latest_block = await client.get_latest_block()
         print(f"Mocked latest block: {latest_block}")
-        # You can assert that the mock was called
+        
+        # Verify the mock was called
         client.mock.get_latest_block.assert_called_once()
-
-        # You can also override a specific response for a test
+        
+        # Override responses for specific tests
         client.override("get_latest_block", {"block": 99999})
         overridden_block = await client.get_latest_block()
-        print(f"Overridden latest block: {overridden_block}")
+        print(f"Overridden block: {overridden_block}")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Testing
+## Development
 
-This project uses `nox` for managing development tasks.
-*   **Format/Lint code:** `nox -s format`
-*   **Run tests:** `nox -s test`
-*   **Run a specific test:** `nox -s test -- -k "test_name"`
-
-
-### Database Migrations
-
-Before running the application for the first time, apply the database migrations.
-
-If you've changed the database models in `pylon_service/db.py`, generate a new migration script:
+Run tests:
 ```bash
-nox -s generate-migration -- "Your migration message"
+nox -s test                    # Run all tests
+nox -s test -- -k "test_name"  # Run specific test
 ```
 
-Then, apply the migrations to the database:
+Format and lint code:
+```bash
+nox -s format                  # Format code with ruff and run type checking
+```
+
+Generate new migrations after model changes:
+```bash
+uv run alembic revision --autogenerate -m "Your migration message"
+```
+
+Apply database migrations:
 ```bash
 alembic upgrade head
 ```
-
-
----
-
-For more information on the architecture and API endpoints please see [ARCHITECTURE.md](ARCHITECTURE.md).
-

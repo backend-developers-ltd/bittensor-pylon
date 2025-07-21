@@ -8,7 +8,7 @@ def get_epoch_containing_block(
 ) -> Epoch:
     """
     Reimplementing the logic from subtensor's Rust function:
-        pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block_number: u64) -> u64
+        pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block: u64) -> u64
     See https://github.com/opentensor/subtensor.
     See also: https://github.com/opentensor/bittensor/pull/2168/commits/9e8745447394669c03d9445373920f251630b6b8
 

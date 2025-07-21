@@ -14,10 +14,9 @@ EPOCH = 1500
 
 
 @pytest.fixture
-def client(monkeypatch):
-    # TODO: simplify this db mocking
-    test_db_uri = "sqlite+aiosqlite:////tmp/test_pylon.db"
-
+def client(monkeypatch, temp_db_config):
+    # mock db uri for local unit tests
+    test_db_uri = temp_db_config["db_uri"]
     monkeypatch.setattr(settings, "pylon_db_uri", test_db_uri)
     monkeypatch.setenv("PYLON_DB_URI", test_db_uri)
 
@@ -38,7 +37,7 @@ def client(monkeypatch):
 
 
 def test_latest_metagraph__success(client):
-    resp = client.get("/metagraph")
+    resp = client.get("/latest_metagraph")
     assert resp.status_code == 200
     data = resp.json()
     assert data["block"] == EPOCH
@@ -48,11 +47,11 @@ def test_latest_metagraph__success(client):
 
 def test_latest_metagraph__no_block(client):
     client.app.state.latest_block = None
-    resp = client.get("/metagraph")
+    resp = client.get("/latest_metagraph")
     assert resp.status_code == 500
 
 
-def test_metagraph__block_number_success(client):
+def test_metagraph__block_success(client):
     resp = client.get(f"/metagraph/{EPOCH}")
     assert resp.status_code == 200
     data = resp.json()
@@ -97,13 +96,13 @@ def test_weights__set_update_requests(client):
     assert resp.json()["weight"] == initial_weight + delta
 
     # Check raw weights
-    resp = client.get("/raw_weights")
+    resp = client.get("/latest_weights")
     assert resp.status_code == 200
     weights = resp.json()["weights"]
     assert weights[hotkey] == initial_weight + delta
 
-    # Query with missing epoch should not find it
-    resp = client.get("/raw_weights?epoch=2110")
+    # Query with missing block should not find it
+    resp = client.get("/weights/2110")
     assert resp.status_code == 404
 
     # Test force commit
@@ -118,22 +117,22 @@ def test_set_weights__missing_params(client):
     # Missing hotkey
     resp = client.put("/set_weight", json={"weight": 1.0})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing hotkey")
+    assert "Validation failed" in resp.json().get("detail", "")
     # Missing weight
     resp = client.put("/set_weight", json={"hotkey": "foo"})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing weight")
+    assert "Validation failed" in resp.json().get("detail", "")
 
 
 def test_update_weight__missing_params(client):
     # Missing hotkey
     resp = client.put("/update_weight", json={"weight_delta": 1.0})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing hotkey")
+    assert "Validation failed" in resp.json().get("detail", "")
     # Missing weight_delta
     resp = client.put("/update_weight", json={"hotkey": "foo"})
     assert resp.status_code == 400
-    assert resp.json().get("detail", "").startswith("Missing weight_delta")
+    assert "Validation failed" in resp.json().get("detail", "")
 
 
 def test_validator_endpoints_forbidden(client, monkeypatch):
@@ -160,19 +159,19 @@ async def test_get_commitment(client):
 
     mock_get_commitment.return_value = b"0x1234"
     hotkey = "hotkey"
-    resp = client.get(f"/get_commitment/{hotkey}")
+    resp = client.get(f"/commitment/{hotkey}")
     assert resp.status_code == 200
     data = resp.json()
     assert data["hotkey"] == hotkey
     assert data["commitment"] is not None
 
     mock_get_commitment.return_value = None
-    resp = client.get("/get_commitment/hotkey_not_found")
+    resp = client.get("/commitment/hotkey_not_found")
     assert resp.status_code == 404
     assert "not found" in resp.json()["detail"]
 
     mock_fetch_commitments.return_value = {"hotkey": b"0x1234"}
-    resp = client.get("/get_commitments")
+    resp = client.get("/commitments")
     assert resp.status_code == 200
     assert resp.json().keys() is not None
 
@@ -188,7 +187,7 @@ async def test_set_commitment(client):
 
     resp = client.post("/set_commitment", json={})
     assert resp.status_code == 400
-    assert "Missing 'data_hex'" in resp.json()["detail"]
+    assert "Validation failed" in resp.json()["detail"]
 
     resp = client.post("/set_commitment", json={"data_hex": "333"})
     assert resp.status_code == 400

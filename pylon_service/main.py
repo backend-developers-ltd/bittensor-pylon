@@ -9,20 +9,21 @@ from litestar.openapi.config import OpenAPIConfig
 
 from pylon_service.api import (
     block_hash,
-    epoch_start,
-    force_commit_weights,
+    epoch_start_endpoint,
+    force_commit_weights_endpoint,
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
     health_check,
     latest_block,
     latest_metagraph,
+    latest_weights_endpoint,
     metagraph,
-    raw_weights,
     set_commitment_endpoint,
     set_hyperparam_endpoint,
-    set_weight,
-    update_weight,
+    set_weight_endpoint,
+    update_weight_endpoint,
+    weights_endpoint,
 )
 from pylon_service.bittensor_client import create_bittensor_client
 from pylon_service.db import init_db
@@ -54,10 +55,13 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
         task = asyncio.create_task(task_func(app, app.state._stop_event))
         app.state._background_tasks.append(task)
 
-    # Log all registered routes
     logger.debug("Registered routes:")
     for route in app.routes:
         logger.debug(f"{route.path} -> {getattr(route, 'handler', None)}")
+
+    logger.info("Env vars:")
+    for key, value in settings.dict().items():
+        logger.info(f"{key} = {value}")
 
 
 async def on_shutdown(app: Litestar) -> None:
@@ -77,15 +81,16 @@ def create_app(tasks: list[Callable]) -> Litestar:
             block_hash,
             metagraph,
             latest_metagraph,
-            epoch_start,
+            epoch_start_endpoint,
             # Hyperparams
             get_hyperparams_endpoint,
             set_hyperparam_endpoint,
             # Validator weights
-            set_weight,
-            raw_weights,
-            update_weight,
-            force_commit_weights,
+            set_weight_endpoint,
+            latest_weights_endpoint,
+            weights_endpoint,
+            update_weight_endpoint,
+            force_commit_weights_endpoint,
             # Commitments
             get_commitment_endpoint,
             get_commitments_endpoint,

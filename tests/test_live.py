@@ -12,19 +12,20 @@ PYLON_TEST_PORT = 8001
 
 
 @pytest_asyncio.fixture
-async def client(monkeypatch):
+async def client(monkeypatch, temp_db_config):
     """
     Pytest fixture to initialize PylonClient and manage the Pylon Docker service
-    with validator mode enabled.
+    with validator mode enabled and temporary database configuration.
     """
+    # mock db dir for docker based tests
+    monkeypatch.setattr(settings, "pylon_db_dir", temp_db_config["db_dir"])
     monkeypatch.setattr(settings, "am_i_a_validator", True)
-    client = PylonClient(port=PYLON_TEST_PORT)
-    manager = PylonDockerManager(client=client)
+    client = PylonClient(base_url=f"http://127.0.0.1:{PYLON_TEST_PORT}")
+    manager = PylonDockerManager(port=PYLON_TEST_PORT)
     async with client, manager:
         yield client
 
 
-@pytest.mark.skip  # TODO: fix in CI
 @pytest.mark.asyncio
 async def test_client_metagraph_caching(client: PylonClient):
     """
@@ -58,7 +59,6 @@ async def test_client_metagraph_caching(client: PylonClient):
     )
 
 
-@pytest.mark.skip  # TODO: fix in CI
 @pytest.mark.asyncio
 async def test_weights_endpoints(client: PylonClient):
     """
@@ -80,7 +80,7 @@ async def test_weights_endpoints(client: PylonClient):
     # Set, update, and check the weight
     await set_and_check_weight(client, hotkey, initial_weight)
     await update_and_check_weight(client, hotkey, delta, expected_final_weight)
-    await check_raw_weights(client, epoch, {hotkey: expected_final_weight})
+    await check_weights(client, epoch, {hotkey: expected_final_weight})
 
 
 async def set_and_check_weight(client, hotkey, value):
@@ -93,8 +93,8 @@ async def update_and_check_weight(client, hotkey, value, expected):
     assert resp and resp.get("weight") == expected, f"expected {hotkey} weight to be updated to {expected}"
 
 
-async def check_raw_weights(client, epoch: int | None, expected_dict):
-    resp = await client.get_raw_weights(epoch)
+async def check_weights(client, block: int | None, expected_dict):
+    resp = await client.get_weights(block)
     assert resp and "weights" in resp, "Invalid weights response: {resp}"
     # assert resp.get("epoch") == epoch
     weights_dict = resp.get("weights")
@@ -129,7 +129,7 @@ async def set_and_check_hyperparam(client, param, value):
 #         await update_and_check_weight(hotkey_1, 1.0, 11.0)
 #
 #     with controller.pause_block(30):
-#         await check_raw_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
+#         await check_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
 #
 #     # after epoch pass
 #     with controller.pause_block(101):
@@ -137,6 +137,6 @@ async def set_and_check_hyperparam(client, param, value):
 #
 #     with controller.pause_block(110):
 #         # previous epoch weights
-#         await check_raw_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
+#         await check_weights(0, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 0.0})
 #         # current epoch weights
-#         await check_raw_weights(100, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 30.0})
+#         await check_weights(100, {hotkey_1: 11.0, hotkey_2: 20.0, hotkey_3: 30.0})

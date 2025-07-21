@@ -1,21 +1,22 @@
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from freezegun import freeze_time
 from litestar import Litestar
 
 from pylon_service.settings import settings as app_settings
-from pylon_service.tasks import set_weights_periodically_task
+from pylon_service.tasks import fetch_latest_metagraph_task, set_weights_periodically_task
 from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
 # Default settings for tests, can be overridden by monkeypatch
 TEST_TEMPO = 100
-TEST_COMMIT_CYCLE_LENGTH = 2  # Every 2 tempos
-TEST_COMMIT_WINDOW_START_OFFSET = 50  # from start of tempo
-TEST_COMMIT_WINDOW_END_BUFFER = 10  # from end of tempo
-TEST_CHECK_INTERVAL = 0.3  # seconds, for fast checking
+TEST_COMMIT_CYCLE_LENGTH = 2
+TEST_COMMIT_WINDOW_START_OFFSET = 50
+TEST_COMMIT_WINDOW_END_BUFFER = 10
+TEST_CHECK_INTERVAL = 0.3
+TEST_LATEST_METAGRAPH_TASK_INTERVAL_SECONDS = 0.1
 
 
 async def wait_for_mock_call(mock_obj, timeout=1.0, iterations=20):
@@ -34,6 +35,7 @@ def mock_app(monkeypatch):
     monkeypatch.setattr(app_settings, "weight_commit_check_task_interval_seconds", TEST_CHECK_INTERVAL)
     monkeypatch.setattr(app_settings, "commit_window_start_offset", TEST_COMMIT_WINDOW_START_OFFSET)
     monkeypatch.setattr(app_settings, "commit_window_end_buffer", TEST_COMMIT_WINDOW_END_BUFFER)
+    monkeypatch.setattr(app_settings, "fetch_latest_metagraph_task_interval_seconds", 0.1)
 
     app = Litestar(route_handlers=[])
     app.state.bittensor_client = MockBittensorClient()
@@ -113,6 +115,39 @@ async def test_set_weights_commit_flow(
         mock_get_weights.assert_called_once()
         mock_commit_weights_call.assert_called_once()
 
-        # --- Cleanup ---
         stop_event.set()
         await task_handle
+
+
+@pytest.mark.asyncio
+@patch("pylon_service.tasks.cache_metagraph", new_callable=AsyncMock)
+async def test_fetch_latest_metagraph_task_error_recovery(
+    mock_cache_metagraph,
+    mock_app,
+):
+    """Test that fetch_latest_metagraph_task continues to work after errors in different parts of the process"""
+    mock_app.state.latest_block = None
+    mock_app.state.current_epoch_start = None
+
+    # Mock successful block fetching
+    mock_app.state.bittensor_client.head.get.return_value = MagicMock(number=100, hash="0xabc")
+
+    # fails on first call, succeeds on second
+    mock_cache_metagraph.side_effect = [Exception("Cache failed"), None]
+
+    stop_event = asyncio.Event()
+    task_handle = asyncio.create_task(fetch_latest_metagraph_task(mock_app, stop_event))
+
+    # Allow task to run first iteration (should fail)
+    await wait_for_mock_call(mock_cache_metagraph, timeout=1.0)
+
+    assert mock_cache_metagraph.call_count == 1
+    assert mock_app.state.latest_block is None
+
+    # Allow task to run second iteration (should succeed)
+    await asyncio.sleep(0.4)
+    assert mock_cache_metagraph.call_count == 2
+    assert mock_app.state.latest_block == 100
+
+    stop_event.set()
+    await task_handle

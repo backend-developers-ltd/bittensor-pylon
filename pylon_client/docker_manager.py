@@ -3,9 +3,9 @@ import logging
 from types import TracebackType
 
 import docker
+import httpx
 from docker.models.containers import Container
 
-from pylon_client.client import PylonClient
 from pylon_service.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class PylonDockerManager:
     """An asynchronous context manager for starting and stopping the Pylon service in a Docker container."""
 
-    def __init__(self, client: PylonClient):
-        self.client = client
+    def __init__(self, port: int):
+        self.port = port
         self.container: Container | None = None
         self._docker_client = None
 
@@ -33,7 +33,7 @@ class PylonDockerManager:
                 self.docker_client.containers.run,
                 settings.pylon_docker_image_name,
                 detach=True,
-                ports={"8000/tcp": self.client.port},
+                ports={"8000/tcp": self.port},
                 volumes={settings.pylon_db_dir: {"bind": "/app/db/", "mode": "rw"}},
                 environment=settings.model_dump(),
             )
@@ -66,21 +66,18 @@ class PylonDockerManager:
             finally:
                 self.container = None
 
-    async def _wait_for_service(self, retries: int = 5) -> None:
-        """Waits for the Pylon service to be ready."""
-        await asyncio.sleep(1)
-        for _ in range(retries):
-            if await self._check_service_is_running():
-                logger.info("Pylon service is ready.")
-                return
-            logger.warning("Waiting for Pylon service to be ready...")
-            await asyncio.sleep(1)
-
-    async def _check_service_is_running(self) -> bool:
-        """Checks if the Pylon service is running and has fetched at least one metagraph data"""
-        try:
-            await self.client.get_latest_block()
-        except Exception as e:
-            logger.error(f"Pylon service check failed: {e}")
-            return False
-        return True
+    async def _wait_for_service(self, retries: int = 10, delay: float = 1.0) -> None:
+        """Waits for the Pylon service to be ready by polling the /health endpoint."""
+        await asyncio.sleep(delay)
+        async with httpx.AsyncClient() as client:
+            for i in range(retries):
+                try:
+                    response = await client.get(f"http://localhost:{self.port}/health")
+                    if response.status_code == 200:
+                        logger.info("Pylon service is up.")
+                        return
+                except Exception:
+                    pass
+                logger.error(f"Pylon service not ready yet (attempt {i + 1}/{retries})")
+                await asyncio.sleep(delay)
+        raise RuntimeError("Pylon service failed to start in time.")

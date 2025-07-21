@@ -5,23 +5,25 @@ import httpx
 from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from pylon_service.models import Epoch, Metagraph
-
-from .constants import (
+from pylon_service.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_COMMITMENT,
+    ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
     ENDPOINT_FORCE_COMMIT_WEIGHTS,
-    ENDPOINT_GET_COMMITMENT,
-    ENDPOINT_GET_COMMITMENTS,
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
-    ENDPOINT_METAGRAPH,
-    ENDPOINT_RAW_WEIGHTS,
+    ENDPOINT_LATEST_METAGRAPH,
+    ENDPOINT_LATEST_WEIGHTS,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_UPDATE_WEIGHT,
+    ENDPOINT_WEIGHTS,
+    format_endpoint,
 )
+from pylon_service.models import Epoch, Metagraph
+
 from .mock import MockHandler
 
 logger = logging.getLogger(__name__)
@@ -32,8 +34,7 @@ class PylonClient:
 
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1",
-        port: int = 8000,
+        base_url: str = "http://127.0.0.1:8000",
         timeout: float = 10.0,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
@@ -44,15 +45,13 @@ class PylonClient:
 
         Args:
             base_url: The base URL of the pylon service.
-            port: The port of the pylon service.
             timeout: The timeout for requests in seconds.
             max_retries: The maximum number of retries for failed requests.
             backoff_factor: The backoff factor for exponential backoff between retries.
             client: An optional pre-configured httpx.AsyncClient.
             mock_data_path: Path to a JSON file with mock data to run the client in mock mode.
         """
-        self.port = port
-        self.base_url = f"{base_url}:{self.port}"
+        self.base_url = base_url
         self._timeout = Timeout(timeout)
         self._limits = Limits(max_connections=100, max_keepalive_connections=20)
         self._max_retries = max_retries
@@ -110,16 +109,16 @@ class PylonClient:
     async def get_latest_block(self) -> dict | None:
         return await self._request("get", ENDPOINT_LATEST_BLOCK)
 
-    async def get_metagraph(self, block_number: int | None = None) -> Metagraph | None:
-        endpoint = f"{ENDPOINT_METAGRAPH}/{block_number}" if block_number else ENDPOINT_METAGRAPH
+    async def get_metagraph(self, block: int | None = None) -> Metagraph | None:
+        endpoint = f"/metagraph/{block}" if block else ENDPOINT_LATEST_METAGRAPH
         data = await self._request("get", endpoint)
         return Metagraph(**data) if data else None
 
-    async def get_block_hash(self, block_number: int) -> dict | None:
-        return await self._request("get", ENDPOINT_BLOCK_HASH.format(block_number=block_number))
+    async def get_block_hash(self, block: int) -> dict | None:
+        return await self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
 
-    async def get_epoch(self, block_number: int | None = None) -> Epoch | None:
-        endpoint = f"{ENDPOINT_EPOCH}/{block_number}" if block_number else ENDPOINT_EPOCH
+    async def get_epoch(self, block: int | None = None) -> Epoch | None:
+        endpoint = f"{ENDPOINT_EPOCH}/{block}" if block else ENDPOINT_EPOCH
         data = await self._request("get", endpoint)
         return Epoch(**data) if data else None
 
@@ -135,20 +134,23 @@ class PylonClient:
     async def set_weight(self, hotkey: str, weight: float) -> dict | None:
         return await self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
 
-    async def get_raw_weights(self, epoch: int | None = None) -> dict | None:
-        params = {"epoch": epoch} if epoch else {}
-        return await self._request("get", ENDPOINT_RAW_WEIGHTS, params=params)
+    async def get_weights(self, block: int | None = None) -> dict | None:
+        if block is not None:
+            endpoint = format_endpoint(ENDPOINT_WEIGHTS, block=block)
+        else:
+            endpoint = ENDPOINT_LATEST_WEIGHTS
+        return await self._request("get", endpoint)
 
     async def force_commit_weights(self) -> dict | None:
         return await self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)
 
     async def get_commitment(self, hotkey: str, block: int | None = None) -> dict | None:
         params = {"block": block} if block else {}
-        return await self._request("get", ENDPOINT_GET_COMMITMENT.format(hotkey=hotkey), params=params)
+        return await self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
 
     async def get_commitments(self, block: int | None = None) -> dict | None:
         params = {"block": block} if block else {}
-        return await self._request("get", ENDPOINT_GET_COMMITMENTS, params=params)
+        return await self._request("get", ENDPOINT_COMMITMENTS, params=params)
 
     async def set_commitment(self, data_hex: str) -> dict | None:
         return await self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})

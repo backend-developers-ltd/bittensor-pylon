@@ -8,7 +8,7 @@ from litestar.app import Litestar
 from turbobt.block import Block
 from turbobt.client import Bittensor
 
-from pylon_service.db import get_neurons_weights
+from pylon_service.db import get_uid_weights_dict
 from pylon_service.models import Hotkey, Metagraph, Neuron
 from pylon_service.settings import Settings, settings
 
@@ -22,7 +22,6 @@ def get_bt_wallet(settings: Settings):
             hotkey=settings.bittensor_wallet_hotkey_name,
             path=settings.bittensor_wallet_path,
         )
-        logger.info(f"Wallet created successfully for hotkey '{settings.bittensor_wallet_hotkey_name}'")
         return wallet
     except Exception as e:
         logger.error(f"Failed to create wallet: {e}")
@@ -31,32 +30,33 @@ def get_bt_wallet(settings: Settings):
 
 async def create_bittensor_client() -> Bittensor:
     wallet = get_bt_wallet(settings)
+    network = settings.bittensor_network
     logger.info("Creating Bittensor client...")
     try:
-        client = Bittensor(wallet=wallet)
-        logger.info(f"Bittensor client created for wallet '{wallet}'")
+        client = Bittensor(wallet=wallet, uri=network)
+        logger.info(f"Bittensor client created for {wallet} on {network}")
         return client
     except Exception as e:
         logger.error(f"Failed to create Bittensor client: {e}")
         raise
 
 
-async def cache_metagraph(app: Litestar, block: Block):
-    neurons = await app.state.bittensor_client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block.hash)  # type: ignore
-    block_number = block.number
-    if type(block_number) is not int:
+async def cache_metagraph(app: Litestar, block_obj: Block):
+    block, block_hash = block_obj.number, block_obj.hash
+    neurons = await app.state.bittensor_client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block_hash)  # type: ignore
+    if type(block) is not int:
         raise ValueError("Block number is not an integer")
     neurons = [Neuron.model_validate(asdict(neuron)) for neuron in neurons]
     neurons = {neuron.hotkey: neuron for neuron in neurons}
-    metagraph = Metagraph(block=block_number, block_hash=block.hash, neurons=neurons)
-    app.state.metagraph_cache[block_number] = metagraph
+    metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
+    app.state.metagraph_cache[block] = metagraph
 
 
-async def get_metagraph(app: Litestar, block_number: int) -> Metagraph:
-    if block_number not in app.state.metagraph_cache:
-        block = await app.state.bittensor_client.block(block_number).get()
-        await cache_metagraph(app, block)
-    return app.state.metagraph_cache[block_number]
+async def get_metagraph(app: Litestar, block: int) -> Metagraph:
+    if block not in app.state.metagraph_cache:
+        block_obj = await app.state.bittensor_client.block(block).get()
+        await cache_metagraph(app, block_obj)
+    return app.state.metagraph_cache[block]
 
 
 async def get_weights(app: Litestar, block: int) -> dict[int, float]:
@@ -64,7 +64,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     Fetches the latest weights from the database for the current epoch.
     """
     # Get neurons from the metagraph
-    metagraph = app.state.metagraph_cache.get(block)
+    metagraph = await get_metagraph(app, block)
     neurons = metagraph.get_active_neurons()
 
     # Fetch neurons weights from db for the current epoch
@@ -73,7 +73,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
         logger.warning("Epoch not available in app state. Cannot fetch db weights.")
         return {}
 
-    weights = await get_neurons_weights(neurons, epoch)
+    weights = await get_uid_weights_dict(neurons, epoch)
     logger.info(f"Current db weights for epoch {epoch}: {weights}")
     return weights
 
@@ -92,20 +92,21 @@ async def commit_weights(app: Litestar, weights: dict[int, float]):
         raise
 
 
-# TODO: replace with CRV3WeightsCommitted ? as last_update might not be reliable
+# TODO: fix last_update fetching or replace with CRV3WeightsCommitted ?
 async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
     """
     Fetches the block number of the last successful weight commitment
     """
-    hotkey = settings.bittensor_wallet_hotkey_name
-    metagraph = await get_metagraph(app, app.state.latest_block)
-    neuron = metagraph.get_neuron(hotkey)
-
-    if neuron is None:
-        logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
-        return None
-
-    return neuron.last_update
+    return 0
+    # hotkey = settings.bittensor_wallet_hotkey_name
+    # metagraph = await get_metagraph(app, app.state.latest_block)
+    # neuron = metagraph.get_neuron(hotkey)
+    #
+    # if neuron is None:
+    #     logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
+    #     return None
+    #
+    # return neuron.last_update
 
 
 async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None) -> str | None:

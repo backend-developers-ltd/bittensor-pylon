@@ -52,14 +52,14 @@ async def init_db():
         raise
 
 
-async def _get_weight(session: AsyncSession, hotkey: Hotkey, epoch: int) -> Weight | None:
+async def get_weight(session: AsyncSession, hotkey: Hotkey, epoch: int) -> Weight | None:
     weights = await session.execute(select(Weight).where((Weight.hotkey == hotkey) & (Weight.epoch == epoch)))
     return weights.scalars().first()
 
 
 async def set_weight(hotkey: Hotkey, weight: float, epoch: int) -> None:
     async with SessionLocal() as session:
-        existing_weight = await _get_weight(session, hotkey, epoch)
+        existing_weight = await get_weight(session, hotkey, epoch)
         if existing_weight:
             existing_weight.weight = weight
         else:
@@ -74,7 +74,7 @@ async def update_weight(hotkey: Hotkey, delta: float, epoch: int) -> float:
     """
     w = None
     async with SessionLocal() as session:
-        existing_weight = await _get_weight(session, hotkey, epoch)
+        existing_weight = await get_weight(session, hotkey, epoch)
         if existing_weight:
             existing_weight.weight += delta
             w = existing_weight.weight
@@ -86,7 +86,7 @@ async def update_weight(hotkey: Hotkey, delta: float, epoch: int) -> float:
     return w
 
 
-async def get_raw_weights(epoch: int) -> dict[Hotkey, float]:
+async def get_hotkey_weights_dict(epoch: int) -> dict[Hotkey, float]:
     """
     Fetch all miner weights for a given epoch.
     Returns a dict: {hotkey: weight}
@@ -97,7 +97,7 @@ async def get_raw_weights(epoch: int) -> dict[Hotkey, float]:
         return {m.hotkey: m.weight for m in weights}
 
 
-async def get_neurons_weights(neurons: list[Neuron], epoch: int) -> dict[int, float]:
+async def get_uid_weights_dict(neurons: list[Neuron], epoch: int) -> dict[int, float]:
     """
     Returns a dict {uid: weight} for the given list of Neurons for the specified epoch.
     """

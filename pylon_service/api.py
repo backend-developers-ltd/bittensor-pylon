@@ -13,6 +13,30 @@ from pylon_service.bittensor_client import (
     set_commitment,
     set_hyperparam,
 )
+from pylon_service.constants import (
+    ENDPOINT_BLOCK_HASH,
+    ENDPOINT_COMMITMENT,
+    ENDPOINT_COMMITMENTS,
+    ENDPOINT_EPOCH,
+    ENDPOINT_EPOCH_BLOCK,
+    ENDPOINT_FORCE_COMMIT_WEIGHTS,
+    ENDPOINT_HYPERPARAMS,
+    ENDPOINT_LATEST_BLOCK,
+    ENDPOINT_LATEST_METAGRAPH,
+    ENDPOINT_LATEST_WEIGHTS,
+    ENDPOINT_METAGRAPH,
+    ENDPOINT_SET_COMMITMENT,
+    ENDPOINT_SET_HYPERPARAM,
+    ENDPOINT_SET_WEIGHT,
+    ENDPOINT_UPDATE_WEIGHT,
+    ENDPOINT_WEIGHTS_TYPED,
+)
+from pylon_service.models import (
+    SetCommitmentRequest,
+    SetHyperparamRequest,
+    SetWeightRequest,
+    UpdateWeightRequest,
+)
 from pylon_service.settings import settings
 from pylon_service.utils import get_epoch_containing_block
 
@@ -68,10 +92,10 @@ def safe_endpoint(func):
 
 def get_latest_block(request: Request) -> int:
     """Helper to get the latest block number from app state."""
-    block_number = request.app.state.latest_block
-    if block_number is None:
+    block = request.app.state.latest_block
+    if block is None:
         raise RuntimeError("Latest block not available. Try again later.")
-    return block_number
+    return block
 
 
 def get_current_epoch(request: Request):
@@ -83,12 +107,16 @@ def get_current_epoch(request: Request):
 
 
 @get("/health")
-async def health_check() -> Response:
-    """A simple health check endpoint."""
+async def health_check(request: Request) -> Response:
+    """
+    Service is considered healthy when a latest block has been fetched.
+    """
+    if request.app.state.latest_block is None:
+        return Response(status_code=503, content={"status": "loading"})
     return Response(status_code=200, content={"status": "ok"})
 
 
-@get("/latest_block")
+@get(ENDPOINT_LATEST_BLOCK)
 @safe_endpoint
 async def latest_block(request: Request) -> dict:
     """Get the latest processed block number."""
@@ -96,7 +124,7 @@ async def latest_block(request: Request) -> dict:
     return {"block": block}
 
 
-@get("/metagraph")
+@get(ENDPOINT_LATEST_METAGRAPH)
 @safe_endpoint
 async def latest_metagraph(request: Request) -> dict:
     """Get the metagraph for the latest block from cache."""
@@ -105,40 +133,40 @@ async def latest_metagraph(request: Request) -> dict:
     return metagraph.model_dump()
 
 
-@get("/metagraph/{block_number:int}")
+@get(ENDPOINT_METAGRAPH)
 @safe_endpoint
-async def metagraph(request: Request, block_number: int) -> dict:
+async def metagraph(request: Request, block: int) -> dict:
     """Get the metagraph for a specific block number."""
-    metagraph = await get_metagraph(request.app, block_number)
+    metagraph = await get_metagraph(request.app, block)
     return metagraph.model_dump()
 
 
 # TODO: optimize call to not fetch metagraph - just the hash?
-@get("/block_hash/{block_number:int}")
+@get(ENDPOINT_BLOCK_HASH)
 @safe_endpoint
-async def block_hash(request: Request, block_number: int) -> dict:
+async def block_hash(request: Request, block: int) -> dict:
     """Get the block hash for a specific block number."""
-    metagraph = await get_metagraph(request.app, block_number)
+    metagraph = await get_metagraph(request.app, block)
     return {"block_hash": metagraph.block_hash}
 
 
-@get("/epoch")
+@get(ENDPOINT_EPOCH)
 @safe_endpoint
-async def latest_epoch_start(request: Request) -> dict:
+async def latest_epoch_start_endpoint(request: Request) -> dict:
     """Get information about the current epoch start."""
     epoch = get_current_epoch(request)
     return epoch.model_dump()
 
 
-@get("/epoch/{block_number:int}")
+@get(ENDPOINT_EPOCH_BLOCK)
 @safe_endpoint
-async def epoch_start(request: Request, block_number: int) -> dict:
+async def epoch_start_endpoint(request: Request, block: int) -> dict:
     """Get epoch information for the epoch containing the given block number."""
-    epoch = get_epoch_containing_block(block_number)
+    epoch = get_epoch_containing_block(block)
     return epoch.model_dump()
 
 
-@get("/hyperparams")
+@get(ENDPOINT_HYPERPARAMS)
 @safe_endpoint
 async def get_hyperparams_endpoint(request: Request) -> Response:
     """Get cached subnet hyperparameters."""
@@ -148,91 +176,75 @@ async def get_hyperparams_endpoint(request: Request) -> Response:
     return Response(hyperparams, status_code=200)
 
 
-@put("/set_hyperparam")
+@put(ENDPOINT_SET_HYPERPARAM)
 @subnet_owner_only
 @safe_endpoint
-async def set_hyperparam_endpoint(request: Request) -> Response:
+async def set_hyperparam_endpoint(request: Request, data: SetHyperparamRequest) -> Response:
     """
     Set a subnet hyperparameter.
-    Body: {"name": "<hyperparameter_name>", "value": <hyperparameter_value>}
     (Subnet owner only)
     """
-    data = await request.json()
-    name = data.get("name")
-    value = data.get("value")
-    if name is None:
-        return Response({"detail": "Missing hyperparameter name"}, status_code=400)
-    if value is None:
-        return Response({"detail": "Missing hyperparameter value"}, status_code=400)
-    await set_hyperparam(request.app, name, value)
+    await set_hyperparam(request.app, data.name, data.value)
     return Response({"detail": "Hyperparameter set successfully"}, status_code=200)
 
 
-@put("/update_weight")
+@put(ENDPOINT_UPDATE_WEIGHT)
 @validator_only
 @safe_endpoint
-async def update_weight(request: Request) -> Response:
+async def update_weight_endpoint(request: Request, data: UpdateWeightRequest) -> Response:
     """
     Update a hotkey's weight by a delta for the current epoch.
-    Body: {"hotkey": "<ss58_hotkey>", "weight_delta": <float>}
     (Validator only)
     """
-    data = await request.json()
-    hotkey = data.get("hotkey")
-    delta = data.get("weight_delta")
-    if hotkey is None:
-        return Response({"detail": "Missing hotkey"}, status_code=400)
-    if delta is None:
-        return Response({"detail": "Missing weight_delta"}, status_code=400)
-
     epoch = get_current_epoch(request)
-    weight = await db.update_weight(hotkey, delta, epoch)
-    return Response({"hotkey": hotkey, "weight": weight, "epoch": epoch}, status_code=200)
+    weight = await db.update_weight(data.hotkey, data.weight_delta, epoch)
+    return Response({"hotkey": data.hotkey, "weight": weight, "epoch": epoch}, status_code=200)
 
 
-@put("/set_weight")
+@put(ENDPOINT_SET_WEIGHT)
 @validator_only
 @safe_endpoint
-async def set_weight(request: Request) -> Response:
+async def set_weight_endpoint(request: Request, data: SetWeightRequest) -> Response:
     """
     Set a hotkey's weight for the current epoch.
-    Body: {"hotkey": "<ss58_hotkey>", "weight": <float>}
     (Validator only)
     """
-    data = await request.json()
-    hotkey = data.get("hotkey")
-    weight = data.get("weight")
-    if hotkey is None:
-        return Response({"detail": "Missing hotkey"}, status_code=400)
-    if weight is None:
-        return Response({"detail": "Missing weight"}, status_code=400)
-
     epoch = get_current_epoch(request)
-    await db.set_weight(hotkey, weight, epoch)
-    return Response({"hotkey": hotkey, "weight": weight, "epoch": epoch}, status_code=200)
+    await db.set_weight(data.hotkey, data.weight, epoch)
+    return Response({"hotkey": data.hotkey, "weight": data.weight, "epoch": epoch}, status_code=200)
 
 
 # TODO: refactor to epochs_ago ?
-@get("/raw_weights")
+@get(ENDPOINT_LATEST_WEIGHTS)
 @safe_endpoint
-async def raw_weights(request: Request) -> Response:
+async def latest_weights_endpoint(request: Request) -> Response:
     """
-    Get raw weights for a given epoch (defaults to current epoch).
-    Query param: 'epoch' (int, epoch start block)
+    Get raw weights for the current epoch.
     """
-    epoch = request.query_params.get("epoch", None)
-    epoch = int(epoch) if epoch is not None else get_current_epoch(request)
-    epoch = get_epoch_containing_block(epoch).epoch_start  # in case epoch start block is incorrect
-    weights = await db.get_raw_weights(epoch)
+    epoch = get_current_epoch(request)
+    weights = await db.get_hotkey_weights_dict(epoch)
     if weights == {}:
         return Response({"detail": "Epoch weights not found"}, status_code=404)
     return Response({"epoch": epoch, "weights": weights}, status_code=200)
 
 
-@post("/force_commit_weights")
+@get(ENDPOINT_WEIGHTS_TYPED)
+@safe_endpoint
+async def weights_endpoint(request: Request, block: int) -> Response:
+    """
+    Get raw weights for the epoch containing the specified block.
+    """
+    epoch = get_epoch_containing_block(block).epoch_start
+    weights = await db.get_hotkey_weights_dict(epoch)
+    if weights == {}:
+        return Response({"detail": "Epoch weights not found"}, status_code=404)
+    return Response({"epoch": epoch, "weights": weights}, status_code=200)
+
+
+@post(ENDPOINT_FORCE_COMMIT_WEIGHTS)
 @validator_only
 @safe_endpoint
-async def force_commit_weights(request: Request) -> Response:
+async def force_commit_weights_endpoint(request: Request) -> Response:
     """
     Force commit of current DB weights to the subnet.
     (Validator only)
@@ -258,7 +270,7 @@ async def force_commit_weights(request: Request) -> Response:
 # TODO: wip, to update, to be register endpoints
 
 
-@get("/get_commitment/{hotkey:str}")
+@get(ENDPOINT_COMMITMENT)
 @safe_endpoint
 async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     """
@@ -274,7 +286,7 @@ async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     return Response({"hotkey": hotkey, "commitment": commitment}, status_code=200)
 
 
-@get("/get_commitments")
+@get(ENDPOINT_COMMITMENTS)
 @safe_endpoint
 async def get_commitments_endpoint(request: Request) -> Response:
     """
@@ -287,20 +299,15 @@ async def get_commitments_endpoint(request: Request) -> Response:
     return Response(commitments_map, status_code=200)
 
 
-@post("/set_commitment")
+@post(ENDPOINT_SET_COMMITMENT)
 @safe_endpoint
-async def set_commitment_endpoint(request: Request) -> Response:
+async def set_commitment_endpoint(request: Request, data: SetCommitmentRequest) -> Response:
     """
     Set a commitment for the pylon_service's wallet on the configured subnet.
-    Body: {"data_hex": "<commitment_hex_string>"}
     """
-    data = await request.json()
-    data_hex = data.get("data_hex")
-    if not data_hex:
-        return Response({"detail": "Missing 'data_hex' in request body"}, status_code=400)
     try:
-        data = bytes.fromhex(data_hex)
+        commitment_data = bytes.fromhex(data.data_hex)
     except ValueError:
         return Response({"detail": "Invalid 'data_hex' in request body"}, status_code=400)
-    await set_commitment(request.app, data)
+    await set_commitment(request.app, commitment_data)
     return Response({"detail": "Commitment successfully set"}, status_code=200)

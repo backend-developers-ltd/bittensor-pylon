@@ -1,5 +1,8 @@
+import tempfile
 from ipaddress import IPv4Address
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from pylon_service.models import AxonInfo, Metagraph, Neuron
 
@@ -74,3 +77,12 @@ def get_mock_metagraph(block: int):
         block_hash="0xabc",
         neurons={neuron.hotkey: neuron for neuron in [get_mock_neuron(uid) for uid in range(3)]},
     )
+
+
+@pytest.fixture(scope="session")
+def temp_db_config():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db_file_path = f"{temp_dir}/pylon.db"
+        db_uri = f"sqlite+aiosqlite:///{db_file_path}"
+
+        yield {"db_uri": db_uri, "db_dir": temp_dir}
