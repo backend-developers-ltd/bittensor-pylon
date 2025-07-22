@@ -27,6 +27,7 @@ from pylon_service.api import (
 )
 from pylon_service.bittensor_client import create_bittensor_client
 from pylon_service.db import init_db
+from pylon_service.sentry_config import init_sentry
 from pylon_service.settings import settings
 from pylon_service.tasks import (
     fetch_latest_hyperparams_task,
@@ -112,4 +113,5 @@ defined_startup_tasks = [
     set_weights_periodically_task,
 ]
 
+init_sentry()
 app = create_app(tasks=defined_startup_tasks)

@@ -19,7 +19,9 @@ dependencies = [
     "sqlalchemy",
     "aiosqlite",
     "alembic",
-    "tenacity"
+    "tenacity",
+    "sentry-sdk[litestar]",
+    "greenlet"
 ]
 
 [project.optional-dependencies]
@@ -34,9 +36,10 @@ dev = [
 ]
 format = [
     "ruff",
-    "ty",
+    "ty", 
     "pyright",
-    "freezegun"
+    "freezegun",
+    "sentry-sdk[litestar]"
 ]
 
 [tool.ruff]
