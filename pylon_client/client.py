@@ -18,6 +18,7 @@ from pylon_service.constants import (
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
+    ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS,
     format_endpoint,
@@ -133,6 +134,17 @@ class PylonClient:
 
     async def set_weight(self, hotkey: str, weight: float) -> dict | None:
         return await self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
+
+    async def set_weights(self, weights: dict[str, float]) -> dict | None:
+        """Set multiple weights at once.
+
+        Args:
+            weights: Dict mapping hotkey to weight
+
+        Returns:
+            Dict with weights that were set, epoch, and count
+        """
+        return await self._request("put", ENDPOINT_SET_WEIGHTS, json={"weights": weights})
 
     async def get_weights(self, block: int | None = None) -> dict | None:
         if block is not None:

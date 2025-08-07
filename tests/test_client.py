@@ -164,6 +164,20 @@ async def test_pylon_client_set_weight(mock_pylon_client: PylonClient):
 
 
 @pytest.mark.asyncio
+async def test_pylon_client_set_weights(mock_pylon_client: PylonClient):
+    """Tests that the PylonClient can correctly set multiple weights at once."""
+    weights = {"hotkey1": 0.6, "hotkey2": 0.4}
+    async with mock_pylon_client as client:
+        response = await client.set_weights(weights)
+        assert response is not None
+        assert response["count"] == 2
+        assert response["weights"]["hotkey1"] == 0.6
+        assert response["weights"]["hotkey2"] == 0.4
+        assert response["epoch"] == 1440
+    client.mock.set_weights.assert_called_with(weights=weights)  # type: ignore
+
+
+@pytest.mark.asyncio
 async def test_pylon_client_update_weight(mock_pylon_client: PylonClient):
     """Tests that the PylonClient can correctly update a weight."""
     async with mock_pylon_client as client:

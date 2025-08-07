@@ -22,6 +22,7 @@ from pylon_service.api import (
     set_commitment_endpoint,
     set_hyperparam_endpoint,
     set_weight_endpoint,
+    set_weights_endpoint,
     update_weight_endpoint,
     weights_endpoint,
 )
@@ -88,6 +89,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
             set_hyperparam_endpoint,
             # Validator weights
             set_weight_endpoint,
+            set_weights_endpoint,
             latest_weights_endpoint,
             weights_endpoint,
             update_weight_endpoint,

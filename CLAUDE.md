@@ -77,6 +77,7 @@ The service exposes several endpoints to interact with the subnet:
 ### Weight Management (Off-chain in DB)
 - `/update_weight`: Update a hotkey's weight by a delta
 - `/set_weight`: Set a hotkey's weight
+- `/set_weights`: Set multiple hotkeys' weights at once (batch operation)
 - `/latest_weights`: Get weights for the current epoch
 - `/weights/{block}`: Get weights for the epoch containing the specified block
 - `/force_commit_weights`: Force a commit of the current DB weights to the subnet
@@ -104,7 +105,7 @@ The service exposes several endpoints to interact with the subnet:
 - **Weight Operations**: Functionalities for on-chain weight setting and commitments
 - **Asynchronous Design**: All network and blockchain operations within `turbobt` are inherently asynchronous, crucial for performance
 
-Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/latest_weights`, `/weights/{block}` API endpoints for performance reasons.
+Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/set_weights`, `/latest_weights`, `/weights/{block}` API endpoints for performance reasons.
 
 ## Configuration
 
