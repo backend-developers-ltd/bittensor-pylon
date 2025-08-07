@@ -6,7 +6,7 @@ description = "Bittensor Pylon: fast subnet data proxy."
 authors = [
     { name = "Reef", email = "reef@reef.sh" }
 ]
-requires-python = "==3.12.*"
+requires-python = "==3.11.*"
 dependencies = [
     "pydantic-settings",
     "pydantic",

@@ -2,7 +2,7 @@ from ipaddress import IPv4Address
 
 from pydantic import BaseModel, field_validator
 
-type Hotkey = str
+Hotkey = str
 
 
 # Request models for API endpoints
