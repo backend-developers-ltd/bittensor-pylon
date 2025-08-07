@@ -1,7 +1,7 @@
 [project]
 name = "bittensor-pylon"
 
-version = "0.1.0"
+dynamic = ["version"]
 description = "Bittensor Pylon: fast subnet data proxy."
 authors = [
     { name = "Reef", email = "reef@reef.sh" }
@@ -55,9 +55,21 @@ ignore = [
     "E501", "B027", "B904", "B905",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.urls]
+homepage = "https://github.com/backend-developers-ltd/bittensor-pylon"
+repository = "https://github.com/backend-developers-ltd/bittensor-pylon"
+documentation = "https://github.com/backend-developers-ltd/bittensor-pylon#readme"
+
 [tool.uv]
 # uv-specific settings can go here
 
-[tool.setuptools]
+[tool.hatch.version]
+path = "pylon_client/__init__.py"
+
+[tool.hatch.build.targets.wheel]
 packages = ["pylon_client", "pylon_service"]
 
