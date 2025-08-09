@@ -14,6 +14,7 @@ Bittensor Pylon is a high-performance, asynchronous proxy for a Bittensor subnet
 ### Package Management
 - Install dependencies: `uv sync --extra dev`
 - Uses `uv` as the package manager (faster than pip)
+- Build package: `uv build` (uses hatchling backend with dynamic versioning)
 
 ### Testing
 - Run all tests: `nox -s test`
@@ -136,6 +137,10 @@ Environment variables configured via `.env` file (template at `pylon_service/env
 4. Run tests: `nox -s test`
 5. Format code: `nox -s format`
 6. Run service: `uvicorn pylon_service.main:app --reload --host 127.0.0.1 --port 8000`
+
+### Release Process
+1. Update version in `pylon_client/__init__.py`
+2. Push git tag: `git tag v0.0.4 && git push`
 
 ## Important Implementation Details
 
