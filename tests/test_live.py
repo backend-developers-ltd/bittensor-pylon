@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from pylon_client.client import PylonClient
 from pylon_client.docker_manager import PylonDockerManager
-from pylon_service.settings import settings
+from pylon_common.settings import settings
 
 PYLON_TEST_PORT = 8001
 

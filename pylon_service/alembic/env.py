@@ -13,8 +13,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Ensure all models are imported for Alembic autogenerate
+from pylon_common.settings import settings  # noqa: E402
 from pylon_service.db import Base  # noqa: E402
-from pylon_service.settings import settings  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:

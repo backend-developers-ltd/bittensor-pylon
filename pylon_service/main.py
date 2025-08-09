@@ -7,6 +7,7 @@ from cachetools import TTLCache
 from litestar import Litestar
 from litestar.openapi.config import OpenAPIConfig
 
+from pylon_common.settings import settings
 from pylon_service.api import (
     block_hash,
     epoch_start_endpoint,
@@ -29,7 +30,6 @@ from pylon_service.api import (
 from pylon_service.bittensor_client import create_bittensor_client
 from pylon_service.db import init_db
 from pylon_service.sentry_config import init_sentry
-from pylon_service.settings import settings
 from pylon_service.tasks import (
     fetch_latest_hyperparams_task,
     fetch_latest_metagraph_task,

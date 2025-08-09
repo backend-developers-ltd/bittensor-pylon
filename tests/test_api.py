@@ -4,9 +4,9 @@ import pytest
 from litestar.testing import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.main import create_app
-from pylon_service.settings import settings
 from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 

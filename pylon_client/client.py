@@ -5,7 +5,7 @@ import httpx
 from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from pylon_service.constants import (
+from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -23,7 +23,7 @@ from pylon_service.constants import (
     ENDPOINT_WEIGHTS,
     format_endpoint,
 )
-from pylon_service.models import Epoch, Metagraph
+from pylon_common.models import Epoch, Metagraph
 
 from .mock import MockHandler
 

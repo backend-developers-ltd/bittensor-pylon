@@ -71,5 +71,5 @@ documentation = "https://github.com/backend-developers-ltd/bittensor-pylon#readm
 path = "pylon_client/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pylon_client", "pylon_service"]
+packages = ["pylon_client", "pylon_service", "pylon_common"]
 

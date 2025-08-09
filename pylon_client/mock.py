@@ -9,7 +9,7 @@ from litestar.exceptions import NotFoundException
 from litestar.response import Response
 from litestar.status_codes import HTTP_404_NOT_FOUND
 
-from pylon_service.constants import (
+from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,

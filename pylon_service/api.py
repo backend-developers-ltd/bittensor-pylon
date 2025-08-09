@@ -3,17 +3,7 @@ import logging
 
 from litestar import Request, Response, get, post, put
 
-from pylon_service import db
-from pylon_service.bittensor_client import (
-    commit_weights,
-    get_commitment,
-    get_commitments,
-    get_metagraph,
-    get_weights,
-    set_commitment,
-    set_hyperparam,
-)
-from pylon_service.constants import (
+from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -32,14 +22,24 @@ from pylon_service.constants import (
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS_TYPED,
 )
-from pylon_service.models import (
+from pylon_common.models import (
     SetCommitmentRequest,
     SetHyperparamRequest,
     SetWeightRequest,
     SetWeightsRequest,
     UpdateWeightRequest,
 )
-from pylon_service.settings import settings
+from pylon_common.settings import settings
+from pylon_service import db
+from pylon_service.bittensor_client import (
+    commit_weights,
+    get_commitment,
+    get_commitments,
+    get_metagraph,
+    get_weights,
+    set_commitment,
+    set_hyperparam,
+)
 from pylon_service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)

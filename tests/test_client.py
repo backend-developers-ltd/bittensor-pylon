@@ -4,7 +4,7 @@ import pytest
 from httpx import HTTPStatusError
 
 from pylon_client.client import PylonClient
-from pylon_service.constants import (
+from pylon_common.constants import (
     ENDPOINT_COMMITMENT,
     ENDPOINT_HYPERPARAMS,
     ENDPOINT_LATEST_BLOCK,
