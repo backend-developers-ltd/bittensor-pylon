@@ -51,6 +51,11 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
     app.state.current_epoch_start = None
     app.state.hyperparams = dict()
 
+    # for tracking weight commits
+    app.state.reveal_round = None
+    app.state.last_commit_block = None
+
+    # periodic tasks
     app.state._stop_event = asyncio.Event()
     app.state._background_tasks = []
     for task_func in tasks_to_run:

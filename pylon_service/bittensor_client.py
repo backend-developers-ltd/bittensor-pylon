@@ -86,7 +86,7 @@ async def commit_weights(app: Litestar, weights: dict[int, float]):
         bt_client: Bittensor = app.state.bittensor_client
         subnet = bt_client.subnet(settings.bittensor_netuid)
         reveal_round = await subnet.weights.commit(weights)
-        logger.info(f"Successfully committed weights. Expected reveal round: {reveal_round}")
+        return reveal_round
     except Exception as e:
         logger.error(f"Failed to commit weights: {e}", exc_info=True)
         raise

@@ -87,7 +87,10 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
 
             logger.info(f"Found {len(weights_to_set)} weights to set. Committing...")
             try:
-                await commit_weights(app, weights_to_set)
+                reveal_round = await commit_weights(app, weights_to_set)
+                logger.info(f"Successfully committed weights. Expected reveal round: {reveal_round}")
+                app.state.reveal_round = reveal_round
+                app.state.last_commit_block = current_block
                 logger.info(f"Successfully committed weights at block {current_block}")
                 last_successful_commit_block = current_block
             except Exception as commit_exc:
