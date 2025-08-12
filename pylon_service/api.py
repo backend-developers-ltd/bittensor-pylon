@@ -3,17 +3,7 @@ import logging
 
 from litestar import Request, Response, get, post, put
 
-from pylon_service import db
-from pylon_service.bittensor_client import (
-    commit_weights,
-    get_commitment,
-    get_commitments,
-    get_metagraph,
-    get_weights,
-    set_commitment,
-    set_hyperparam,
-)
-from pylon_service.constants import (
+from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -28,16 +18,28 @@ from pylon_service.constants import (
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
+    ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS_TYPED,
 )
-from pylon_service.models import (
+from pylon_common.models import (
     SetCommitmentRequest,
     SetHyperparamRequest,
     SetWeightRequest,
+    SetWeightsRequest,
     UpdateWeightRequest,
 )
-from pylon_service.settings import settings
+from pylon_common.settings import settings
+from pylon_service import db
+from pylon_service.bittensor_client import (
+    commit_weights,
+    get_commitment,
+    get_commitments,
+    get_metagraph,
+    get_weights,
+    set_commitment,
+    set_hyperparam,
+)
 from pylon_service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
@@ -212,6 +214,21 @@ async def set_weight_endpoint(request: Request, data: SetWeightRequest) -> Respo
     epoch = get_current_epoch(request)
     await db.set_weight(data.hotkey, data.weight, epoch)
     return Response({"hotkey": data.hotkey, "weight": data.weight, "epoch": epoch}, status_code=200)
+
+
+@put(ENDPOINT_SET_WEIGHTS)
+@validator_only
+@safe_endpoint
+async def set_weights_endpoint(request: Request, data: SetWeightsRequest) -> Response:
+    """
+    Set multiple hotkeys' weights for the current epoch in a single transaction.
+    (Validator only)
+    """
+    epoch = get_current_epoch(request)
+    weights_list = [(hotkey, weight) for hotkey, weight in data.weights.items()]
+    await db.set_weights_batch(weights_list, epoch)
+
+    return Response({"weights": data.weights, "epoch": epoch, "count": len(data.weights)}, status_code=200)
 
 
 # TODO: refactor to epochs_ago ?

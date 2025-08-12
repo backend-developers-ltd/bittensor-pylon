@@ -21,6 +21,12 @@ Create a `.env` file with your Bittensor settings:
 cp pylon_service/envs/test_env.template .env
 ```
 
+Optionally add Sentry DSN for error tracking in production:
+```bash
+SENTRY_DSN=your_sentry_dsn_here
+SENTRY_ENVIRONMENT=production
+```
+
 #### Weight Committing Window
 
 Pylon commits weights within specific time windows every X epochs:

@@ -8,9 +8,9 @@ from litestar.app import Litestar
 from turbobt.block import Block
 from turbobt.client import Bittensor
 
+from pylon_common.models import Hotkey, Metagraph, Neuron
+from pylon_common.settings import Settings, settings
 from pylon_service.db import get_uid_weights_dict
-from pylon_service.models import Hotkey, Metagraph, Neuron
-from pylon_service.settings import Settings, settings
 
 logger = logging.getLogger(__name__)
 

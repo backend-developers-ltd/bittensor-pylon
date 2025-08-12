@@ -14,6 +14,7 @@ Bittensor Pylon is a high-performance, asynchronous proxy for a Bittensor subnet
 ### Package Management
 - Install dependencies: `uv sync --extra dev`
 - Uses `uv` as the package manager (faster than pip)
+- Build package: `uv build` (uses hatchling backend with dynamic versioning)
 
 ### Testing
 - Run all tests: `nox -s test`
@@ -77,6 +78,7 @@ The service exposes several endpoints to interact with the subnet:
 ### Weight Management (Off-chain in DB)
 - `/update_weight`: Update a hotkey's weight by a delta
 - `/set_weight`: Set a hotkey's weight
+- `/set_weights`: Set multiple hotkeys' weights at once (batch operation)
 - `/latest_weights`: Get weights for the current epoch
 - `/weights/{block}`: Get weights for the epoch containing the specified block
 - `/force_commit_weights`: Force a commit of the current DB weights to the subnet
@@ -104,7 +106,7 @@ The service exposes several endpoints to interact with the subnet:
 - **Weight Operations**: Functionalities for on-chain weight setting and commitments
 - **Asynchronous Design**: All network and blockchain operations within `turbobt` are inherently asynchronous, crucial for performance
 
-Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/latest_weights`, `/weights/{block}` API endpoints for performance reasons.
+Note: bittensor-pylon currently manages weights off-chain in its local database for the `/update_weight`, `/set_weight`, `/set_weights`, `/latest_weights`, `/weights/{block}` API endpoints for performance reasons.
 
 ## Configuration
 
@@ -135,6 +137,10 @@ Environment variables configured via `.env` file (template at `pylon_service/env
 4. Run tests: `nox -s test`
 5. Format code: `nox -s format`
 6. Run service: `uvicorn pylon_service.main:app --reload --host 127.0.0.1 --port 8000`
+
+### Release Process
+1. Update version in `pylon_client/__init__.py`
+2. Push git tag: `git tag v0.0.4 && git push`
 
 ## Important Implementation Details
 

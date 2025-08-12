@@ -21,7 +21,7 @@ def test(session):
 @nox.session(name="format", python=PYTHON_VERSION)
 def format(session):
     """Lint the code and apply fixes in-place whenever possible."""
-    session.run("uv", "sync", "--extra", "format")
+    session.run("uv", "sync", "--active", "--extra", "format", "--extra", "dev")
     session.run("ruff", "format", ".")
     session.run("ruff", "check", "--fix", ".")
     session.run("pyright")

@@ -13,6 +13,7 @@ ENDPOINT_SET_HYPERPARAM = "/set_hyperparam"
 
 ENDPOINT_UPDATE_WEIGHT = "/update_weight"
 ENDPOINT_SET_WEIGHT = "/set_weight"
+ENDPOINT_SET_WEIGHTS = "/set_weights"
 ENDPOINT_LATEST_WEIGHTS = "/latest_weights"
 ENDPOINT_WEIGHTS = "/weights/{block:int}"
 ENDPOINT_WEIGHTS_TYPED = "/weights/{block:int}"

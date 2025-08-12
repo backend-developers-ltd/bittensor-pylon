@@ -9,7 +9,7 @@ from litestar.exceptions import NotFoundException
 from litestar.response import Response
 from litestar.status_codes import HTTP_404_NOT_FOUND
 
-from pylon_service.constants import (
+from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -23,6 +23,7 @@ from pylon_service.constants import (
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
+    ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS,
 )
@@ -38,6 +39,7 @@ class MockHooks(SimpleNamespace):
     set_hyperparam: MagicMock
     update_weight: MagicMock
     set_weight: MagicMock
+    set_weights: MagicMock
     weights: MagicMock
     force_commit_weights: MagicMock
     commitment: MagicMock
@@ -62,6 +64,7 @@ class MockHandler:
             set_hyperparam=MagicMock(),
             update_weight=MagicMock(),
             set_weight=MagicMock(),
+            set_weights=MagicMock(),
             weights=MagicMock(),
             force_commit_weights=MagicMock(),
             commitment=MagicMock(),
@@ -150,6 +153,13 @@ class MockHandler:
                 return response
             return Response({"detail": "Weight set successfully"})
 
+        @put(ENDPOINT_SET_WEIGHTS)
+        async def set_weights(data: dict[str, Any]) -> Response:
+            self.hooks.set_weights(**data)
+            if response := self._get_override_response("set_weights"):
+                return response
+            return Response(self.mock_data["set_weights"])
+
         @get(ENDPOINT_LATEST_WEIGHTS)
         async def latest_weights() -> Response:
             self.hooks.weights(block=None)
@@ -215,6 +225,7 @@ class MockHandler:
                 set_hyperparam,
                 update_weight,
                 set_weight,
+                set_weights,
                 latest_weights,
                 weights,
                 force_commit_weights,

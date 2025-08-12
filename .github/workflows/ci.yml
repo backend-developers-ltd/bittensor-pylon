@@ -47,13 +47,3 @@ jobs:
           PYLON_DOCKER_IMAGE_NAME: ${{ env.DOCKER_REPO_NAME }}:${{ env.TAG_VERSION }}
         run: nox -s test
 
-      - name: Docker push
-        run: |
-          IMAGE_NAME="${DOCKER_REPO_NAME}:${TAG_VERSION}"
-          SHA_IMAGE_NAME="${DOCKER_REPO_NAME}:git-${GITHUB_SHA}"
-
-          echo "${{ secrets.DOCKERHUB_KEY }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
-          echo "Pushing Docker images to Docker Hub"
-          docker push "${IMAGE_NAME}"
-          docker push "${SHA_IMAGE_NAME}"

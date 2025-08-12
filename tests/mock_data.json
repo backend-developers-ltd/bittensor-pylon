@@ -63,5 +63,13 @@
   "commitments": {
     "hotkey1": "0x1234",
     "hotkey2": "0x5678"
+  },
+  "set_weights": {
+    "weights": {
+      "hotkey1": 0.6,
+      "hotkey2": 0.4
+    },
+    "epoch": 1440,
+    "count": 2
   }
 }

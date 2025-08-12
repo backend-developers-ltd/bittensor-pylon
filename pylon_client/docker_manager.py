@@ -6,7 +6,7 @@ import docker
 import httpx
 from docker.models.containers import Container
 
-from pylon_service.settings import settings
+from pylon_common.settings import settings
 
 logger = logging.getLogger(__name__)
 

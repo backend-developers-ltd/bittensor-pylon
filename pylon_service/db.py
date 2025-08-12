@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.future import select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from pylon_service.models import Hotkey, Neuron
-from pylon_service.settings import settings
+from pylon_common.models import Hotkey, Neuron
+from pylon_common.settings import settings
 
 engine = create_async_engine(settings.pylon_db_uri, echo=True, future=True)
 SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -113,3 +113,27 @@ async def get_uid_weights_dict(neurons: list[Neuron], epoch: int) -> dict[int, f
 
         weights_by_hotkey = {row.hotkey: row.weight for row in result.all()}
         return {neuron.uid: weights_by_hotkey.get(neuron.hotkey, 0.0) for neuron in neurons}
+
+
+async def set_weights_batch(weights: list[tuple[Hotkey, float]], epoch: int) -> None:
+    """
+    Set multiple weights in a single transaction.
+    Args:
+        weights: List of (hotkey, weight) tuples
+        epoch: The epoch to set weights for
+    """
+    async with SessionLocal() as session:
+        # Fetch all existing weights for this epoch
+        hotkeys = [hotkey for hotkey, _ in weights]
+        result = await session.execute(select(Weight).where((Weight.hotkey.in_(hotkeys)) & (Weight.epoch == epoch)))
+        existing_weights = {w.hotkey: w for w in result.scalars().all()}
+
+        # Update existing or create new weights
+        for hotkey, weight in weights:
+            if hotkey in existing_weights:
+                existing_weights[hotkey].weight = weight
+            else:
+                new_weight = Weight(hotkey=hotkey, weight=weight, epoch=epoch)
+                session.add(new_weight)
+
+        await session.commit()

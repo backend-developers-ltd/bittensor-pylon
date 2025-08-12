@@ -4,9 +4,9 @@ import pytest
 from litestar.testing import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.main import create_app
-from pylon_service.settings import settings
 from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
@@ -113,7 +113,7 @@ def test_weights__set_update_requests(client):
     assert resp.json()["committed_weights"] is not None
 
 
-def test_set_weights__missing_params(client):
+def test_set_weight__missing_params(client):
     # Missing hotkey
     resp = client.put("/set_weight", json={"weight": 1.0})
     assert resp.status_code == 400
@@ -135,6 +135,71 @@ def test_update_weight__missing_params(client):
     assert "Validation failed" in resp.json().get("detail", "")
 
 
+def test_set_weights__batch_success(client):
+    """Test setting multiple weights at once."""
+    weights_dict = {"hotkey1": 0.6, "hotkey2": 0.4, "hotkey3": 0.8}
+
+    resp = client.put("/set_weights", json={"weights": weights_dict})
+    assert resp.status_code == 200
+
+    response_data = resp.json()
+    assert response_data["count"] == 3
+    assert response_data["weights"]["hotkey1"] == 0.6
+    assert response_data["weights"]["hotkey2"] == 0.4
+    assert response_data["weights"]["hotkey3"] == 0.8
+
+    # Verify weights were actually set in database
+    resp = client.get("/latest_weights")
+    assert resp.status_code == 200
+    db_weights = resp.json()["weights"]
+    assert db_weights["hotkey1"] == 0.6
+    assert db_weights["hotkey2"] == 0.4
+    assert db_weights["hotkey3"] == 0.8
+
+
+def test_set_weights__update_existing(client):
+    """Test that set_weights updates existing weights."""
+    resp = client.put("/set_weight", json={"hotkey": "hotkey1", "weight": 0.3})
+    assert resp.status_code == 200
+
+    weights_dict = {
+        "hotkey1": 0.7,  # update existing
+        "hotkey4": 0.2,  # add new
+    }
+
+    resp = client.put("/set_weights", json={"weights": weights_dict})
+    assert resp.status_code == 200
+
+    # Check that weights were updated correctly
+    resp = client.get("/latest_weights")
+    assert resp.status_code == 200
+    db_weights = resp.json()["weights"]
+    assert db_weights["hotkey1"] == 0.7  # updated
+    assert db_weights["hotkey4"] == 0.2  # new
+
+
+def test_set_weights__empty_dict(client):
+    """Test set_weights with empty weights dict."""
+    resp = client.put("/set_weights", json={"weights": {}})
+    assert resp.status_code == 400
+    assert "No weights provided" in str(resp.json())
+
+
+def test_set_weights__validation_errors(client):
+    """Test set_weights validation errors with specific messages."""
+    # Missing weights field
+    resp = client.put("/set_weights", json={})
+    assert resp.status_code == 400
+    assert "Validation failed" in resp.json().get("detail", "")
+
+    # Empty hotkey
+    resp = client.put("/set_weights", json={"weights": {"": 0.5}})
+    assert resp.status_code == 400
+    response_text = str(resp.json())
+    assert "Invalid hotkey" in response_text
+    assert "must be a non-empty string" in response_text
+
+
 def test_validator_endpoints_forbidden(client, monkeypatch):
     """
     Tests that weight-setting endpoints are forbidden when not in validator mode.
@@ -144,6 +209,10 @@ def test_validator_endpoints_forbidden(client, monkeypatch):
     assert resp.status_code == 403
 
     resp = client.put("/update_weight", json={"hotkey": "foo", "weight_delta": 1.0})
+    assert resp.status_code == 403
+
+    weights_data = {"foo": 1.0}
+    resp = client.put("/set_weights", json={"weights": weights_data})
     assert resp.status_code == 403
 
     resp = client.post("/force_commit_weights")
@@ -191,4 +260,5 @@ async def test_set_commitment(client):
 
     resp = client.post("/set_commitment", json={"data_hex": "333"})
     assert resp.status_code == 400
-    assert "Invalid 'data_hex'" in resp.json()["detail"]
+    response_text = str(resp.json())
+    assert "Invalid 'data_hex'" in response_text

@@ -5,7 +5,7 @@ import pytest
 from freezegun import freeze_time
 from litestar import Litestar
 
-from pylon_service.settings import settings as app_settings
+from pylon_common.settings import settings as app_settings
 from pylon_service.tasks import fetch_latest_metagraph_task, set_weights_periodically_task
 from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph

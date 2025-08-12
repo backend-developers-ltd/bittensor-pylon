@@ -12,12 +12,13 @@ ENV PATH="/root/.cargo/bin:/app/.venv/bin:${PATH}"
 # dependency files first
 COPY pyproject.toml uv.lock alembic.ini ./
 
-# install uv and project dependencies
-COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
-RUN /bin/uv sync
-
-# the rest of the application code
+# copy source packages
+COPY pylon_common ./pylon_common
 COPY pylon_service ./pylon_service
+
+# install uv and dependencies
+COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
+RUN /bin/uv sync --no-install-project
 
 # database mounting
 VOLUME ["/app/db"]

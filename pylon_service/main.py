@@ -7,6 +7,7 @@ from cachetools import TTLCache
 from litestar import Litestar
 from litestar.openapi.config import OpenAPIConfig
 
+from pylon_common.settings import settings
 from pylon_service.api import (
     block_hash,
     epoch_start_endpoint,
@@ -22,12 +23,13 @@ from pylon_service.api import (
     set_commitment_endpoint,
     set_hyperparam_endpoint,
     set_weight_endpoint,
+    set_weights_endpoint,
     update_weight_endpoint,
     weights_endpoint,
 )
 from pylon_service.bittensor_client import create_bittensor_client
 from pylon_service.db import init_db
-from pylon_service.settings import settings
+from pylon_service.sentry_config import init_sentry
 from pylon_service.tasks import (
     fetch_latest_hyperparams_task,
     fetch_latest_metagraph_task,
@@ -87,6 +89,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
             set_hyperparam_endpoint,
             # Validator weights
             set_weight_endpoint,
+            set_weights_endpoint,
             latest_weights_endpoint,
             weights_endpoint,
             update_weight_endpoint,
@@ -112,4 +115,5 @@ defined_startup_tasks = [
     set_weights_periodically_task,
 ]
 
+init_sentry()
 app = create_app(tasks=defined_startup_tasks)

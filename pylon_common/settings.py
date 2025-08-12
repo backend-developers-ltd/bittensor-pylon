@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     metagraph_cache_ttl: int = 600  # TODO: not 10 minutes
     metagraph_cache_maxsize: int = 1000
 
+    # sentry
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
