@@ -1,13 +1,9 @@
 name: CD Docker
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
+  push:
     branches:
-      - master
-      - main
+      - 'push-docker'
 
 env:
   TAG_VERSION: "v1-latest"
@@ -19,7 +15,6 @@ permissions:
 jobs:
   docker-push:
     runs-on: ubuntu-latest
-    needs: release-build
 
     steps:
       - uses: actions/checkout@v4

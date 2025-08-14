@@ -92,7 +92,7 @@ async def test_set_weights_commit_flow(
             TEST_TEMPO * TEST_COMMIT_CYCLE_LENGTH + TEST_COMMIT_WINDOW_START_OFFSET + 3
         )  # third block in the window
         update_app_state(mock_app, current_block_for_commit)  # metagraph cache should have latest block data
-        mock_commit_weights_call.return_value = current_block_for_commit + 1 # reveal round one block later
+        mock_commit_weights_call.return_value = current_block_for_commit + 1  # reveal round one block later
 
         freezer.tick(TEST_CHECK_INTERVAL)
         assert await wait_for_mock_call(mock_get_weights)
@@ -122,7 +122,7 @@ async def test_set_weights_commit_flow(
 
         # 5: SUCCESS: Enough tempos passed again, and in a new commit window
         current_block_for_second_commit = current_block_for_commit + (TEST_TEMPO * TEST_COMMIT_CYCLE_LENGTH)
-        mock_commit_weights_call.return_value = current_block_for_second_commit + 1 # reveal round one block later
+        mock_commit_weights_call.return_value = current_block_for_second_commit + 1  # reveal round one block later
 
         update_app_state(mock_app, current_block_for_second_commit)
 
