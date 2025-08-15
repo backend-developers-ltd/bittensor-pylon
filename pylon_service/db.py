@@ -12,7 +12,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from pylon_common.models import Hotkey, Neuron
 from pylon_common.settings import settings
 
-engine = create_async_engine(settings.pylon_db_uri, echo=True, future=True)
+engine = create_async_engine(settings.pylon_db_uri, echo=False, future=True)
 SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
