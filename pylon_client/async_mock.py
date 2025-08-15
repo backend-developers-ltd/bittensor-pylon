@@ -24,6 +24,7 @@ from pylon_common.constants import (
     ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS,
+    endpoint_name,
 )
 
 from .mock_base import create_mock_hooks
@@ -59,70 +60,70 @@ class AsyncMockHandler:
         @get(ENDPOINT_LATEST_BLOCK)
         async def latest_block() -> Response:
             self.hooks.latest_block()
-            if response := self._get_override_response("latest_block"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_LATEST_BLOCK)):
                 return response
             return Response({"block": self.mock_data["metagraph"]["block"]})
 
         @get(ENDPOINT_LATEST_METAGRAPH)
         async def latest_metagraph() -> Response:
             self.hooks.latest_metagraph()
-            if response := self._get_override_response("latest_metagraph"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_LATEST_METAGRAPH)):
                 return response
             return Response(self.mock_data["metagraph"])
 
         @get(ENDPOINT_METAGRAPH)
         async def metagraph(block: int) -> Response:
             self.hooks.metagraph(block=block)
-            if response := self._get_override_response("metagraph"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_METAGRAPH)):
                 return response
             return Response(self.mock_data["metagraph"])
 
         @get(ENDPOINT_BLOCK_HASH)
         async def block_hash(block: int) -> Response:
             self.hooks.block_hash(block=block)
-            if response := self._get_override_response("block_hash"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_BLOCK_HASH)):
                 return response
             return Response({"block_hash": self.mock_data["metagraph"]["block_hash"]})
 
         @get([ENDPOINT_EPOCH, f"{ENDPOINT_EPOCH}/{{block:int}}"])
         async def epoch(block: int | None = None) -> Response:
             self.hooks.epoch(block=block)
-            if response := self._get_override_response("epoch"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_EPOCH)):
                 return response
             return Response(self.mock_data["epoch"])
 
         @get(ENDPOINT_HYPERPARAMS)
         async def hyperparams() -> Response:
             self.hooks.hyperparams()
-            if response := self._get_override_response("hyperparams"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_HYPERPARAMS)):
                 return response
             return Response(self.mock_data["hyperparams"])
 
         @put(ENDPOINT_SET_HYPERPARAM)
         async def set_hyperparam(data: dict[str, Any]) -> Response:
             self.hooks.set_hyperparam(**data)
-            if response := self._get_override_response("set_hyperparam"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_SET_HYPERPARAM)):
                 return response
             return Response({"detail": "Hyperparameter set successfully"})
 
         @put(ENDPOINT_UPDATE_WEIGHT)
         async def update_weight(data: dict[str, Any]) -> Response:
             self.hooks.update_weight(**data)
-            if response := self._get_override_response("update_weight"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_UPDATE_WEIGHT)):
                 return response
             return Response({"detail": "Weight updated successfully"})
 
         @put(ENDPOINT_SET_WEIGHT)
         async def set_weight(data: dict[str, Any]) -> Response:
             self.hooks.set_weight(**data)
-            if response := self._get_override_response("set_weight"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_SET_WEIGHT)):
                 return response
             return Response({"detail": "Weight set successfully"})
 
         @put(ENDPOINT_SET_WEIGHTS)
         async def set_weights(data: dict[str, Any]) -> Response:
             self.hooks.set_weights(**data)
-            if response := self._get_override_response("set_weights"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_SET_WEIGHTS)):
                 return response
             return Response(self.mock_data["set_weights"])
 
@@ -145,7 +146,7 @@ class AsyncMockHandler:
         @post(ENDPOINT_FORCE_COMMIT_WEIGHTS)
         async def force_commit_weights() -> Response:
             self.hooks.force_commit_weights()
-            if response := self._get_override_response("force_commit_weights"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_FORCE_COMMIT_WEIGHTS)):
                 return response
             return Response({"detail": "Weights committed successfully"})
 
@@ -154,7 +155,7 @@ class AsyncMockHandler:
             block_str = request.query_params.get("block")
             block = int(block_str) if block_str else None
             self.hooks.commitment(hotkey=hotkey, block=block)
-            if response := self._get_override_response("commitment"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_COMMITMENT)):
                 return response
             commitment = self.mock_data["commitments"].get(hotkey)
             if commitment:
@@ -166,14 +167,14 @@ class AsyncMockHandler:
             block_str = request.query_params.get("block")
             block = int(block_str) if block_str else None
             self.hooks.commitments(block=block)
-            if response := self._get_override_response("commitments"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_COMMITMENTS)):
                 return response
             return Response(self.mock_data["commitments"])
 
         @post(ENDPOINT_SET_COMMITMENT)
         async def set_commitment(data: dict[str, str]) -> Response:
             self.hooks.set_commitment(**data)
-            if response := self._get_override_response("set_commitment"):
+            if response := self._get_override_response(endpoint_name(ENDPOINT_SET_COMMITMENT)):
                 return response
             return Response({"detail": "Commitment set successfully"})
 

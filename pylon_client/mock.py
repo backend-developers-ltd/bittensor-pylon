@@ -1,10 +1,13 @@
-"""Synchronous mock handler using WSGI for the sync PylonClient."""
+"""Synchronous mock handler using Flask for the sync PylonClient."""
 
 import json
 from typing import Any
-from urllib.parse import parse_qs
+
+from flask import Flask, jsonify, request
 
 from pylon_common.constants import (
+    ENDPOINT_BLOCK_HASH,
+    ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
     ENDPOINT_FORCE_COMMIT_WEIGHTS,
@@ -12,25 +15,29 @@ from pylon_common.constants import (
     ENDPOINT_LATEST_BLOCK,
     ENDPOINT_LATEST_METAGRAPH,
     ENDPOINT_LATEST_WEIGHTS,
+    ENDPOINT_METAGRAPH,
     ENDPOINT_SET_COMMITMENT,
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
+    endpoint_name,
 )
 
 from .mock_base import create_mock_hooks
 
 
 class MockHandler:
-    """A synchronous mock handler that creates a WSGI app for testing."""
+    """A synchronous mock handler that creates a Flask app for testing."""
 
     def __init__(self, mock_data_path: str, base_url: str):
         with open(mock_data_path) as f:
             self.mock_data = json.load(f)
         self._overrides: dict[str, Any] = {}
         self.hooks = create_mock_hooks()
+        # The base_url is not used by the mock app but is kept for client compatibility
         self.base_url = base_url
+        self.mock_app = self._create_mock_app()
 
     def override(self, endpoint_name: str, json_response: dict[str, Any], status_code: int = 200):
         """Override a specific endpoint's response."""
@@ -38,171 +45,145 @@ class MockHandler:
             raise AttributeError(f"MockHandler has no endpoint named '{endpoint_name}'")
         self._overrides[endpoint_name] = (json_response, status_code)
 
-    def wsgi_app(self, environ, start_response):
-        """WSGI application that handles mock requests."""
-        path = environ["PATH_INFO"]
-        method = environ["REQUEST_METHOD"]
-        query_string = environ.get("QUERY_STRING", "")
+    def _get_override_response(self, endpoint_name: str) -> tuple[dict[str, Any], int] | None:
+        """Get override response if available."""
+        if override := self._overrides.get(endpoint_name):
+            return override[0], override[1]
+        return None
 
-        # Parse query parameters
-        query_params = parse_qs(query_string) if query_string else {}
+    def _create_mock_app(self) -> Flask:
+        """Creates a Flask app with all the mock endpoints."""
+        app = Flask(__name__)
 
-        # Parse request body for POST/PUT
-        body_data = None
-        if method in ("POST", "PUT"):
-            content_length = int(environ.get("CONTENT_LENGTH", 0))
-            if content_length:
-                body = environ["wsgi.input"].read(content_length)
-                body_data = json.loads(body) if body else {}
-
-        # Route to appropriate handler
-        status, response_data = self._route_request(method, path, query_params, body_data)
-
-        # Send response
-        response_body = json.dumps(response_data).encode("utf-8")
-        response_headers = [("Content-Type", "application/json"), ("Content-Length", str(len(response_body)))]
-
-        status_text = f"{status} {'OK' if status == 200 else 'Error'}"
-        start_response(status_text, response_headers)
-        return [response_body]
-
-    def _route_request(self, method: str, path: str, query_params: dict, body_data: dict | None):
-        """Route the request to the appropriate handler."""
-
-        # Latest block
-        if method == "GET" and path == ENDPOINT_LATEST_BLOCK:
+        @app.route(ENDPOINT_LATEST_BLOCK, methods=["GET"])
+        def latest_block():
             self.hooks.latest_block()
-            if override := self._overrides.get("latest_block"):
-                return override[1], override[0]
-            return 200, {"block": self.mock_data["metagraph"]["block"]}
+            if override := self._get_override_response(endpoint_name(ENDPOINT_LATEST_BLOCK)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"block": self.mock_data["metagraph"]["block"]})
 
-        # Latest metagraph
-        if method == "GET" and path == ENDPOINT_LATEST_METAGRAPH:
+        @app.route(ENDPOINT_LATEST_METAGRAPH, methods=["GET"])
+        def latest_metagraph():
             self.hooks.latest_metagraph()
-            if override := self._overrides.get("latest_metagraph"):
-                return override[1], override[0]
-            return 200, self.mock_data["metagraph"]
+            if override := self._get_override_response(endpoint_name(ENDPOINT_LATEST_METAGRAPH)):
+                return jsonify(override[0]), override[1]
+            return jsonify(self.mock_data["metagraph"])
 
-        # Metagraph by block
-        if method == "GET" and path.startswith("/metagraph/"):
-            block = int(path.split("/")[-1])
+        @app.route("/metagraph/<int:block>", methods=["GET"])
+        def metagraph(block: int):
             self.hooks.metagraph(block=block)
-            if override := self._overrides.get("metagraph"):
-                return override[1], override[0]
-            return 200, self.mock_data["metagraph"]
+            if override := self._get_override_response(endpoint_name(ENDPOINT_METAGRAPH)):
+                return jsonify(override[0]), override[1]
+            return jsonify(self.mock_data["metagraph"])
 
-        # Block hash
-        if method == "GET" and path.startswith("/block_hash/"):
-            block = int(path.split("/")[-1])
+        @app.route("/block_hash/<int:block>", methods=["GET"])
+        def block_hash(block: int):
             self.hooks.block_hash(block=block)
-            if override := self._overrides.get("block_hash"):
-                return override[1], override[0]
-            return 200, {"block_hash": self.mock_data["metagraph"]["block_hash"]}
+            if override := self._get_override_response(endpoint_name(ENDPOINT_BLOCK_HASH)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"block_hash": self.mock_data["metagraph"]["block_hash"]})
 
-        # Epoch
-        if method == "GET" and (path == ENDPOINT_EPOCH or path.startswith(f"{ENDPOINT_EPOCH}/")):
-            block = None
-            if "/" in path and len(path.split("/")) > 2:
-                block = int(path.split("/")[-1])
+        @app.route(ENDPOINT_EPOCH, methods=["GET"])
+        @app.route(f"{ENDPOINT_EPOCH}/<int:block>", methods=["GET"])
+        def epoch(block: int | None = None):
             self.hooks.epoch(block=block)
-            if override := self._overrides.get("epoch"):
-                return override[1], override[0]
-            return 200, self.mock_data["epoch"]
+            if override := self._get_override_response(endpoint_name(ENDPOINT_EPOCH)):
+                return jsonify(override[0]), override[1]
+            return jsonify(self.mock_data["epoch"])
 
-        # Hyperparams
-        if method == "GET" and path == ENDPOINT_HYPERPARAMS:
+        @app.route(ENDPOINT_HYPERPARAMS, methods=["GET"])
+        def hyperparams():
             self.hooks.hyperparams()
-            if override := self._overrides.get("hyperparams"):
-                return override[1], override[0]
-            return 200, self.mock_data["hyperparams"]
+            if override := self._get_override_response(endpoint_name(ENDPOINT_HYPERPARAMS)):
+                return jsonify(override[0]), override[1]
+            return jsonify(self.mock_data["hyperparams"])
 
-        # Set hyperparam
-        if method == "PUT" and path == ENDPOINT_SET_HYPERPARAM:
-            if body_data:
-                self.hooks.set_hyperparam(**body_data)
-            if override := self._overrides.get("set_hyperparam"):
-                return override[1], override[0]
-            return 200, {"detail": "Hyperparameter set successfully"}
+        @app.route(ENDPOINT_SET_HYPERPARAM, methods=["PUT"])
+        def set_hyperparam():
+            data = request.get_json() or {}
+            self.hooks.set_hyperparam(**data)
+            if override := self._get_override_response(endpoint_name(ENDPOINT_SET_HYPERPARAM)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"detail": "Hyperparameter set successfully"})
 
-        # Update weight
-        if method == "PUT" and path == ENDPOINT_UPDATE_WEIGHT:
-            if body_data:
-                self.hooks.update_weight(**body_data)
-            if override := self._overrides.get("update_weight"):
-                return override[1], override[0]
-            return 200, {"detail": "Weight updated successfully"}
+        @app.route(ENDPOINT_UPDATE_WEIGHT, methods=["PUT"])
+        def update_weight():
+            data = request.get_json() or {}
+            self.hooks.update_weight(**data)
+            if override := self._get_override_response(endpoint_name(ENDPOINT_UPDATE_WEIGHT)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"detail": "Weight updated successfully"})
 
-        # Set weight
-        if method == "PUT" and path == ENDPOINT_SET_WEIGHT:
-            if body_data:
-                self.hooks.set_weight(**body_data)
-            if override := self._overrides.get("set_weight"):
-                return override[1], override[0]
-            return 200, {"detail": "Weight set successfully"}
+        @app.route(ENDPOINT_SET_WEIGHT, methods=["PUT"])
+        def set_weight():
+            data = request.get_json() or {}
+            self.hooks.set_weight(**data)
+            if override := self._get_override_response(endpoint_name(ENDPOINT_SET_WEIGHT)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"detail": "Weight set successfully"})
 
-        # Set weights (batch)
-        if method == "PUT" and path == ENDPOINT_SET_WEIGHTS:
-            if body_data:
-                self.hooks.set_weights(**body_data)
-            if override := self._overrides.get("set_weights"):
-                return override[1], override[0]
-            return 200, self.mock_data["set_weights"]
+        @app.route(ENDPOINT_SET_WEIGHTS, methods=["PUT"])
+        def set_weights():
+            data = request.get_json() or {}
+            self.hooks.set_weights(**data)
+            if override := self._get_override_response(endpoint_name(ENDPOINT_SET_WEIGHTS)):
+                return jsonify(override[0]), override[1]
+            return jsonify(self.mock_data["set_weights"])
 
-        # Latest weights
-        if method == "GET" and path == ENDPOINT_LATEST_WEIGHTS:
+        @app.route(ENDPOINT_LATEST_WEIGHTS, methods=["GET"])
+        def latest_weights():
             self.hooks.weights(block=None)
-            if override := self._overrides.get("weights"):
-                return override[1], override[0]
+            if override := self._get_override_response("weights"):
+                return jsonify(override[0]), override[1]
             weights_data = self.mock_data.get("weights", {})
-            return 200, {"epoch": 1440, "weights": weights_data}
+            return jsonify({"epoch": 1440, "weights": weights_data})
 
-        # Weights by block
-        if method == "GET" and path.startswith("/weights/"):
-            block = int(path.split("/")[-1])
+        @app.route("/weights/<int:block>", methods=["GET"])
+        def weights(block: int):
             self.hooks.weights(block=block)
-            if override := self._overrides.get("weights"):
-                return override[1], override[0]
+            if override := self._get_override_response("weights"):
+                return jsonify(override[0]), override[1]
             weights_data = self.mock_data.get("weights", {})
-            return 200, {"epoch": 1440, "weights": weights_data}
+            return jsonify({"epoch": 1440, "weights": weights_data})
 
-        # Force commit weights
-        if method == "POST" and path == ENDPOINT_FORCE_COMMIT_WEIGHTS:
+        @app.route(ENDPOINT_FORCE_COMMIT_WEIGHTS, methods=["POST"])
+        def force_commit_weights():
             self.hooks.force_commit_weights()
-            if override := self._overrides.get("force_commit_weights"):
-                return override[1], override[0]
-            return 201, {"detail": "Weights committed successfully"}
+            if override := self._get_override_response(endpoint_name(ENDPOINT_FORCE_COMMIT_WEIGHTS)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"detail": "Weights committed successfully"}), 201
 
-        # Get commitment
-        if method == "GET" and path.startswith("/commitment/"):
-            hotkey = path.split("/")[-1]
-            block = None
-            if "block" in query_params:
-                block = int(query_params["block"][0])
+        @app.route("/commitment/<string:hotkey>", methods=["GET"])
+        def commitment(hotkey: str):
+            block_str = request.args.get("block")
+            block = int(block_str) if block_str else None
             self.hooks.commitment(hotkey=hotkey, block=block)
-            if override := self._overrides.get("commitment"):
-                return override[1], override[0]
+            if override := self._get_override_response(endpoint_name(ENDPOINT_COMMITMENT)):
+                return jsonify(override[0]), override[1]
             commitment = self.mock_data["commitments"].get(hotkey)
             if commitment:
-                return 200, {"hotkey": hotkey, "commitment": commitment}
-            return 404, {"detail": "Commitment not found"}
+                return jsonify({"hotkey": hotkey, "commitment": commitment})
+            return jsonify({"detail": "Commitment not found"}), 404
 
-        # Get all commitments
-        if method == "GET" and path == ENDPOINT_COMMITMENTS:
-            block = None
-            if "block" in query_params:
-                block = int(query_params["block"][0])
+        @app.route(ENDPOINT_COMMITMENTS, methods=["GET"])
+        def commitments():
+            block_str = request.args.get("block")
+            block = int(block_str) if block_str else None
             self.hooks.commitments(block=block)
-            if override := self._overrides.get("commitments"):
-                return override[1], override[0]
-            return 200, self.mock_data["commitments"]
+            if override := self._get_override_response(endpoint_name(ENDPOINT_COMMITMENTS)):
+                return jsonify(override[0]), override[1]
+            return jsonify(self.mock_data["commitments"])
 
-        # Set commitment
-        if method == "POST" and path == ENDPOINT_SET_COMMITMENT:
-            if body_data:
-                self.hooks.set_commitment(**body_data)
-            if override := self._overrides.get("set_commitment"):
-                return override[1], override[0]
-            return 201, {"detail": "Commitment set successfully"}
+        @app.route(ENDPOINT_SET_COMMITMENT, methods=["POST"])
+        def set_commitment():
+            data = request.get_json() or {}
+            self.hooks.set_commitment(**data)
+            if override := self._get_override_response(endpoint_name(ENDPOINT_SET_COMMITMENT)):
+                return jsonify(override[0]), override[1]
+            return jsonify({"detail": "Commitment set successfully"}), 201
 
-        # Not found
-        return 404, {"detail": "Not Found"}
+        @app.errorhandler(404)
+        def not_found(error):
+            return jsonify({"detail": "Not Found"}), 404
+
+        return app

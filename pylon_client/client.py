@@ -68,7 +68,7 @@ class PylonClient:
         from .mock import MockHandler
 
         mock_handler = MockHandler(mock_data_path, self.base_url)
-        transport = httpx.WSGITransport(app=mock_handler.wsgi_app)
+        transport = httpx.WSGITransport(app=mock_handler.mock_app)
         self._client = Client(transport=transport, base_url=self.base_url)
         self._should_close_client = True
         self.mock = mock_handler.hooks
