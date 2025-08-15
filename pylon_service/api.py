@@ -82,11 +82,11 @@ def safe_endpoint(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            logger.debug(f"Endpoint '{func.__name__}' hit.")
+            logger.info(f"{func.__name__}/ hit with: {kwargs.get('data', None)}")
             return await func(*args, **kwargs)
         except Exception as e:
             error_message = f"Error in endpoint {func.__name__}: {e}"
-            logger.error(error_message, exc_info=True)
+            logger.error(error_message)
             return Response(status_code=500, content={"detail": error_message})
 
     return wrapper

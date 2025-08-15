@@ -22,7 +22,7 @@ async def fetch_latest_hyperparams_task(app, stop_event: asyncio.Event):
         try:
             await fetch_hyperparams(app)
         except Exception as e:
-            logger.error(f"Failed to fetch subnet hyperparameters: {e}", exc_info=True)
+            logger.error(f"Failed to fetch subnet hyperparameters: {e}")
         await asyncio.wait([stop_task], timeout=settings.fetch_hyperparams_task_interval_seconds)
 
 
@@ -87,11 +87,14 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
 
             logger.info(f"Found {len(weights_to_set)} weights to set. Committing...")
             try:
-                await commit_weights(app, weights_to_set)
+                reveal_round = await commit_weights(app, weights_to_set)
+                logger.info(f"Successfully committed weights. Expected reveal round: {reveal_round}")
+                app.state.reveal_round = reveal_round
+                app.state.last_commit_block = current_block
                 logger.info(f"Successfully committed weights at block {current_block}")
                 last_successful_commit_block = current_block
             except Exception as commit_exc:
-                logger.error(f"Failed to commit weights: {commit_exc}", exc_info=True)
+                logger.error(f"Failed to commit weights: {commit_exc}")
 
         except Exception as e:
             logger.error(f"Error in periodic weight setting task outer loop: {e}", exc_info=True)
@@ -99,14 +102,19 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
 
 async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
     stop_task = asyncio.create_task(stop_event.wait())
+    timeout = settings.fetch_latest_metagraph_task_interval_seconds
     while not stop_event.is_set():
-        # try fetch latest block from turbobt
         new_block = None
         try:
             new_block = await app.state.bittensor_client.head.get()
         except Exception as e:
-            logger.error(f"Error fetching latest block: {e}", exc_info=True)
-            await asyncio.wait([stop_task], timeout=settings.fetch_latest_metagraph_task_interval_seconds)
+            logger.error(f"Error fetching latest block: {e}")
+            await asyncio.wait([stop_task], timeout=timeout)
+            continue
+
+        if new_block is None or new_block.number is None:
+            logger.warning(f"New block fetched is invalid: {new_block}. Retrying...")
+            await asyncio.wait([stop_task], timeout=timeout)
             continue
 
         if app.state.latest_block is None or new_block.number != app.state.latest_block:
@@ -116,6 +124,6 @@ async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
                 app.state.current_epoch_start = get_epoch_containing_block(new_block.number).epoch_start
                 logger.info(f"Cached latest metagraph for block {new_block.number}")
             except Exception as e:
-                logger.error(f"Error caching metagraph for block {new_block.number}: {e}", exc_info=True)
+                logger.error(f"Error caching metagraph for block {new_block.number}: {e}")
 
-        await asyncio.wait([stop_task], timeout=settings.fetch_latest_metagraph_task_interval_seconds)
+        await asyncio.wait([stop_task], timeout=timeout)

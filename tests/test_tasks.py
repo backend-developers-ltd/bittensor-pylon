@@ -39,6 +39,8 @@ def mock_app(monkeypatch):
 
     app = Litestar(route_handlers=[])
     app.state.bittensor_client = MockBittensorClient()
+    app.state.reveal_round = None
+    app.state.last_commit_block = None
     return app
 
 
@@ -76,18 +78,22 @@ async def test_set_weights_commit_flow(
         freezer.tick(TEST_CHECK_INTERVAL)
         await asyncio.sleep(0)
         mock_commit_weights_call.assert_not_called()
+        assert mock_app.state.last_commit_block is None
 
         # 2: FAIL: Enough tempos, but NOT in commit window
         mock_app.state.latest_block = TEST_TEMPO * TEST_COMMIT_CYCLE_LENGTH  # Enough tempos
         freezer.tick(TEST_CHECK_INTERVAL)
         await asyncio.sleep(0)
         mock_commit_weights_call.assert_not_called()
+        assert mock_app.state.last_commit_block is None
 
         # 3: SUCCESS: Enough tempos AND in commit window
         current_block_for_commit = (
             TEST_TEMPO * TEST_COMMIT_CYCLE_LENGTH + TEST_COMMIT_WINDOW_START_OFFSET + 3
         )  # third block in the window
         update_app_state(mock_app, current_block_for_commit)  # metagraph cache should have latest block data
+        mock_commit_weights_call.return_value = current_block_for_commit + 1  # reveal round one block later
+
         freezer.tick(TEST_CHECK_INTERVAL)
         assert await wait_for_mock_call(mock_get_weights)
         assert await wait_for_mock_call(mock_commit_weights_call)
@@ -95,6 +101,12 @@ async def test_set_weights_commit_flow(
         mock_get_weights.assert_called_once()
         mock_get_weights.reset_mock()
         mock_commit_weights_call.assert_called_once()
+
+        # check last succesfull commit block or reveal round were updated
+        assert mock_app.state.last_commit_block == current_block_for_commit
+        assert mock_app.state.reveal_round == current_block_for_commit + 1
+        previously_set_commit_block = mock_app.state.last_commit_block
+
         mock_commit_weights_call.reset_mock()
 
         # 4: FAIL: Just committed, not enough tempos since last commit but in window
@@ -104,8 +116,14 @@ async def test_set_weights_commit_flow(
         await asyncio.sleep(0)
         mock_commit_weights_call.assert_not_called()
 
+        # check last succesfull commit block or reveal round were not changed
+        assert mock_app.state.last_commit_block == previously_set_commit_block
+        assert mock_app.state.reveal_round == previously_set_commit_block + 1
+
         # 5: SUCCESS: Enough tempos passed again, and in a new commit window
         current_block_for_second_commit = current_block_for_commit + (TEST_TEMPO * TEST_COMMIT_CYCLE_LENGTH)
+        mock_commit_weights_call.return_value = current_block_for_second_commit + 1  # reveal round one block later
+
         update_app_state(mock_app, current_block_for_second_commit)
 
         freezer.tick(TEST_CHECK_INTERVAL)
@@ -114,6 +132,10 @@ async def test_set_weights_commit_flow(
 
         mock_get_weights.assert_called_once()
         mock_commit_weights_call.assert_called_once()
+
+        # check last succesfull commit block or reveal round were updated
+        assert mock_app.state.last_commit_block == current_block_for_second_commit
+        assert mock_app.state.reveal_round == current_block_for_second_commit + 1
 
         stop_event.set()
         await task_handle
