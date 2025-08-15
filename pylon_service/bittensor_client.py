@@ -65,7 +65,8 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     """
     # Get neurons from the metagraph
     metagraph = await get_metagraph(app, block)
-    neurons = metagraph.get_active_neurons()
+    # TODO: check if neurons = metagraph.get_active_neurons() is needed instead
+    neurons = metagraph.get_neurons()
 
     # Fetch neurons weights from db for the current epoch
     epoch = app.state.current_epoch_start
