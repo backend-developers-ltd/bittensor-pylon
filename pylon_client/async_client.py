@@ -1,8 +1,8 @@
 import logging
-from typing import Any
+from typing import Any, cast
 
 import httpx
-from httpx import Client, Limits, Timeout, TransportError
+from httpx import AsyncClient, Limits, Timeout, TransportError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from pylon_common.constants import (
@@ -25,11 +25,13 @@ from pylon_common.constants import (
 )
 from pylon_common.models import Epoch, Metagraph
 
+from .async_mock import AsyncMockHandler
+
 logger = logging.getLogger(__name__)
 
 
-class PylonClient:
-    """A synchronous client for the bittensor-pylon service."""
+class AsyncPylonClient:
+    """An asynchronous client for the bittensor-pylon service."""
 
     def __init__(
         self,
@@ -37,17 +39,17 @@ class PylonClient:
         timeout: float = 10.0,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
-        client: Client | None = None,
+        client: AsyncClient | None = None,
         mock_data_path: str | None = None,
     ):
-        """Initializes the PylonClient.
+        """Initializes the AsyncPylonClient.
 
         Args:
             base_url: The base URL of the pylon service.
             timeout: The timeout for requests in seconds.
             max_retries: The maximum number of retries for failed requests.
             backoff_factor: The backoff factor for exponential backoff between retries.
-            client: An optional pre-configured httpx.Client.
+            client: An optional pre-configured httpx.AsyncClient.
             mock_data_path: Path to a JSON file with mock data to run the client in mock mode.
         """
         self.base_url = base_url
@@ -65,28 +67,28 @@ class PylonClient:
 
     def _setup_mock_client(self, mock_data_path: str):
         """Configures the client to use a mock transport."""
-        from .mock import MockHandler
-
-        mock_handler = MockHandler(mock_data_path, self.base_url)
-        transport = httpx.WSGITransport(app=mock_handler.wsgi_app)
-        self._client = Client(transport=transport, base_url=self.base_url)
+        mock_handler = AsyncMockHandler(mock_data_path, self.base_url)
+        transport = httpx.ASGITransport(app=cast(Any, mock_handler.mock_app))
+        self._client = AsyncClient(transport=transport, base_url=self.base_url)
         self._should_close_client = True
         self.mock = mock_handler.hooks
         self.override = mock_handler.override
 
-    def __enter__(self) -> "PylonClient":
+    async def __aenter__(self) -> "AsyncPylonClient":
         if self._client is None:
-            self._client = Client(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
+            self._client = AsyncClient(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._client and self._should_close_client:
-            self._client.close()
+            await self._client.aclose()
 
     @property
-    def client(self) -> Client:
+    def client(self) -> AsyncClient:
         if self._client is None:
-            raise RuntimeError("Client has not been initialized. Use 'with PylonClient() as client:' syntax.")
+            raise RuntimeError(
+                "Client has not been initialized. Use 'async with AsyncPylonClient() as client:' syntax."
+            )
         return self._client
 
     @retry(
@@ -94,10 +96,10 @@ class PylonClient:
         wait=wait_exponential(multiplier=1, min=4, max=10),
         retry=retry_if_exception_type(TransportError),
     )
-    def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
-        """Makes a synchronous HTTP request with error handling and retries."""
+    async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
+        """Makes an async HTTP request with error handling and retries."""
         try:
-            response = self.client.request(method, endpoint, **kwargs)
+            response = await self.client.request(method, endpoint, **kwargs)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -107,35 +109,35 @@ class PylonClient:
             logger.warning(f"An error occurred while requesting {e.request.url!r}: {e}")
             raise
 
-    def get_latest_block(self) -> dict | None:
-        return self._request("get", ENDPOINT_LATEST_BLOCK)
+    async def get_latest_block(self) -> dict | None:
+        return await self._request("get", ENDPOINT_LATEST_BLOCK)
 
-    def get_metagraph(self, block: int | None = None) -> Metagraph | None:
+    async def get_metagraph(self, block: int | None = None) -> Metagraph | None:
         endpoint = f"/metagraph/{block}" if block else ENDPOINT_LATEST_METAGRAPH
-        data = self._request("get", endpoint)
+        data = await self._request("get", endpoint)
         return Metagraph(**data) if data else None
 
-    def get_block_hash(self, block: int) -> dict | None:
-        return self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
+    async def get_block_hash(self, block: int) -> dict | None:
+        return await self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
 
-    def get_epoch(self, block: int | None = None) -> Epoch | None:
+    async def get_epoch(self, block: int | None = None) -> Epoch | None:
         endpoint = f"{ENDPOINT_EPOCH}/{block}" if block else ENDPOINT_EPOCH
-        data = self._request("get", endpoint)
+        data = await self._request("get", endpoint)
         return Epoch(**data) if data else None
 
-    def get_hyperparams(self) -> dict | None:
-        return self._request("get", ENDPOINT_HYPERPARAMS)
+    async def get_hyperparams(self) -> dict | None:
+        return await self._request("get", ENDPOINT_HYPERPARAMS)
 
-    def set_hyperparam(self, name: str, value: Any) -> dict | None:
-        return self._request("put", ENDPOINT_SET_HYPERPARAM, json={"name": name, "value": value})
+    async def set_hyperparam(self, name: str, value: Any) -> dict | None:
+        return await self._request("put", ENDPOINT_SET_HYPERPARAM, json={"name": name, "value": value})
 
-    def update_weight(self, hotkey: str, weight_delta: float) -> dict | None:
-        return self._request("put", ENDPOINT_UPDATE_WEIGHT, json={"hotkey": hotkey, "weight_delta": weight_delta})
+    async def update_weight(self, hotkey: str, weight_delta: float) -> dict | None:
+        return await self._request("put", ENDPOINT_UPDATE_WEIGHT, json={"hotkey": hotkey, "weight_delta": weight_delta})
 
-    def set_weight(self, hotkey: str, weight: float) -> dict | None:
-        return self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
+    async def set_weight(self, hotkey: str, weight: float) -> dict | None:
+        return await self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
 
-    def set_weights(self, weights: dict[str, float]) -> dict | None:
+    async def set_weights(self, weights: dict[str, float]) -> dict | None:
         """Set multiple weights at once.
 
         Args:
@@ -144,25 +146,25 @@ class PylonClient:
         Returns:
             Dict with weights that were set, epoch, and count
         """
-        return self._request("put", ENDPOINT_SET_WEIGHTS, json={"weights": weights})
+        return await self._request("put", ENDPOINT_SET_WEIGHTS, json={"weights": weights})
 
-    def get_weights(self, block: int | None = None) -> dict | None:
+    async def get_weights(self, block: int | None = None) -> dict | None:
         if block is not None:
             endpoint = format_endpoint(ENDPOINT_WEIGHTS, block=block)
         else:
             endpoint = ENDPOINT_LATEST_WEIGHTS
-        return self._request("get", endpoint)
+        return await self._request("get", endpoint)
 
-    def force_commit_weights(self) -> dict | None:
-        return self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)
+    async def force_commit_weights(self) -> dict | None:
+        return await self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)
 
-    def get_commitment(self, hotkey: str, block: int | None = None) -> dict | None:
+    async def get_commitment(self, hotkey: str, block: int | None = None) -> dict | None:
         params = {"block": block} if block else {}
-        return self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
+        return await self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
 
-    def get_commitments(self, block: int | None = None) -> dict | None:
+    async def get_commitments(self, block: int | None = None) -> dict | None:
         params = {"block": block} if block else {}
-        return self._request("get", ENDPOINT_COMMITMENTS, params=params)
+        return await self._request("get", ENDPOINT_COMMITMENTS, params=params)
 
-    def set_commitment(self, data_hex: str) -> dict | None:
-        return self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})
+    async def set_commitment(self, data_hex: str) -> dict | None:
+        return await self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})
