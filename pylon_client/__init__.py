@@ -9,7 +9,7 @@ from pylon_common.models import (
 from .async_client import AsyncPylonClient
 from .client import PylonClient
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 __all__ = [
     "PylonClient",
