@@ -29,8 +29,7 @@ async def test_pylon_client_get_latest_block(mock_pylon_client: AsyncPylonClient
     """Tests that the AsyncPylonClient can correctly get the latest block."""
     async with mock_pylon_client as client:
         response = await client.get_latest_block()
-        assert response is not None
-        assert response["block"] == MOCK_DATA["metagraph"]["block"]
+        assert response == MOCK_DATA["metagraph"]["block"]
     client.mock.latest_block.assert_called_once()  # type: ignore
 
 
@@ -51,8 +50,7 @@ async def test_pylon_client_get_block_hash(mock_pylon_client: AsyncPylonClient):
     async with mock_pylon_client as client:
         block = MOCK_DATA["metagraph"]["block"]
         response = await client.get_block_hash(block)
-        assert response is not None
-        assert response["block_hash"] == MOCK_DATA["metagraph"]["block_hash"]
+        assert response == MOCK_DATA["metagraph"]["block_hash"]
     client.mock.block_hash.assert_called_with(block=block)  # type: ignore
 
 
@@ -62,8 +60,8 @@ async def test_pylon_client_get_epoch(mock_pylon_client: AsyncPylonClient):
     async with mock_pylon_client as client:
         response = await client.get_epoch()
         assert response is not None
-        assert response.epoch_start == MOCK_DATA["epoch"]["epoch_start"]
-        assert response.epoch_end == MOCK_DATA["epoch"]["epoch_end"]
+        assert response.start == MOCK_DATA["epoch"]["start"]
+        assert response.end == MOCK_DATA["epoch"]["end"]
     client.mock.epoch.assert_called_with(block=None)  # type: ignore
 
 
@@ -82,8 +80,7 @@ async def test_pylon_client_set_hyperparam(mock_pylon_client: AsyncPylonClient):
     """Tests that the AsyncPylonClient can correctly set a hyperparameter."""
     async with mock_pylon_client as client:
         response = await client.set_hyperparam("tempo", 120)
-        assert response is not None
-        assert response["detail"] == "Hyperparameter set successfully"
+        assert response is None
     client.mock.set_hyperparam.assert_called_with(name="tempo", value=120)  # type: ignore
 
 
@@ -113,9 +110,8 @@ async def test_pylon_client_get_commitment(mock_pylon_client: AsyncPylonClient):
     hotkey = "hotkey2"
     async with mock_pylon_client as client:
         response = await client.get_commitment(hotkey)
-        assert response is not None
         expected = MOCK_DATA["commitments"][hotkey]
-        assert response == {"commitment": expected, "hotkey": hotkey}
+        assert response == expected
     client.mock.commitment.assert_called_with(hotkey=hotkey, block=None)  # type: ignore
 
 
@@ -136,8 +132,7 @@ async def test_pylon_client_override_response(mock_pylon_client: AsyncPylonClien
     mock_pylon_client.override(endpoint_name(ENDPOINT_LATEST_BLOCK), {"block": new_block})  # type: ignore
     async with mock_pylon_client as client:
         response = await client.get_latest_block()
-        assert response is not None
-        assert response["block"] == new_block
+        assert response == new_block
     client.mock.latest_block.assert_called_once()  # type: ignore
 
 
@@ -192,8 +187,7 @@ async def test_pylon_client_set_commitment(mock_pylon_client: AsyncPylonClient):
     """Tests that the AsyncPylonClient can correctly set a commitment."""
     async with mock_pylon_client as client:
         response = await client.set_commitment("0x1234")
-        assert response is not None
-        assert response["detail"] == "Commitment set successfully"
+        assert response is None
     client.mock.set_commitment.assert_called_with(data_hex="0x1234")  # type: ignore
 
 
@@ -205,9 +199,7 @@ async def test_pylon_client_override_get_commitment(mock_pylon_client: AsyncPylo
     mock_pylon_client.override(endpoint_name(ENDPOINT_COMMITMENT), {"hotkey": hotkey, "commitment": commitment})  # type: ignore
     async with mock_pylon_client as client:
         response = await client.get_commitment(hotkey)
-        assert response is not None
-        assert response["hotkey"] == hotkey
-        assert response["commitment"] == commitment
+        assert response == commitment
     client.mock.commitment.assert_called_with(hotkey=hotkey, block=None)  # type: ignore
 
 

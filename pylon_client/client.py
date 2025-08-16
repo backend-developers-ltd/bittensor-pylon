@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -57,37 +58,40 @@ class PylonClient:
         self._backoff_factor = backoff_factor
         self._client = client
         self._should_close_client = client is None
-        self.mock = None
-        self.override = None
+        self.mock: Any | None = None
+        self.override: Callable[[str, Any], None] | None = None
 
         if mock_data_path:
             self._setup_mock_client(mock_data_path)
 
     def _setup_mock_client(self, mock_data_path: str):
-        """Configures the client to use a mock transport."""
+        """Configures the client to use method-level mocking."""
         from .mock import MockHandler
 
         mock_handler = MockHandler(mock_data_path, self.base_url)
-        transport = httpx.WSGITransport(app=mock_handler.mock_app)
-        self._client = Client(transport=transport, base_url=self.base_url)
-        self._should_close_client = True
         self.mock = mock_handler.hooks
         self.override = mock_handler.override
 
-    def __enter__(self) -> "PylonClient":
-        if self._client is None:
-            self._client = Client(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._client and self._should_close_client:
-            self._client.close()
+        # Replace client methods with mock methods automatically
+        for method_name in dir(mock_handler):
+            if (
+                not method_name.startswith("_")
+                and hasattr(self, method_name)
+                and callable(getattr(mock_handler, method_name))
+            ):
+                setattr(self, method_name, getattr(mock_handler, method_name))
 
     @property
     def client(self) -> Client:
         if self._client is None:
-            raise RuntimeError("Client has not been initialized. Use 'with PylonClient() as client:' syntax.")
+            self._client = Client(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
         return self._client
+
+    def close(self) -> None:
+        """Close the HTTP client and clean up resources. Optional cleanup method."""
+        if self._client and self._should_close_client:
+            self._client.close()
+            self._client = None
 
     @retry(
         stop=stop_after_attempt(3),
@@ -107,46 +111,114 @@ class PylonClient:
             logger.warning(f"An error occurred while requesting {e.request.url!r}: {e}")
             raise
 
-    def get_latest_block(self) -> dict | None:
-        return self._request("get", ENDPOINT_LATEST_BLOCK)
+    def get_latest_block(self) -> int | None:
+        """Get the latest processed block number.
+
+        Returns:
+            int: The latest block number
+        """
+        data = self._request("get", ENDPOINT_LATEST_BLOCK)
+        return data["block"] if data else None
 
     def get_metagraph(self, block: int | None = None) -> Metagraph | None:
+        """Get the metagraph for the latest or specified block.
+
+        Args:
+            block: Optional block number. If None, returns latest metagraph.
+
+        Returns:
+            Metagraph: Object containing block, block_hash, and neurons dict
+        """
         endpoint = f"/metagraph/{block}" if block else ENDPOINT_LATEST_METAGRAPH
         data = self._request("get", endpoint)
         return Metagraph(**data) if data else None
 
-    def get_block_hash(self, block: int) -> dict | None:
-        return self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
+    def get_block_hash(self, block: int) -> str | None:
+        """Get the block hash for a specific block number.
+
+        Args:
+            block: Block number to get hash for
+
+        Returns:
+            str: The block hash
+        """
+        data = self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
+        return data["block_hash"] if data else None
 
     def get_epoch(self, block: int | None = None) -> Epoch | None:
+        """Get epoch information for the current or specified block.
+
+        Args:
+            block: Optional block number. If None, returns current epoch.
+
+        Returns:
+            Epoch: Object with epoch_start and epoch_end block numbers
+        """
         endpoint = f"{ENDPOINT_EPOCH}/{block}" if block else ENDPOINT_EPOCH
         data = self._request("get", endpoint)
         return Epoch(**data) if data else None
 
     def get_hyperparams(self) -> dict | None:
+        """Get cached subnet hyperparameters.
+
+        Returns:
+            dict: Subnet hyperparameters (structure varies by subnet)
+        """
         return self._request("get", ENDPOINT_HYPERPARAMS)
 
-    def set_hyperparam(self, name: str, value: Any) -> dict | None:
-        return self._request("put", ENDPOINT_SET_HYPERPARAM, json={"name": name, "value": value})
+    def set_hyperparam(self, name: str, value: Any) -> None:
+        """Set a subnet hyperparameter (subnet owner only).
+
+        Args:
+            name: Hyperparameter name
+            value: New value for the hyperparameter
+        """
+        self._request("put", ENDPOINT_SET_HYPERPARAM, json={"name": name, "value": value})
 
     def update_weight(self, hotkey: str, weight_delta: float) -> dict | None:
+        """Update a hotkey's weight by a delta (validator only).
+
+        Args:
+            hotkey: Hotkey to update weight for
+            weight_delta: Amount to change weight by (can be negative)
+
+        Returns:
+            dict: {'hotkey': str, 'weight': float, 'epoch': int}
+        """
         return self._request("put", ENDPOINT_UPDATE_WEIGHT, json={"hotkey": hotkey, "weight_delta": weight_delta})
 
     def set_weight(self, hotkey: str, weight: float) -> dict | None:
+        """Set a hotkey's weight (validator only).
+
+        Args:
+            hotkey: Hotkey to set weight for
+            weight: New weight value
+
+        Returns:
+            dict: {'hotkey': str, 'weight': float, 'epoch': int}
+        """
         return self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
 
     def set_weights(self, weights: dict[str, float]) -> dict | None:
-        """Set multiple weights at once.
+        """Set multiple weights at once (validator only).
 
         Args:
             weights: Dict mapping hotkey to weight
 
         Returns:
-            Dict with weights that were set, epoch, and count
+            dict: {'weights': dict, 'epoch': int, 'count': int}
         """
         return self._request("put", ENDPOINT_SET_WEIGHTS, json={"weights": weights})
 
     def get_weights(self, block: int | None = None) -> dict | None:
+        """Get weights for the current or specified epoch.
+
+        Args:
+            block: Optional block number. If None, returns latest weights.
+
+        Returns:
+            dict: {'epoch': int, 'weights': dict[str, float]}
+        """
         if block is not None:
             endpoint = format_endpoint(ENDPOINT_WEIGHTS, block=block)
         else:
@@ -154,15 +226,43 @@ class PylonClient:
         return self._request("get", endpoint)
 
     def force_commit_weights(self) -> dict | None:
+        """Force commit current weights to the subnet (validator only).
+
+        Returns:
+            dict: Response from weight commit operation
+        """
         return self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)
 
-    def get_commitment(self, hotkey: str, block: int | None = None) -> dict | None:
+    def get_commitment(self, hotkey: str, block: int | None = None) -> str | None:
+        """Get commitment for a specific hotkey.
+
+        Args:
+            hotkey: Hotkey to get commitment for
+            block: Optional block number for historical commitment
+
+        Returns:
+            str: The commitment value
+        """
         params = {"block": block} if block else {}
-        return self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
+        data = self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
+        return data["commitment"] if data else None
 
     def get_commitments(self, block: int | None = None) -> dict | None:
+        """Get all commitments for the subnet.
+
+        Args:
+            block: Optional block number for historical commitments
+
+        Returns:
+            dict: Dictionary of hotkey to commitment mappings
+        """
         params = {"block": block} if block else {}
         return self._request("get", ENDPOINT_COMMITMENTS, params=params)
 
-    def set_commitment(self, data_hex: str) -> dict | None:
-        return self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})
+    def set_commitment(self, data_hex: str) -> None:
+        """Set commitment for the app's wallet.
+
+        Args:
+            data_hex: Hex-encoded commitment data
+        """
+        self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})

@@ -41,7 +41,7 @@
       }
     }
   },
-  "epoch": {"epoch_start": 12000, "epoch_end": 12999},
+  "epoch": {"start": 12000, "end": 12999},
   "hyperparams": {
     "rho": 10,
     "kappa": 32767,

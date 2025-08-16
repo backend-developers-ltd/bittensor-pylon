@@ -1,5 +1,7 @@
 import json
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import MagicMock
 
 from litestar import Litestar, get, post, put
 from litestar.connection import Request
@@ -27,7 +29,25 @@ from pylon_common.constants import (
     endpoint_name,
 )
 
-from .mock_base import create_mock_hooks
+
+class TransportHooks(SimpleNamespace):
+    def __init__(self):
+        """Create a new MockHooks instance with all hooks initialized."""
+        self.latest_block = MagicMock()
+        self.latest_metagraph = MagicMock()
+        self.metagraph = MagicMock()
+        self.block_hash = MagicMock()
+        self.epoch = MagicMock()
+        self.hyperparams = MagicMock()
+        self.set_hyperparam = MagicMock()
+        self.update_weight = MagicMock()
+        self.set_weight = MagicMock()
+        self.set_weights = MagicMock()
+        self.weights = MagicMock()
+        self.force_commit_weights = MagicMock()
+        self.commitment = MagicMock()
+        self.commitments = MagicMock()
+        self.set_commitment = MagicMock()
 
 
 class AsyncMockHandler:
@@ -37,7 +57,7 @@ class AsyncMockHandler:
         with open(mock_data_path) as f:
             self.mock_data = json.load(f)
         self._overrides: dict[str, Any] = {}
-        self.hooks = create_mock_hooks()
+        self.hooks = TransportHooks()
         # The base_url is not used by the mock app but is kept for client compatibility
         self.base_url = base_url
         self.mock_app = self._create_mock_app()

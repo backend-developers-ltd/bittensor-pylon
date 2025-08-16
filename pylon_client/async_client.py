@@ -109,46 +109,114 @@ class AsyncPylonClient:
             logger.warning(f"An error occurred while requesting {e.request.url!r}: {e}")
             raise
 
-    async def get_latest_block(self) -> dict | None:
-        return await self._request("get", ENDPOINT_LATEST_BLOCK)
+    async def get_latest_block(self) -> int | None:
+        """Get the latest processed block number.
+
+        Returns:
+            int: The latest block number
+        """
+        data = await self._request("get", ENDPOINT_LATEST_BLOCK)
+        return data["block"] if data else None
 
     async def get_metagraph(self, block: int | None = None) -> Metagraph | None:
+        """Get the metagraph for the latest or specified block.
+
+        Args:
+            block: Optional block number. If None, returns latest metagraph.
+
+        Returns:
+            Metagraph: Object containing block, block_hash, and neurons dict
+        """
         endpoint = f"/metagraph/{block}" if block else ENDPOINT_LATEST_METAGRAPH
         data = await self._request("get", endpoint)
         return Metagraph(**data) if data else None
 
-    async def get_block_hash(self, block: int) -> dict | None:
-        return await self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
+    async def get_block_hash(self, block: int) -> str | None:
+        """Get the block hash for a specific block number.
+
+        Args:
+            block: Block number to get hash for
+
+        Returns:
+            str: The block hash
+        """
+        data = await self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
+        return data["block_hash"] if data else None
 
     async def get_epoch(self, block: int | None = None) -> Epoch | None:
+        """Get epoch information for the current or specified block.
+
+        Args:
+            block: Optional block number. If None, returns current epoch.
+
+        Returns:
+            Epoch: Object with epoch_start and epoch_end block numbers
+        """
         endpoint = f"{ENDPOINT_EPOCH}/{block}" if block else ENDPOINT_EPOCH
         data = await self._request("get", endpoint)
         return Epoch(**data) if data else None
 
     async def get_hyperparams(self) -> dict | None:
+        """Get cached subnet hyperparameters.
+
+        Returns:
+            dict: Subnet hyperparameters (structure varies by subnet)
+        """
         return await self._request("get", ENDPOINT_HYPERPARAMS)
 
-    async def set_hyperparam(self, name: str, value: Any) -> dict | None:
-        return await self._request("put", ENDPOINT_SET_HYPERPARAM, json={"name": name, "value": value})
+    async def set_hyperparam(self, name: str, value: Any) -> None:
+        """Set a subnet hyperparameter (subnet owner only).
+
+        Args:
+            name: Hyperparameter name
+            value: New value for the hyperparameter
+        """
+        await self._request("put", ENDPOINT_SET_HYPERPARAM, json={"name": name, "value": value})
 
     async def update_weight(self, hotkey: str, weight_delta: float) -> dict | None:
+        """Update a hotkey's weight by a delta (validator only).
+
+        Args:
+            hotkey: Hotkey to update weight for
+            weight_delta: Amount to change weight by (can be negative)
+
+        Returns:
+            dict: {'hotkey': str, 'weight': float, 'epoch': int}
+        """
         return await self._request("put", ENDPOINT_UPDATE_WEIGHT, json={"hotkey": hotkey, "weight_delta": weight_delta})
 
     async def set_weight(self, hotkey: str, weight: float) -> dict | None:
+        """Set a hotkey's weight (validator only).
+
+        Args:
+            hotkey: Hotkey to set weight for
+            weight: New weight value
+
+        Returns:
+            dict: {'hotkey': str, 'weight': float, 'epoch': int}
+        """
         return await self._request("put", ENDPOINT_SET_WEIGHT, json={"hotkey": hotkey, "weight": weight})
 
     async def set_weights(self, weights: dict[str, float]) -> dict | None:
-        """Set multiple weights at once.
+        """Set multiple weights at once (validator only).
 
         Args:
             weights: Dict mapping hotkey to weight
 
         Returns:
-            Dict with weights that were set, epoch, and count
+            dict: {'weights': dict, 'epoch': int, 'count': int}
         """
         return await self._request("put", ENDPOINT_SET_WEIGHTS, json={"weights": weights})
 
     async def get_weights(self, block: int | None = None) -> dict | None:
+        """Get weights for the current or specified epoch.
+
+        Args:
+            block: Optional block number. If None, returns latest weights.
+
+        Returns:
+            dict: {'epoch': int, 'weights': dict[str, float]}
+        """
         if block is not None:
             endpoint = format_endpoint(ENDPOINT_WEIGHTS, block=block)
         else:
@@ -156,15 +224,43 @@ class AsyncPylonClient:
         return await self._request("get", endpoint)
 
     async def force_commit_weights(self) -> dict | None:
+        """Force commit current weights to the subnet (validator only).
+
+        Returns:
+            dict: Response from weight commit operation
+        """
         return await self._request("post", ENDPOINT_FORCE_COMMIT_WEIGHTS)
 
-    async def get_commitment(self, hotkey: str, block: int | None = None) -> dict | None:
+    async def get_commitment(self, hotkey: str, block: int | None = None) -> str | None:
+        """Get commitment for a specific hotkey.
+
+        Args:
+            hotkey: Hotkey to get commitment for
+            block: Optional block number for historical commitment
+
+        Returns:
+            str: The commitment value
+        """
         params = {"block": block} if block else {}
-        return await self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
+        data = await self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
+        return data["commitment"] if data else None
 
     async def get_commitments(self, block: int | None = None) -> dict | None:
+        """Get all commitments for the subnet.
+
+        Args:
+            block: Optional block number for historical commitments
+
+        Returns:
+            dict: Dictionary of hotkey to commitment mappings
+        """
         params = {"block": block} if block else {}
         return await self._request("get", ENDPOINT_COMMITMENTS, params=params)
 
-    async def set_commitment(self, data_hex: str) -> dict | None:
-        return await self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})
+    async def set_commitment(self, data_hex: str) -> None:
+        """Set commitment for the app's wallet.
+
+        Args:
+            data_hex: Hex-encoded commitment data
+        """
+        await self._request("post", ENDPOINT_SET_COMMITMENT, json={"data_hex": data_hex})

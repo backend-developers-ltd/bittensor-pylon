@@ -251,7 +251,7 @@ async def weights_endpoint(request: Request, block: int) -> Response:
     """
     Get raw weights for the epoch containing the specified block.
     """
-    epoch = get_epoch_containing_block(block).epoch_start
+    epoch = get_epoch_containing_block(block).start
     weights = await db.get_hotkey_weights_dict(epoch)
     if weights == {}:
         return Response({"detail": "Epoch weights not found"}, status_code=404)

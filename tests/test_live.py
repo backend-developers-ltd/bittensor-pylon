@@ -32,9 +32,8 @@ async def test_client_metagraph_caching(client: AsyncPylonClient):
     Test metagraph caching by comparing querying time for multiple metagraph fetches not in cache vs cached metagraph fetches.
     """
     # get block for reference
-    latest_block_resp = await client.get_latest_block()
-    assert latest_block_resp and "block" in latest_block_resp, "Could not get latest block"
-    latest_block = latest_block_resp["block"]
+    latest_block = await client.get_latest_block()
+    assert latest_block is not None, "Could not get latest block"
 
     block_range = 10
     block = latest_block - block_range
@@ -70,12 +69,11 @@ async def test_weights_endpoints(client: AsyncPylonClient):
     expected_final_weight = initial_weight + delta
 
     # Get the current epoch for verification
-    latest_block_resp = await client.get_latest_block()
-    assert latest_block_resp and "block" in latest_block_resp, "Could not get latest block"
-    latest_block = latest_block_resp["block"]
+    latest_block = await client.get_latest_block()
+    assert latest_block is not None, "Could not get latest block"
     epoch_resp = await client.get_epoch(latest_block)
     assert epoch_resp, "Could not get epoch"
-    epoch = epoch_resp.epoch_start
+    epoch = epoch_resp.start
 
     # Set, update, and check the weight
     await set_and_check_weight(client, hotkey, initial_weight)

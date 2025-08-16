@@ -58,8 +58,8 @@ class SetCommitmentRequest(BaseModel):
 
 
 class Epoch(BaseModel):
-    epoch_start: int
-    epoch_end: int
+    start: int
+    end: int
 
 
 class AxonInfo(BaseModel):

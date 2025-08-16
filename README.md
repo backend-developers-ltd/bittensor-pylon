@@ -76,18 +76,16 @@ Use the PylonClient to connect with the running service:
 from pylon_client import PylonClient
 
 def main():
-    with PylonClient(base_url="http://your-server.com:port") as client:
-        # Get latest block information
-        latest_block = client.get_latest_block()
-        print(f"Latest block: {latest_block}")
+    client = PylonClient(base_url="http://your-server.com:port")
 
-        # Get metagraph data
-        metagraph = client.get_metagraph()
-        print(f"Metagraph: {metagraph}")
+    block = client.get_latest_block()
+    print(f"Latest block: {block}")
 
-        # Get hyperparameters
-        hyperparams = client.get_hyperparams()
-        print(f"Hyperparams: {hyperparams}")
+    metagraph = client.get_metagraph()
+    print(f"Metagraph: {metagraph}")
+
+    hyperparams = client.get_hyperparams()
+    print(f"Hyperparams: {hyperparams}")
 
 if __name__ == "__main__":
     main()
@@ -102,17 +100,9 @@ from pylon_client.docker_manager import PylonDockerManager
 
 async def main():
     async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
-        # Get latest block information
-        latest_block = await client.get_latest_block()
-        print(f"Latest block: {latest_block}")
-
-        # Get metagraph data
-        metagraph = await client.get_metagraph()
-        print(f"Metagraph: {metagraph}")
-
-        # Get hyperparameters
-        hyperparams = await client.get_hyperparams()
-        print(f"Hyperparams: {hyperparams}")
+        block = await client.get_latest_block()
+        print(f"Latest block: {block}")
+        ...
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -125,7 +115,8 @@ It's a context manager that starts the Pylon service and stops it when the `asyn
 async def main():
     async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
         async with PylonDockerManager(port=port) as client:
-            latest_block = await client.get_latest_block()
+            block = await client.get_latest_block()
+            print(f"Latest block: {block}")
             ...
 
 ```
@@ -140,19 +131,21 @@ from pylon_client.client import PylonClient
 def main():
     # Use mock data from JSON file
     client = PylonClient(mock_data_path="tests/mock_data.json")
-    
-    with client:
-        # Returns mock data
-        latest_block = client.get_latest_block()
-        print(f"Mocked latest block: {latest_block}")
-        
-        # Verify the mock was called
-        client.mock.get_latest_block.assert_called_once()
-        
-        # Override responses for specific tests
-        client.override("get_latest_block", {"block": 99999})
-        overridden_block = client.get_latest_block()
-        print(f"Overridden block: {overridden_block}")
+
+    # Returns mock data - client methods return specific types
+    block = client.get_latest_block()
+    print(f"Mocked latest block: {block}")
+
+    metagraph = client.get_metagraph()
+    print(f"Mocked metagraph block: {metagraph.block}")
+
+    # Verify the mock was called
+    client.mock.latest_block.assert_called_once()
+
+    # Override responses for specific tests
+    client.override("get_latest_block/", 99999)
+    block = client.get_latest_block()
+    assert block == 99999
 
 if __name__ == "__main__":
     main()
