@@ -32,7 +32,7 @@ def client(monkeypatch, temp_db_config):
         test_client.app.state.bittensor_client = MockBittensorClient()
         test_client.app.state.latest_block = EPOCH
         test_client.app.state.metagraph_cache = {EPOCH: get_mock_metagraph(EPOCH)}
-        test_client.app.state.current_epoch_start = get_epoch_containing_block(EPOCH).epoch_start
+        test_client.app.state.current_epoch_start = get_epoch_containing_block(EPOCH).start
         yield test_client
 
 

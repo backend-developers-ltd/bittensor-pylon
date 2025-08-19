@@ -25,7 +25,7 @@ def get_epoch_containing_block(
     else:
         prev_epoch = next_epoch - interval
 
-    return Epoch(epoch_start=prev_epoch, epoch_end=next_epoch)
+    return Epoch(start=prev_epoch, end=next_epoch)
 
 
 class CommitWindow:

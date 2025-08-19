@@ -121,7 +121,7 @@ async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
             try:
                 await cache_metagraph(app, new_block)
                 app.state.latest_block = new_block.number
-                app.state.current_epoch_start = get_epoch_containing_block(new_block.number).epoch_start
+                app.state.current_epoch_start = get_epoch_containing_block(new_block.number).start
                 logger.info(f"Cached latest metagraph for block {new_block.number}")
             except Exception as e:
                 logger.error(f"Error caching metagraph for block {new_block.number}: {e}")

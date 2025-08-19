@@ -91,6 +91,7 @@ The service exposes several endpoints to interact with the subnet:
 ### Subnet Configuration
 - `/set_hyperparam`: Set a subnet hyperparameter (subnet owner only)
 
+
 ## turbobt Integration
 
 `turbobt` is a Python library providing core functionalities for interacting with the Bittensor blockchain. The application leverages these capabilities primarily through `app.bittensor_client` and background tasks:
@@ -120,13 +121,12 @@ Environment variables configured via `.env` file (template at `pylon_service/env
 
 - Uses `pytest` with `pytest-asyncio` for async test support
 - Mock data available in `tests/mock_data.json`
-- Client has built-in mock mode for testing: `PylonClient(mock_data_path="path/to/mock_data.json")`
+- Both sync (`PylonClient`) and async (`AsyncPylonClient`) clients have built-in mock mode
 - Test environment template must be copied to `.env` before running tests
 
 ### Mock Client Features
-- **Hook tracking**: All endpoints have `MagicMock` hooks for verifying calls (e.g., `mock.latest_metagraph.assert_called()`)
+- **Hook tracking**: All endpoints have `MagicMock` hooks for verifying calls (e.g., `mock.latest_block.assert_called()`)
 - **Response overrides**: Use `override()` method to customize responses per endpoint
-- **Separate hooks**: `latest_metagraph` and `metagraph` have distinct hooks and override keys for independent mocking
 - **Error simulation**: Supports 404 responses and custom status codes via overrides
 
 ## Development Workflow
@@ -150,3 +150,4 @@ Environment variables configured via `.env` file (template at `pylon_service/env
 - Caching uses TTL-based in-memory cache for metagraph data
 - Access control via decorators: `@validator_only`, `@subnet_owner_only`
 - Uses `turbobt` for efficient Bittensor blockchain interactions
+- Client library provides both sync (`PylonClient`) and async (`AsyncPylonClient`) implementations

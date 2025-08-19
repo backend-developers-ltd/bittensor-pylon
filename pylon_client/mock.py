@@ -3,235 +3,121 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
-from litestar import Litestar, get, post, put
-from litestar.connection import Request
-from litestar.exceptions import NotFoundException
-from litestar.response import Response
-from litestar.status_codes import HTTP_404_NOT_FOUND
-
-from pylon_common.constants import (
-    ENDPOINT_BLOCK_HASH,
-    ENDPOINT_COMMITMENT,
-    ENDPOINT_COMMITMENTS,
-    ENDPOINT_EPOCH,
-    ENDPOINT_FORCE_COMMIT_WEIGHTS,
-    ENDPOINT_HYPERPARAMS,
-    ENDPOINT_LATEST_BLOCK,
-    ENDPOINT_LATEST_METAGRAPH,
-    ENDPOINT_LATEST_WEIGHTS,
-    ENDPOINT_METAGRAPH,
-    ENDPOINT_SET_COMMITMENT,
-    ENDPOINT_SET_HYPERPARAM,
-    ENDPOINT_SET_WEIGHT,
-    ENDPOINT_SET_WEIGHTS,
-    ENDPOINT_UPDATE_WEIGHT,
-    ENDPOINT_WEIGHTS,
-)
+from pylon_common.models import Epoch, Metagraph
 
 
-class MockHooks(SimpleNamespace):
-    latest_block: MagicMock
-    latest_metagraph: MagicMock
-    metagraph: MagicMock
-    block_hash: MagicMock
-    epoch: MagicMock
-    hyperparams: MagicMock
-    set_hyperparam: MagicMock
-    update_weight: MagicMock
-    set_weight: MagicMock
-    set_weights: MagicMock
-    weights: MagicMock
-    force_commit_weights: MagicMock
-    commitment: MagicMock
-    commitments: MagicMock
-    set_commitment: MagicMock
+class MethodHooks(SimpleNamespace):
+    def __init__(self):
+        """Create a new MockHooks instance with all hooks initialized."""
+        self.get_latest_block = MagicMock()
+        self.get_metagraph = MagicMock()
+        self.get_block_hash = MagicMock()
+        self.get_epoch = MagicMock()
+        self.get_hyperparams = MagicMock()
+        self.set_hyperparam = MagicMock()
+        self.update_weight = MagicMock()
+        self.set_weight = MagicMock()
+        self.set_weights = MagicMock()
+        self.get_weights = MagicMock()
+        self.force_commit_weights = MagicMock()
+        self.get_commitment = MagicMock()
+        self.get_commitments = MagicMock()
+        self.set_commitment = MagicMock()
 
 
 class MockHandler:
-    """A class to manage mocking the Pylon API by running a self-contained Litestar app."""
-
     def __init__(self, mock_data_path: str, base_url: str):
         with open(mock_data_path) as f:
             self.mock_data = json.load(f)
         self._overrides: dict[str, Any] = {}
-        self.hooks = MockHooks(
-            latest_block=MagicMock(),
-            latest_metagraph=MagicMock(),
-            metagraph=MagicMock(),
-            block_hash=MagicMock(),
-            epoch=MagicMock(),
-            hyperparams=MagicMock(),
-            set_hyperparam=MagicMock(),
-            update_weight=MagicMock(),
-            set_weight=MagicMock(),
-            set_weights=MagicMock(),
-            weights=MagicMock(),
-            force_commit_weights=MagicMock(),
-            commitment=MagicMock(),
-            commitments=MagicMock(),
-            set_commitment=MagicMock(),
+        self.hooks = MethodHooks()
+
+    def override(self, method_name: str, response: Any):
+        if not hasattr(self.hooks, method_name):
+            raise AttributeError(f"MockHandler has no method named '{method_name}'")
+        self._overrides[method_name] = response
+
+    def get_latest_block(self) -> int:
+        self.hooks.get_latest_block()
+        if "get_latest_block" in self._overrides:
+            return self._overrides["get_latest_block"]
+        return self.mock_data["metagraph"]["block"]
+
+    def get_metagraph(self, block: int | None = None) -> Metagraph:
+        self.hooks.get_metagraph(block=block)
+        if "get_metagraph" in self._overrides:
+            data = self._overrides["get_metagraph"]
+            return Metagraph(**data) if isinstance(data, dict) else data
+        return Metagraph(**self.mock_data["metagraph"])
+
+    def get_block_hash(self, block: int) -> str:
+        self.hooks.get_block_hash(block=block)
+        if "get_block_hash" in self._overrides:
+            return self._overrides["get_block_hash"]
+        return self.mock_data["metagraph"]["block_hash"]
+
+    def get_epoch(self, block: int | None = None) -> Epoch:
+        self.hooks.get_epoch(block=block)
+        if "get_epoch" in self._overrides:
+            data = self._overrides["get_epoch"]
+            return Epoch(**data) if isinstance(data, dict) else data
+        return Epoch(**self.mock_data["epoch"])
+
+    def get_hyperparams(self) -> dict:
+        self.hooks.get_hyperparams()
+        if "get_hyperparams" in self._overrides:
+            return self._overrides["get_hyperparams"]
+        return self.mock_data["hyperparams"]
+
+    def set_hyperparam(self, name: str, value: Any) -> None:
+        self.hooks.set_hyperparam(name=name, value=value)
+
+    def update_weight(self, hotkey: str, weight_delta: float) -> dict:
+        self.hooks.update_weight(hotkey=hotkey, weight_delta=weight_delta)
+        if "update_weight" in self._overrides:
+            return self._overrides["update_weight"]
+        return {"detail": "Weight updated successfully"}
+
+    def set_weight(self, hotkey: str, weight: float) -> dict:
+        self.hooks.set_weight(hotkey=hotkey, weight=weight)
+        if "set_weight" in self._overrides:
+            return self._overrides["set_weight"]
+        return {"detail": "Weight set successfully"}
+
+    def set_weights(self, weights: dict[str, float]) -> dict:
+        self.hooks.set_weights(weights=weights)
+        if "set_weights" in self._overrides:
+            return self._overrides["set_weights"]
+        epoch_data = self.mock_data["epoch"]
+        return self.mock_data.get(
+            "set_weights", {"weights": weights, "epoch": epoch_data["start"], "count": len(weights)}
         )
-        # The base_url is not used by the mock app but is kept for client compatibility
-        self.base_url = base_url
-        self.mock_app = self._create_mock_app()
 
-    def override(self, endpoint_name: str, json_response: dict[str, Any], status_code: int = 200):
-        if not hasattr(self.hooks, endpoint_name):
-            raise AttributeError(f"MockHandler has no endpoint named '{endpoint_name}'")
-        self._overrides[endpoint_name] = Response(content=json_response, status_code=status_code)
+    def get_weights(self, block: int | None = None) -> dict:
+        self.hooks.get_weights(block=block)
+        if "get_weights" in self._overrides:
+            return self._overrides["get_weights"]
+        weights_data = self.mock_data.get("weights", {})
+        epoch_data = self.mock_data["epoch"]
+        return {"epoch": epoch_data["start"], "weights": weights_data}
 
-    def get_app(self) -> Litestar:
-        """Creates a mock transport that routes requests to the internal Litestar app."""
-        return self.mock_app
+    def force_commit_weights(self) -> dict:
+        self.hooks.force_commit_weights()
+        if "force_commit_weights" in self._overrides:
+            return self._overrides["force_commit_weights"]
+        return {"detail": "Weights committed successfully"}
 
-    def _get_override_response(self, endpoint_name: str) -> Response | None:
-        return self._overrides.get(endpoint_name)
+    def get_commitment(self, hotkey: str, block: int | None = None) -> str:
+        self.hooks.get_commitment(hotkey=hotkey, block=block)
+        if "get_commitment" in self._overrides:
+            return self._overrides["get_commitment"]
+        return self.mock_data["commitments"].get(hotkey, "0x0000")
 
-    def _create_mock_app(self) -> Litestar:
-        """Creates a Litestar app with all the mock endpoints."""
+    def get_commitments(self, block: int | None = None) -> dict:
+        self.hooks.get_commitments(block=block)
+        if "get_commitments" in self._overrides:
+            return self._overrides["get_commitments"]
+        return self.mock_data["commitments"]
 
-        @get(ENDPOINT_LATEST_BLOCK)
-        async def latest_block() -> Response:
-            self.hooks.latest_block()
-            if response := self._get_override_response("latest_block"):
-                return response
-            return Response({"block": self.mock_data["metagraph"]["block"]})
-
-        @get(ENDPOINT_LATEST_METAGRAPH)
-        async def latest_metagraph() -> Response:
-            self.hooks.latest_metagraph()
-            if response := self._get_override_response("latest_metagraph"):
-                return response
-            return Response(self.mock_data["metagraph"])
-
-        @get(ENDPOINT_METAGRAPH)
-        async def metagraph(block: int) -> Response:
-            self.hooks.metagraph(block=block)
-            if response := self._get_override_response("metagraph"):
-                return response
-            return Response(self.mock_data["metagraph"])
-
-        @get(ENDPOINT_BLOCK_HASH)
-        async def block_hash(block: int) -> Response:
-            self.hooks.block_hash(block=block)
-            if response := self._get_override_response("block_hash"):
-                return response
-            return Response({"block_hash": self.mock_data["metagraph"]["block_hash"]})
-
-        @get([ENDPOINT_EPOCH, f"{ENDPOINT_EPOCH}/{{block:int}}"])
-        async def epoch(block: int | None = None) -> Response:
-            self.hooks.epoch(block=block)
-            if response := self._get_override_response("epoch"):
-                return response
-            return Response(self.mock_data["epoch"])
-
-        @get(ENDPOINT_HYPERPARAMS)
-        async def hyperparams() -> Response:
-            self.hooks.hyperparams()
-            if response := self._get_override_response("hyperparams"):
-                return response
-            return Response(self.mock_data["hyperparams"])
-
-        @put(ENDPOINT_SET_HYPERPARAM)
-        async def set_hyperparam(data: dict[str, Any]) -> Response:
-            self.hooks.set_hyperparam(**data)
-            if response := self._get_override_response("set_hyperparam"):
-                return response
-            return Response({"detail": "Hyperparameter set successfully"})
-
-        @put(ENDPOINT_UPDATE_WEIGHT)
-        async def update_weight(data: dict[str, Any]) -> Response:
-            self.hooks.update_weight(**data)
-            if response := self._get_override_response("update_weight"):
-                return response
-            return Response({"detail": "Weight updated successfully"})
-
-        @put(ENDPOINT_SET_WEIGHT)
-        async def set_weight(data: dict[str, Any]) -> Response:
-            self.hooks.set_weight(**data)
-            if response := self._get_override_response("set_weight"):
-                return response
-            return Response({"detail": "Weight set successfully"})
-
-        @put(ENDPOINT_SET_WEIGHTS)
-        async def set_weights(data: dict[str, Any]) -> Response:
-            self.hooks.set_weights(**data)
-            if response := self._get_override_response("set_weights"):
-                return response
-            return Response(self.mock_data["set_weights"])
-
-        @get(ENDPOINT_LATEST_WEIGHTS)
-        async def latest_weights() -> Response:
-            self.hooks.weights(block=None)
-            if response := self._get_override_response("weights"):
-                return response
-            weights_data = self.mock_data.get("weights", {})
-            return Response({"epoch": 1440, "weights": weights_data})
-
-        @get(ENDPOINT_WEIGHTS)
-        async def weights(block: int) -> Response:
-            self.hooks.weights(block=block)
-            if response := self._get_override_response("weights"):
-                return response
-            weights_data = self.mock_data.get("weights", {})
-            return Response({"epoch": 1440, "weights": weights_data})
-
-        @post(ENDPOINT_FORCE_COMMIT_WEIGHTS)
-        async def force_commit_weights() -> Response:
-            self.hooks.force_commit_weights()
-            if response := self._get_override_response("force_commit_weights"):
-                return response
-            return Response({"detail": "Weights committed successfully"})
-
-        @get(ENDPOINT_COMMITMENT)
-        async def commitment(hotkey: str, request: Request) -> Response:
-            block_str = request.query_params.get("block")
-            block = int(block_str) if block_str else None
-            self.hooks.commitment(hotkey=hotkey, block=block)
-            if response := self._get_override_response("commitment"):
-                return response
-            commitment = self.mock_data["commitments"].get(hotkey)
-            if commitment:
-                return Response({"hotkey": hotkey, "commitment": commitment})
-            raise NotFoundException(detail="Commitment not found")
-
-        @get(ENDPOINT_COMMITMENTS)
-        async def commitments(request: Request) -> Response:
-            block_str = request.query_params.get("block")
-            block = int(block_str) if block_str else None
-            self.hooks.commitments(block=block)
-            if response := self._get_override_response("commitments"):
-                return response
-            return Response(self.mock_data["commitments"])
-
-        @post(ENDPOINT_SET_COMMITMENT)
-        async def set_commitment(data: dict[str, str]) -> Response:
-            self.hooks.set_commitment(**data)
-            if response := self._get_override_response("set_commitment"):
-                return response
-            return Response({"detail": "Commitment set successfully"})
-
-        def not_found_handler(request: Request, exc: NotFoundException) -> Response:
-            return Response(content={"detail": "Not Found"}, status_code=HTTP_404_NOT_FOUND)
-
-        return Litestar(
-            route_handlers=[
-                latest_block,
-                latest_metagraph,
-                metagraph,
-                block_hash,
-                epoch,
-                hyperparams,
-                set_hyperparam,
-                update_weight,
-                set_weight,
-                set_weights,
-                latest_weights,
-                weights,
-                force_commit_weights,
-                commitment,
-                commitments,
-                set_commitment,
-            ],
-            exception_handlers={HTTP_404_NOT_FOUND: not_found_handler},
-        )
+    def set_commitment(self, data_hex: str) -> None:
+        self.hooks.set_commitment(data_hex=data_hex)

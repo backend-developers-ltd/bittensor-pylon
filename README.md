@@ -73,23 +73,36 @@ The client can connect to a running Pylon service. For production or long-lived 
 Use the PylonClient to connect with the running service:
 
 ```python
+from pylon_client import PylonClient
+
+def main():
+    client = PylonClient(base_url="http://your-server.com:port")
+
+    block = client.get_latest_block()
+    print(f"Latest block: {block}")
+
+    metagraph = client.get_metagraph()
+    print(f"Metagraph: {metagraph}")
+
+    hyperparams = client.get_hyperparams()
+    print(f"Hyperparams: {hyperparams}")
+
+if __name__ == "__main__":
+    main()
+```
+
+or using the AsyncPylonClient:
+
+```python
 import asyncio
-from pylon_client.client import PylonClient
+from pylon_client.client import AsyncPylonClient
 from pylon_client.docker_manager import PylonDockerManager
 
 async def main():
-    async with PylonClient(base_url="http://your-server.com:port") as client:
-        # Get latest block information
-        latest_block = await client.get_latest_block()
-        print(f"Latest block: {latest_block}")
-
-        # Get metagraph data
-        metagraph = await client.get_metagraph()
-        print(f"Metagraph: {metagraph}")
-
-        # Get hyperparameters
-        hyperparams = await client.get_hyperparams()
-        print(f"Hyperparams: {hyperparams}")
+    async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
+        block = await client.get_latest_block()
+        print(f"Latest block: {block}")
+        ...
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -100,9 +113,10 @@ It's a context manager that starts the Pylon service and stops it when the `asyn
 
 ```python
 async def main():
-    async with PylonClient(base_url="http://your-server.com:port") as client:
+    async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
         async with PylonDockerManager(port=port) as client:
-            latest_block = await client.get_latest_block()
+            block = await client.get_latest_block()
+            print(f"Latest block: {block}")
             ...
 
 ```
@@ -112,28 +126,29 @@ async def main():
 For testing without a live service:
 
 ```python
-import asyncio
 from pylon_client.client import PylonClient
 
-async def main():
+def main():
     # Use mock data from JSON file
     client = PylonClient(mock_data_path="tests/mock_data.json")
-    
-    async with client:
-        # Returns mock data
-        latest_block = await client.get_latest_block()
-        print(f"Mocked latest block: {latest_block}")
-        
-        # Verify the mock was called
-        client.mock.get_latest_block.assert_called_once()
-        
-        # Override responses for specific tests
-        client.override("get_latest_block", {"block": 99999})
-        overridden_block = await client.get_latest_block()
-        print(f"Overridden block: {overridden_block}")
+
+    # Returns mock data - client methods return specific types
+    block = client.get_latest_block()
+    print(f"Mocked latest block: {block}")
+
+    metagraph = client.get_metagraph()
+    print(f"Mocked metagraph block: {metagraph.block}")
+
+    # Verify the mock was called
+    client.mock.latest_block.assert_called_once()
+
+    # Override responses for specific tests
+    client.override("get_latest_block/", 99999)
+    block = client.get_latest_block()
+    assert block == 99999
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
 ```
 
 ## Development

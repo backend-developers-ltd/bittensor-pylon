@@ -46,7 +46,7 @@ def mock_app(monkeypatch):
 
 def update_app_state(app, block):
     app.state.latest_block = block
-    app.state.current_epoch_start = get_epoch_containing_block(block).epoch_start
+    app.state.current_epoch_start = get_epoch_containing_block(block).start
     app.state.metagraph_cache = {block: get_mock_metagraph(block)}
 
 

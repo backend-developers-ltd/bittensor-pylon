@@ -4,7 +4,7 @@ import time
 import pytest
 import pytest_asyncio
 
-from pylon_client.client import PylonClient
+from pylon_client.async_client import AsyncPylonClient
 from pylon_client.docker_manager import PylonDockerManager
 from pylon_common.settings import settings
 
@@ -14,27 +14,26 @@ PYLON_TEST_PORT = 8001
 @pytest_asyncio.fixture
 async def client(monkeypatch, temp_db_config):
     """
-    Pytest fixture to initialize PylonClient and manage the Pylon Docker service
+    Pytest fixture to initialize AsyncPylonClient and manage the Pylon Docker service
     with validator mode enabled and temporary database configuration.
     """
     # mock db dir for docker based tests
     monkeypatch.setattr(settings, "pylon_db_dir", temp_db_config["db_dir"])
     monkeypatch.setattr(settings, "am_i_a_validator", True)
-    client = PylonClient(base_url=f"http://127.0.0.1:{PYLON_TEST_PORT}")
+    client = AsyncPylonClient(base_url=f"http://127.0.0.1:{PYLON_TEST_PORT}")
     manager = PylonDockerManager(port=PYLON_TEST_PORT)
     async with client, manager:
         yield client
 
 
 @pytest.mark.asyncio
-async def test_client_metagraph_caching(client: PylonClient):
+async def test_client_metagraph_caching(client: AsyncPylonClient):
     """
     Test metagraph caching by comparing querying time for multiple metagraph fetches not in cache vs cached metagraph fetches.
     """
     # get block for reference
-    latest_block_resp = await client.get_latest_block()
-    assert latest_block_resp and "block" in latest_block_resp, "Could not get latest block"
-    latest_block = latest_block_resp["block"]
+    latest_block = await client.get_latest_block()
+    assert latest_block is not None, "Could not get latest block"
 
     block_range = 10
     block = latest_block - block_range
@@ -50,7 +49,7 @@ async def test_client_metagraph_caching(client: PylonClient):
 
         for res in results:
             assert res is not None, "Metagraph response is None"
-            assert res.neurons, f"Invalid metagraph response: {res.model_dump().keys()}"
+            assert res.neurons is not None, "Invalid metagraph response"
             assert len(res.neurons) > 0, f"No neurons in metagraph response: {res.model_dump().keys()}"
 
     # the second round should be faster than the first due to caching
@@ -60,7 +59,7 @@ async def test_client_metagraph_caching(client: PylonClient):
 
 
 @pytest.mark.asyncio
-async def test_weights_endpoints(client: PylonClient):
+async def test_weights_endpoints(client: AsyncPylonClient):
     """
     Tests the full lifecycle of setting, updating, and retrieving weights.
     """
@@ -70,12 +69,11 @@ async def test_weights_endpoints(client: PylonClient):
     expected_final_weight = initial_weight + delta
 
     # Get the current epoch for verification
-    latest_block_resp = await client.get_latest_block()
-    assert latest_block_resp and "block" in latest_block_resp, "Could not get latest block"
-    latest_block = latest_block_resp["block"]
+    latest_block = await client.get_latest_block()
+    assert latest_block is not None, "Could not get latest block"
     epoch_resp = await client.get_epoch(latest_block)
     assert epoch_resp, "Could not get epoch"
-    epoch = epoch_resp.epoch_start
+    epoch = epoch_resp.start
 
     # Set, update, and check the weight
     await set_and_check_weight(client, hotkey, initial_weight)
@@ -111,9 +109,9 @@ async def set_and_check_hyperparam(client, param, value):
 # TODO: tubobt sim
 # @pytest.mark.skip
 # @pytest.mark.asyncio
-# async def test_weights_setting_throughout_epochs(client: PylonClient):
+# async def test_weights_setting_throughout_epochs(client: AsyncPylonClient):
 #     """
-#     Tests setting, updating, and retrieving weights via the PylonClient.
+#     Tests setting, updating, and retrieving weights via the AsyncPylonClient.
 #     """
 #     hotkey_1 = "hotkey_1"
 #     hotkey_2 = "hotkey_2"
