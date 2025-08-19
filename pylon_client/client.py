@@ -81,17 +81,21 @@ class PylonClient:
             ):
                 setattr(self, method_name, getattr(mock_handler, method_name))
 
+    def __enter__(self) -> "PylonClient":
+        if self._client is None:
+            self._client = Client(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._client and self._should_close_client:
+            self._client.close()
+            self._client = None
+
     @property
     def client(self) -> Client:
         if self._client is None:
             self._client = Client(base_url=self.base_url, timeout=self._timeout, limits=self._limits)
         return self._client
-
-    def close(self) -> None:
-        """Close the HTTP client and clean up resources. Optional cleanup method."""
-        if self._client and self._should_close_client:
-            self._client.close()
-            self._client = None
 
     @retry(
         stop=stop_after_attempt(3),
