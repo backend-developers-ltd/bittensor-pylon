@@ -1,6 +1,5 @@
 import asyncio
 import contextvars
-import functools
 import logging
 from dataclasses import asdict
 from datetime import datetime
@@ -20,41 +19,34 @@ logger = logging.getLogger(__name__)
 bittensor_context: contextvars.ContextVar[Bittensor] = contextvars.ContextVar("bittensor")
 
 
-def archive_fallback(block_param_index: int = 0):
+def archive_fallback(func):
     """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions.
 
     Args:
         block_param_index: index of the block parameter in the function's positional arguments (after app).
     """
 
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(app, *args, **kwargs):
-            # Try to get block from kwargs first, then from positional args
-            block = kwargs.get("block", None)
-            if block is None and len(args) > block_param_index:
-                block = args[block_param_index]
+    async def wrapper(app, *args, **kwargs):
+        block = kwargs.get("block", None)
 
-            use_archive = (
-                block is not None
-                and app.state.latest_block is not None
-                and app.state.latest_block - block > settings.bittensor_archive_blocks_cutoff
-            )
+        use_archive = (
+            block is not None
+            and app.state.latest_block is not None
+            and app.state.latest_block - block > settings.bittensor_archive_blocks_cutoff
+        )
 
-            try:
-                bittensor_context.set(app.state.archive_bittensor_client if use_archive else app.state.bittensor_client)
+        try:
+            bittensor_context.set(app.state.archive_bittensor_client if use_archive else app.state.bittensor_client)
+            return await func(app, *args, **kwargs)
+        except UnknownBlock:
+            if not use_archive:
+                bittensor_context.set(app.state.archive_bittensor_client)
+                logger.warning(f"UnknownBlock in {func.__name__}, retrying with archive client")
                 return await func(app, *args, **kwargs)
-            except UnknownBlock:
-                if not use_archive:
-                    bittensor_context.set(app.state.archive_bittensor_client)
-                    logger.warning(f"UnknownBlock in {func.__name__}, retrying with archive client")
-                    return await func(app, *args, **kwargs)
-                else:
-                    raise
+            else:
+                raise
 
-        return wrapper
-
-    return decorator
+    return wrapper
 
 
 def get_bt_wallet(settings: Settings):
@@ -88,8 +80,8 @@ async def create_bittensor_clients() -> tuple[Bittensor, Bittensor]:
         raise
 
 
-@archive_fallback(block_param_index=0)
-async def cache_metagraph(app: Litestar, block: int, block_hash: str):
+@archive_fallback
+async def cache_metagraph(app: Litestar, *, block: int, block_hash: str):
     client = bittensor_context.get()
     neurons = await client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block_hash)  # type: ignore
 
@@ -99,8 +91,8 @@ async def cache_metagraph(app: Litestar, block: int, block_hash: str):
     app.state.metagraph_cache[block] = metagraph
 
 
-@archive_fallback(block_param_index=0)
-async def get_block_timestamp(app: Litestar, block: int) -> datetime | None:
+@archive_fallback
+async def get_block_timestamp(app: Litestar, *, block: int) -> datetime | None:
     """
     Fetches the creation timestamp for a specific block.
     """
@@ -113,14 +105,14 @@ async def get_block_timestamp(app: Litestar, block: int) -> datetime | None:
         return None
 
 
-@archive_fallback(block_param_index=0)
-async def get_metagraph(app: Litestar, block: int) -> Metagraph:
+@archive_fallback
+async def get_metagraph(app: Litestar, *, block: int) -> Metagraph:
     if block not in app.state.metagraph_cache:
         client = bittensor_context.get()
         block_obj = await client.block(block).get()
         if block_obj is None or block_obj.number is None:
             raise ValueError(f"Block {block} not found in the blockchain.")
-        await cache_metagraph(app, block_obj.number, block_obj.hash)
+        await cache_metagraph(app, block=block_obj.number, block_hash=block_obj.hash)
 
     return app.state.metagraph_cache[block]
 
@@ -130,7 +122,7 @@ async def get_weights(app: Litestar, block: int) -> dict[int, float]:
     Fetches the latest weights from the database for the current epoch.
     """
     # Get neurons from the metagraph
-    metagraph = await get_metagraph(app, block)
+    metagraph = await get_metagraph(app, block=block)
     # TODO: check if neurons = metagraph.get_active_neurons() is needed instead
     neurons = metagraph.get_neurons()
 
@@ -176,8 +168,8 @@ async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
     # return neuron.last_update
 
 
-@archive_fallback(block_param_index=1)
-async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None) -> str | None:
+@archive_fallback
+async def get_commitment(app: Litestar, hotkey: Hotkey, *, block: int | None = None) -> str | None:
     """
     Fetches a specific commitment (as hex) for a hotkey, optionally at a given block.
     Uses netuid from settings and block_hash from metagraph cache.
@@ -190,8 +182,8 @@ async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None
     return commitment.hex() if commitment is not None else None
 
 
-@archive_fallback(block_param_index=0)
-async def get_commitments(app: Litestar, block: int | None = None) -> dict[Hotkey, str]:
+@archive_fallback
+async def get_commitments(app: Litestar, *, block: int | None = None) -> dict[Hotkey, str]:
     """
     Fetches all commitments (hotkey: commitment_hex) for the configured subnet.
     Optionally uses a specific block_hash.

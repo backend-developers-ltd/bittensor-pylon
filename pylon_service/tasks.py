@@ -121,7 +121,7 @@ async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
 
         if app.state.latest_block is None or new_block != app.state.latest_block:
             try:
-                await cache_metagraph(app, new_block, new_block_obj.hash)
+                await cache_metagraph(app, block=new_block, block_hash=new_block_obj.hash)
                 app.state.latest_block = new_block
                 app.state.current_epoch_start = get_epoch_containing_block(new_block).start
                 logger.info(f"Cached latest metagraph for block {new_block}")
