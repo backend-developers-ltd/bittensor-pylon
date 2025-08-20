@@ -44,11 +44,13 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
     logger.debug("Litestar app startup")
     await init_db()
 
-    main_client, archive_client = await create_bittensor_clients()
+    main_client, archive_clients = await create_bittensor_clients()
     app.state.bittensor_client = main_client
-    app.state.archive_bittensor_client = archive_client
+    app.state.archive_bittensor_clients = archive_clients
+    app.state.archive_client_index = 0
     await app.state.bittensor_client.__aenter__()
-    await app.state.archive_bittensor_client.__aenter__()
+    for client in app.state.archive_bittensor_clients:
+        await client.__aenter__()
 
     app.state.metagraph_cache = TTLCache(maxsize=settings.metagraph_cache_maxsize, ttl=settings.metagraph_cache_ttl)
     app.state.latest_block = None
@@ -80,7 +82,8 @@ async def on_shutdown(app: Litestar) -> None:
     app.state._stop_event.set()
     await asyncio.gather(*app.state._background_tasks)
     await app.state.bittensor_client.__aexit__(None, None, None)
-    await app.state.archive_bittensor_client.__aexit__(None, None, None)
+    for client in app.state.archive_bittensor_clients:
+        await client.__aexit__(None, None, None)
 
 
 def create_app(tasks: list[Callable]) -> Litestar:

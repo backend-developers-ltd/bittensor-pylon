@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     bittensor_network: str = "finney"
     bittensor_archive_network: str = "archive"
     bittensor_archive_blocks_cutoff: int = 300
+    bittensor_archive_pool_size: int = 10
     bittensor_wallet_name: str
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str

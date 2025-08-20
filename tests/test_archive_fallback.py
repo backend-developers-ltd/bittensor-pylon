@@ -18,12 +18,13 @@ def mock_app():
     with patch.object(main_client, "subnet", wraps=main_client.subnet) as mock_main_subnet:
         with patch.object(archive_client, "subnet", wraps=archive_client.subnet) as mock_archive_subnet:
             app.state.bittensor_client = main_client
-            app.state.archive_bittensor_client = archive_client
+            app.state.archive_bittensor_clients = [archive_client]
+            app.state.archive_client_index = 0
             app.state.latest_block = 1100
             app.state.metagraph_cache = {}
 
             app.state.bittensor_client.subnet = mock_main_subnet
-            app.state.archive_bittensor_client.subnet = mock_archive_subnet
+            app.state.archive_bittensor_clients[0].subnet = mock_archive_subnet
 
             yield app
 
@@ -42,7 +43,7 @@ async def test_recent_block_uses_main_client(mock_app, mock_list_neurons):
     assert 1100 in mock_app.state.metagraph_cache
     mock_list_neurons.assert_called_once_with(block_hash="0x44c")
     mock_app.state.bittensor_client.subnet.assert_called_once_with(settings.bittensor_netuid)
-    mock_app.state.archive_bittensor_client.subnet.assert_not_called()
+    mock_app.state.archive_bittensor_clients[0].subnet.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -52,7 +53,7 @@ async def test_old_block_uses_archive_client(mock_app, mock_list_neurons):
     assert 799 in mock_app.state.metagraph_cache
     mock_list_neurons.assert_called_once_with(block_hash="0x320")
     mock_app.state.bittensor_client.subnet.assert_not_called()
-    mock_app.state.archive_bittensor_client.subnet.assert_called_once_with(settings.bittensor_netuid)
+    mock_app.state.archive_bittensor_clients[0].subnet.assert_called_once_with(settings.bittensor_netuid)
 
 
 @pytest.mark.asyncio
@@ -73,7 +74,7 @@ async def test_main_fails_fallback_to_archive(mock_app, mock_list_neurons):
     assert 1100 in mock_app.state.metagraph_cache
     assert mock_list_neurons.call_count == 2
     mock_app.state.bittensor_client.subnet.assert_called_once_with(settings.bittensor_netuid)
-    mock_app.state.archive_bittensor_client.subnet.assert_called_once_with(settings.bittensor_netuid)
+    mock_app.state.archive_bittensor_clients[0].subnet.assert_called_once_with(settings.bittensor_netuid)
 
 
 @pytest.mark.asyncio
@@ -86,7 +87,7 @@ async def test_archive_fails_exception_reraised(mock_app, mock_list_neurons):
     assert 799 not in mock_app.state.metagraph_cache
     assert mock_list_neurons.call_count == 1
     mock_app.state.bittensor_client.subnet.assert_not_called()
-    mock_app.state.archive_bittensor_client.subnet.assert_called_once_with(settings.bittensor_netuid)
+    mock_app.state.archive_bittensor_clients[0].subnet.assert_called_once_with(settings.bittensor_netuid)
 
 
 @pytest.mark.asyncio
@@ -98,4 +99,4 @@ async def test_no_latest_block_uses_main(mock_app, mock_list_neurons):
     assert 100 in mock_app.state.metagraph_cache
     mock_list_neurons.assert_called_once_with(block_hash="0x64")
     mock_app.state.bittensor_client.subnet.assert_called_once_with(settings.bittensor_netuid)
-    mock_app.state.archive_bittensor_client.subnet.assert_not_called()
+    mock_app.state.archive_bittensor_clients[0].subnet.assert_not_called()

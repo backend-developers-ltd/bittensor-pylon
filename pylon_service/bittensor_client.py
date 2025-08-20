@@ -19,6 +19,21 @@ logger = logging.getLogger(__name__)
 bittensor_context: contextvars.ContextVar[Bittensor] = contextvars.ContextVar("bittensor")
 
 
+def get_next_archive_client(app: Litestar) -> Bittensor:
+    """Get the next archive client using round-robin selection."""
+    if not hasattr(app.state, "archive_client_index"):
+        app.state.archive_client_index = 0
+
+    clients = app.state.archive_bittensor_clients
+    if not clients:
+        raise RuntimeError("No archive clients available")
+
+    client = clients[app.state.archive_client_index]
+    app.state.archive_client_index = (app.state.archive_client_index + 1) % len(clients)
+
+    return client
+
+
 def archive_fallback(func):
     """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions.
 
@@ -36,11 +51,11 @@ def archive_fallback(func):
         )
 
         try:
-            bittensor_context.set(app.state.archive_bittensor_client if use_archive else app.state.bittensor_client)
+            bittensor_context.set(get_next_archive_client(app) if use_archive else app.state.bittensor_client)
             return await func(app, *args, **kwargs)
         except UnknownBlock:
             if not use_archive:
-                bittensor_context.set(app.state.archive_bittensor_client)
+                bittensor_context.set(get_next_archive_client(app))
                 logger.warning(f"UnknownBlock in {func.__name__}, retrying with archive client")
                 return await func(app, *args, **kwargs)
             else:
@@ -62,19 +77,21 @@ def get_bt_wallet(settings: Settings):
         raise
 
 
-async def create_bittensor_clients() -> tuple[Bittensor, Bittensor]:
+async def create_bittensor_clients() -> tuple[Bittensor, list[Bittensor]]:
     """Creates both main and archive Bittensor clients.
 
     Returns:
-        tuple[Bittensor, Bittensor]: (main_client, archive_client)
+        tuple[Bittensor, list[Bittensor]]: (main_client, archive_clients_pool)
     """
     wallet = get_bt_wallet(settings)
     main_network = settings.bittensor_network
     archive_network = settings.bittensor_archive_network
+    pool_size = settings.bittensor_archive_pool_size
+
     try:
         main_client = Bittensor(wallet=wallet, uri=main_network)
-        archive_client = Bittensor(wallet=wallet, uri=archive_network)
-        return main_client, archive_client
+        archive_clients = [Bittensor(wallet=wallet, uri=archive_network) for _ in range(pool_size)]
+        return main_client, archive_clients
     except Exception as e:
         logger.error(f"Failed to create Bittensor clients: {e}")
         raise
