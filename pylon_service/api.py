@@ -5,6 +5,7 @@ from litestar import Request, Response, get, post, put
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_BLOCK_TIMESTAMP,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
@@ -33,6 +34,7 @@ from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
+    get_block_timestamp,
     get_commitment,
     get_commitments,
     get_metagraph,
@@ -139,7 +141,7 @@ async def latest_metagraph(request: Request) -> dict:
 @safe_endpoint
 async def metagraph(request: Request, block: int) -> dict:
     """Get the metagraph for a specific block number."""
-    metagraph = await get_metagraph(request.app, block)
+    metagraph = await get_metagraph(request.app, block=block)
     return metagraph.model_dump()
 
 
@@ -148,8 +150,16 @@ async def metagraph(request: Request, block: int) -> dict:
 @safe_endpoint
 async def block_hash(request: Request, block: int) -> dict:
     """Get the block hash for a specific block number."""
-    metagraph = await get_metagraph(request.app, block)
+    metagraph = await get_metagraph(request.app, block=block)
     return {"block_hash": metagraph.block_hash}
+
+
+@get(ENDPOINT_BLOCK_TIMESTAMP)
+@safe_endpoint
+async def block_timestamp(request: Request, block: int) -> dict:
+    """Get the timestamp for a specific block number."""
+    timestamp = await get_block_timestamp(request.app, block=block)
+    return {"block_timestamp": timestamp.isoformat() if timestamp else None}
 
 
 @get(ENDPOINT_EPOCH)
@@ -297,7 +307,7 @@ async def get_commitment_endpoint(request: Request, hotkey: str) -> Response:
     block = request.query_params.get("block", None)
     block = get_latest_block(request) if block is None else int(block)
 
-    commitment = await get_commitment(request.app, hotkey, block)
+    commitment = await get_commitment(request.app, hotkey, block=block)
     if commitment is None:
         return Response({"detail": "Commitment not found or error fetching."}, status_code=404)
     return Response({"hotkey": hotkey, "commitment": commitment}, status_code=200)
@@ -312,7 +322,7 @@ async def get_commitments_endpoint(request: Request) -> Response:
     """
     block = request.query_params.get("block")
     block = get_latest_block(request) if block is None else int(block)
-    commitments_map = await get_commitments(request.app, block)
+    commitments_map = await get_commitments(request.app, block=block)
     return Response(commitments_map, status_code=200)
 
 

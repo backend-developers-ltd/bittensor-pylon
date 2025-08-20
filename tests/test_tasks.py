@@ -5,12 +5,11 @@ import pytest
 from freezegun import freeze_time
 from litestar import Litestar
 
-from pylon_common.settings import settings as app_settings
+from pylon_common.settings import settings
 from pylon_service.tasks import fetch_latest_metagraph_task, set_weights_periodically_task
 from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
-# Default settings for tests, can be overridden by monkeypatch
 TEST_TEMPO = 100
 TEST_COMMIT_CYCLE_LENGTH = 2
 TEST_COMMIT_WINDOW_START_OFFSET = 50
@@ -30,17 +29,18 @@ async def wait_for_mock_call(mock_obj, timeout=1.0, iterations=20):
 
 @pytest.fixture
 def mock_app(monkeypatch):
-    monkeypatch.setattr(app_settings, "tempo", TEST_TEMPO)
-    monkeypatch.setattr(app_settings, "commit_cycle_length", TEST_COMMIT_CYCLE_LENGTH)
-    monkeypatch.setattr(app_settings, "weight_commit_check_task_interval_seconds", TEST_CHECK_INTERVAL)
-    monkeypatch.setattr(app_settings, "commit_window_start_offset", TEST_COMMIT_WINDOW_START_OFFSET)
-    monkeypatch.setattr(app_settings, "commit_window_end_buffer", TEST_COMMIT_WINDOW_END_BUFFER)
-    monkeypatch.setattr(app_settings, "fetch_latest_metagraph_task_interval_seconds", 0.1)
+    monkeypatch.setattr(settings, "tempo", TEST_TEMPO)
+    monkeypatch.setattr(settings, "commit_cycle_length", TEST_COMMIT_CYCLE_LENGTH)
+    monkeypatch.setattr(settings, "weight_commit_check_task_interval_seconds", TEST_CHECK_INTERVAL)
+    monkeypatch.setattr(settings, "commit_window_start_offset", TEST_COMMIT_WINDOW_START_OFFSET)
+    monkeypatch.setattr(settings, "commit_window_end_buffer", TEST_COMMIT_WINDOW_END_BUFFER)
+    monkeypatch.setattr(settings, "fetch_latest_metagraph_task_interval_seconds", 0.1)
 
     app = Litestar(route_handlers=[])
     app.state.bittensor_client = MockBittensorClient()
     app.state.reveal_round = None
     app.state.last_commit_block = None
+    app.state.metagraph_cache = {}
     return app
 
 

@@ -11,6 +11,7 @@ from litestar.status_codes import HTTP_404_NOT_FOUND
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_BLOCK_TIMESTAMP,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
@@ -37,6 +38,7 @@ class TransportHooks(SimpleNamespace):
         self.latest_metagraph = MagicMock()
         self.metagraph = MagicMock()
         self.block_hash = MagicMock()
+        self.block_timestamp = MagicMock()
         self.epoch = MagicMock()
         self.hyperparams = MagicMock()
         self.set_hyperparam = MagicMock()
@@ -104,6 +106,13 @@ class AsyncMockHandler:
             if response := self._get_override_response(endpoint_name(ENDPOINT_BLOCK_HASH)):
                 return response
             return Response({"block_hash": self.mock_data["metagraph"]["block_hash"]})
+
+        @get(ENDPOINT_BLOCK_TIMESTAMP)
+        async def block_timestamp(block: int) -> Response:
+            self.hooks.block_timestamp(block=block)
+            if response := self._get_override_response(endpoint_name(ENDPOINT_BLOCK_TIMESTAMP)):
+                return response
+            return Response({"block_timestamp": self.mock_data["block_timestamp"]})
 
         @get([ENDPOINT_EPOCH, f"{ENDPOINT_EPOCH}/{{block:int}}"])
         async def epoch(block: int | None = None) -> Response:
@@ -207,6 +216,7 @@ class AsyncMockHandler:
                 latest_metagraph,
                 metagraph,
                 block_hash,
+                block_timestamp,
                 epoch,
                 hyperparams,
                 set_hyperparam,

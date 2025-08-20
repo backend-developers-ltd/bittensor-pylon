@@ -55,6 +55,16 @@ async def test_pylon_client_get_block_hash(mock_pylon_client: AsyncPylonClient):
 
 
 @pytest.mark.asyncio
+async def test_pylon_client_get_block_timestamp(mock_pylon_client: AsyncPylonClient):
+    """Tests that the AsyncPylonClient can correctly get a block timestamp."""
+    async with mock_pylon_client as client:
+        block = MOCK_DATA["metagraph"]["block"]
+        response = await client.get_block_timestamp(block)
+        assert response == MOCK_DATA["block_timestamp"]
+    client.mock.block_timestamp.assert_called_with(block=block)  # type: ignore
+
+
+@pytest.mark.asyncio
 async def test_pylon_client_get_epoch(mock_pylon_client: AsyncPylonClient):
     """Tests that the AsyncPylonClient can correctly get epoch information."""
     async with mock_pylon_client as client:
