@@ -8,6 +8,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_BLOCK_TIMESTAMP,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
@@ -122,7 +123,7 @@ class PylonClient:
             int: The latest block number
         """
         data = self._request("get", ENDPOINT_LATEST_BLOCK)
-        return data["block"] if data else None
+        return data.get("block", None) if data else None
 
     def get_metagraph(self, block: int | None = None) -> Metagraph | None:
         """Get the metagraph for the latest or specified block.
@@ -147,7 +148,19 @@ class PylonClient:
             str: The block hash
         """
         data = self._request("get", format_endpoint(ENDPOINT_BLOCK_HASH, block=block))
-        return data["block_hash"] if data else None
+        return data.get("block_hash", None) if data else None
+
+    def get_block_timestamp(self, block: int) -> str | None:
+        """Get the timestamp for a specific block.
+
+        Args:
+            block: Block number
+
+        Returns:
+            str: ISO formatted timestamp string
+        """
+        data = self._request("get", format_endpoint(ENDPOINT_BLOCK_TIMESTAMP, block=block))
+        return data.get("block_timestamp", None) if data else None
 
     def get_epoch(self, block: int | None = None) -> Epoch | None:
         """Get epoch information for the current or specified block.
@@ -249,7 +262,7 @@ class PylonClient:
         """
         params = {"block": block} if block else {}
         data = self._request("get", format_endpoint(ENDPOINT_COMMITMENT, hotkey=hotkey), params=params)
-        return data["commitment"] if data else None
+        return data.get("commitment", None) if data else None
 
     def get_commitments(self, block: int | None = None) -> dict | None:
         """Get all commitments for the subnet.

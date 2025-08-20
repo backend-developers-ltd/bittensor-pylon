@@ -10,6 +10,7 @@ from litestar.openapi.config import OpenAPIConfig
 from pylon_common.settings import settings
 from pylon_service.api import (
     block_hash,
+    block_timestamp,
     epoch_start_endpoint,
     force_commit_weights_endpoint,
     get_commitment_endpoint,
@@ -90,6 +91,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
             # Bittensor state
             latest_block,
             block_hash,
+            block_timestamp,
             metagraph,
             latest_metagraph,
             epoch_start_endpoint,

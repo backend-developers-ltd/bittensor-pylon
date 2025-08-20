@@ -3,6 +3,7 @@ import contextvars
 import functools
 import logging
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any
 
 from bittensor_wallet import Wallet
@@ -87,7 +88,7 @@ async def create_bittensor_clients() -> tuple[Bittensor, Bittensor]:
         raise
 
 
-@archive_fallback
+@archive_fallback(block_param_index=0)
 async def cache_metagraph(app: Litestar, block: int, block_hash: str):
     client = bittensor_context.get()
     neurons = await client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block_hash)  # type: ignore
@@ -96,6 +97,20 @@ async def cache_metagraph(app: Litestar, block: int, block_hash: str):
     neurons = {neuron.hotkey: neuron for neuron in neurons}
     metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
     app.state.metagraph_cache[block] = metagraph
+
+
+@archive_fallback(block_param_index=0)
+async def get_block_timestamp(app: Litestar, block: int) -> datetime | None:
+    """
+    Fetches the creation timestamp for a specific block.
+    """
+    client = bittensor_context.get()
+    try:
+        block_obj = await client.block(block).get()
+        return await block_obj.get_timestamp()
+    except Exception as e:
+        logger.error(f"Failed to fetch timestamp for block {block}: {e}")
+        return None
 
 
 @archive_fallback(block_param_index=0)

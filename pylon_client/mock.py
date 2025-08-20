@@ -12,6 +12,7 @@ class MethodHooks(SimpleNamespace):
         self.get_latest_block = MagicMock()
         self.get_metagraph = MagicMock()
         self.get_block_hash = MagicMock()
+        self.get_block_timestamp = MagicMock()
         self.get_epoch = MagicMock()
         self.get_hyperparams = MagicMock()
         self.set_hyperparam = MagicMock()
@@ -55,6 +56,12 @@ class MockHandler:
         if "get_block_hash" in self._overrides:
             return self._overrides["get_block_hash"]
         return self.mock_data["metagraph"]["block_hash"]
+
+    def get_block_timestamp(self, block: int) -> str:
+        self.hooks.get_block_timestamp(block=block)
+        if "get_block_timestamp" in self._overrides:
+            return self._overrides["get_block_timestamp"]
+        return self.mock_data["block_timestamp"]
 
     def get_epoch(self, block: int | None = None) -> Epoch:
         self.hooks.get_epoch(block=block)

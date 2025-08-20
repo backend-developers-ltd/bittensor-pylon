@@ -5,6 +5,7 @@ ENDPOINT_LATEST_BLOCK = "/latest_block"
 ENDPOINT_LATEST_METAGRAPH = "/latest_metagraph"
 ENDPOINT_METAGRAPH = "/metagraph/{block:int}"
 ENDPOINT_BLOCK_HASH = "/block_hash/{block:int}"
+ENDPOINT_BLOCK_TIMESTAMP = "/block_timestamp/{block:int}"
 ENDPOINT_EPOCH = "/epoch"
 ENDPOINT_EPOCH_BLOCK = "/epoch/{block:int}"
 

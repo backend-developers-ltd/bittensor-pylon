@@ -5,6 +5,7 @@ from litestar import Request, Response, get, post, put
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_BLOCK_TIMESTAMP,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
@@ -33,6 +34,7 @@ from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
+    get_block_timestamp,
     get_commitment,
     get_commitments,
     get_metagraph,
@@ -150,6 +152,14 @@ async def block_hash(request: Request, block: int) -> dict:
     """Get the block hash for a specific block number."""
     metagraph = await get_metagraph(request.app, block)
     return {"block_hash": metagraph.block_hash}
+
+
+@get(ENDPOINT_BLOCK_TIMESTAMP)
+@safe_endpoint
+async def block_timestamp(request: Request, block: int) -> dict:
+    """Get the timestamp for a specific block number."""
+    timestamp = await get_block_timestamp(request.app, block)
+    return {"block_timestamp": timestamp.isoformat() if timestamp else None}
 
 
 @get(ENDPOINT_EPOCH)
