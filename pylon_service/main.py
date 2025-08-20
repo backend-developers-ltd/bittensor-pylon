@@ -27,7 +27,7 @@ from pylon_service.api import (
     update_weight_endpoint,
     weights_endpoint,
 )
-from pylon_service.bittensor_client import create_bittensor_client
+from pylon_service.bittensor_client import create_bittensor_clients
 from pylon_service.db import init_db
 from pylon_service.sentry_config import init_sentry
 from pylon_service.tasks import (
@@ -43,8 +43,11 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
     logger.debug("Litestar app startup")
     await init_db()
 
-    app.state.bittensor_client = await create_bittensor_client()
+    main_client, archive_client = await create_bittensor_clients()
+    app.state.bittensor_client = main_client
+    app.state.archive_bittensor_client = archive_client
     await app.state.bittensor_client.__aenter__()
+    await app.state.archive_bittensor_client.__aenter__()
 
     app.state.metagraph_cache = TTLCache(maxsize=settings.metagraph_cache_maxsize, ttl=settings.metagraph_cache_ttl)
     app.state.latest_block = None
@@ -76,6 +79,7 @@ async def on_shutdown(app: Litestar) -> None:
     app.state._stop_event.set()
     await asyncio.gather(*app.state._background_tasks)
     await app.state.bittensor_client.__aexit__(None, None, None)
+    await app.state.archive_bittensor_client.__aexit__(None, None, None)
 
 
 def create_app(tasks: list[Callable]) -> Litestar:

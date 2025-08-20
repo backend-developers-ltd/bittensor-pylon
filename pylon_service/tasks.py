@@ -106,24 +106,26 @@ async def fetch_latest_metagraph_task(app, stop_event: asyncio.Event):
     while not stop_event.is_set():
         new_block = None
         try:
-            new_block = await app.state.bittensor_client.head.get()
+            new_block_obj = await app.state.bittensor_client.head.get()
         except Exception as e:
             logger.error(f"Error fetching latest block: {e}")
             await asyncio.wait([stop_task], timeout=timeout)
             continue
 
-        if new_block is None or new_block.number is None:
-            logger.warning(f"New block fetched is invalid: {new_block}. Retrying...")
+        if new_block_obj is None or new_block_obj.number is None:
+            logger.warning(f"New block fetched is invalid: {new_block_obj}. Retrying...")
             await asyncio.wait([stop_task], timeout=timeout)
             continue
 
-        if app.state.latest_block is None or new_block.number != app.state.latest_block:
+        new_block = new_block_obj.number
+
+        if app.state.latest_block is None or new_block != app.state.latest_block:
             try:
-                await cache_metagraph(app, new_block)
-                app.state.latest_block = new_block.number
-                app.state.current_epoch_start = get_epoch_containing_block(new_block.number).start
-                logger.info(f"Cached latest metagraph for block {new_block.number}")
+                await cache_metagraph(app, new_block, new_block_obj.hash)
+                app.state.latest_block = new_block
+                app.state.current_epoch_start = get_epoch_containing_block(new_block).start
+                logger.info(f"Cached latest metagraph for block {new_block}")
             except Exception as e:
-                logger.error(f"Error caching metagraph for block {new_block.number}: {e}")
+                logger.error(f"Error caching metagraph for block {new_block}: {e}")
 
         await asyncio.wait([stop_task], timeout=timeout)

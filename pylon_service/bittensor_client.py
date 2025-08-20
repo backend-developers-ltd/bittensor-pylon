@@ -1,18 +1,48 @@
 import asyncio
+import contextvars
+import functools
 import logging
 from dataclasses import asdict
 from typing import Any
 
 from bittensor_wallet import Wallet
 from litestar.app import Litestar
-from turbobt.block import Block
 from turbobt.client import Bittensor
+from turbobt.substrate.exceptions import UnknownBlock
 
 from pylon_common.models import Hotkey, Metagraph, Neuron
 from pylon_common.settings import Settings, settings
 from pylon_service.db import get_uid_weights_dict
 
 logger = logging.getLogger(__name__)
+
+bittensor_context: contextvars.ContextVar[Bittensor] = contextvars.ContextVar("bittensor")
+
+
+def archive_fallback(func):
+    """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions."""
+
+    @functools.wraps(func)
+    async def wrapper(app, *args, **kwargs):
+        block = kwargs.get("block", None)
+        use_archive = (
+            block is not None
+            and app.state.latest_block is not None
+            and app.state.latest_block - block > settings.bittensor_archive_blocks_cutoff
+        )
+
+        try:
+            bittensor_context.set(app.state.archive_bittensor_client if use_archive else app.state.bittensor_client)
+            return await func(app, *args, **kwargs)
+        except UnknownBlock:
+            if not use_archive:
+                bittensor_context.set(app.state.archive_bittensor_client)
+                logger.warning(f"UnknownBlock in {func.__name__}, retrying with archive client")
+                return await func(app, *args, **kwargs)
+            else:
+                raise
+
+    return wrapper
 
 
 def get_bt_wallet(settings: Settings):
@@ -28,34 +58,44 @@ def get_bt_wallet(settings: Settings):
         raise
 
 
-async def create_bittensor_client() -> Bittensor:
+async def create_bittensor_clients() -> tuple[Bittensor, Bittensor]:
+    """Creates both main and archive Bittensor clients.
+
+    Returns:
+        tuple[Bittensor, Bittensor]: (main_client, archive_client)
+    """
     wallet = get_bt_wallet(settings)
-    network = settings.bittensor_network
-    logger.info("Creating Bittensor client...")
+    main_network = settings.bittensor_network
+    archive_network = settings.bittensor_archive_network
     try:
-        client = Bittensor(wallet=wallet, uri=network)
-        logger.info(f"Bittensor client created for {wallet} on {network}")
-        return client
+        main_client = Bittensor(wallet=wallet, uri=main_network)
+        archive_client = Bittensor(wallet=wallet, uri=archive_network)
+        return main_client, archive_client
     except Exception as e:
-        logger.error(f"Failed to create Bittensor client: {e}")
+        logger.error(f"Failed to create Bittensor clients: {e}")
         raise
 
 
-async def cache_metagraph(app: Litestar, block_obj: Block):
-    block, block_hash = block_obj.number, block_obj.hash
-    neurons = await app.state.bittensor_client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block_hash)  # type: ignore
-    if type(block) is not int:
-        raise ValueError("Block number is not an integer")
+@archive_fallback
+async def cache_metagraph(app: Litestar, block: int, block_hash: str):
+    client = bittensor_context.get()
+    neurons = await client.subnet(settings.bittensor_netuid).list_neurons(block_hash=block_hash)  # type: ignore
+
     neurons = [Neuron.model_validate(asdict(neuron)) for neuron in neurons]
     neurons = {neuron.hotkey: neuron for neuron in neurons}
     metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
     app.state.metagraph_cache[block] = metagraph
 
 
+@archive_fallback
 async def get_metagraph(app: Litestar, block: int) -> Metagraph:
     if block not in app.state.metagraph_cache:
-        block_obj = await app.state.bittensor_client.block(block).get()
-        await cache_metagraph(app, block_obj)
+        client = bittensor_context.get()
+        block_obj = await client.block(block).get()
+        if block_obj is None or block_obj.number is None:
+            raise ValueError(f"Block {block} not found in the blockchain.")
+        await cache_metagraph(app, block_obj.number, block_obj.hash)
+
     return app.state.metagraph_cache[block]
 
 
@@ -110,28 +150,31 @@ async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
     # return neuron.last_update
 
 
+@archive_fallback
 async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None) -> str | None:
     """
     Fetches a specific commitment (as hex) for a hotkey, optionally at a given block.
     Uses netuid from settings and block_hash from metagraph cache.
     """
     netuid = settings.bittensor_netuid
-    bt_client: Bittensor = app.state.bittensor_client
     block_hash = app.state.metagraph_cache.get(block).block_hash
+    client = bittensor_context.get()
+    commitment = await client.subnet(netuid).commitments.get(hotkey, block_hash=block_hash)
 
-    commitment = await bt_client.subnet(netuid).commitments.get(hotkey, block_hash=block_hash)
     return commitment.hex() if commitment is not None else None
 
 
+@archive_fallback
 async def get_commitments(app: Litestar, block: int | None = None) -> dict[Hotkey, str]:
     """
     Fetches all commitments (hotkey: commitment_hex) for the configured subnet.
     Optionally uses a specific block_hash.
     """
     netuid = settings.bittensor_netuid
-    bt_client: Bittensor = app.state.bittensor_client
     block_hash = app.state.metagraph_cache.get(block).block_hash
-    commitments = await bt_client.subnet(netuid).commitments.fetch(block_hash=block_hash)
+    client = bittensor_context.get()
+    commitments = await client.subnet(netuid).commitments.fetch(block_hash=block_hash)
+
     if commitments is None:
         return {}
     return {hotkey: data.hex() for hotkey, data in commitments.items()}

@@ -1,10 +1,14 @@
 import tempfile
+from dataclasses import asdict
 from ipaddress import IPv4Address
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from turbobt import Neuron as TurboNeuron
+from turbobt.neuron import AxonInfo as TurboAxonInfo
+from turbobt.neuron import AxonProtocolEnum
 
-from pylon_common.models import AxonInfo, Metagraph, Neuron
+from pylon_common.models import Metagraph, Neuron
 
 
 class MockSubnet:
@@ -51,12 +55,18 @@ class MockBittensorClient:
 
 
 def get_mock_neuron(uid: int = 0):
-    return Neuron(
+    return Neuron.model_validate(asdict(get_mock_turbo_neuron(uid)))
+
+
+def get_mock_turbo_neuron(uid: int = 0):
+    return TurboNeuron(
+        subnet=MagicMock(netuid=1),
         uid=uid,
         hotkey=f"mock_hotkey_{uid}",
         coldkey=f"mock_coldkey_{uid}",
         active=True,
-        axon_info=AxonInfo(ip=IPv4Address("127.0.0.1"), port=8080, protocol=1),
+        axon_info=TurboAxonInfo(ip=IPv4Address("127.0.0.1"), port=8080, protocol=AxonProtocolEnum.HTTP),
+        prometheus_info=MagicMock(),
         stake=1.0,
         rank=0.5,
         trust=0.5,
