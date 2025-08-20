@@ -19,30 +19,41 @@ logger = logging.getLogger(__name__)
 bittensor_context: contextvars.ContextVar[Bittensor] = contextvars.ContextVar("bittensor")
 
 
-def archive_fallback(func):
-    """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions."""
+def archive_fallback(block_param_index: int = 0):
+    """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions.
 
-    @functools.wraps(func)
-    async def wrapper(app, *args, **kwargs):
-        block = kwargs.get("block", None)
-        use_archive = (
-            block is not None
-            and app.state.latest_block is not None
-            and app.state.latest_block - block > settings.bittensor_archive_blocks_cutoff
-        )
+    Args:
+        block_param_index: index of the block parameter in the function's positional arguments (after app).
+    """
 
-        try:
-            bittensor_context.set(app.state.archive_bittensor_client if use_archive else app.state.bittensor_client)
-            return await func(app, *args, **kwargs)
-        except UnknownBlock:
-            if not use_archive:
-                bittensor_context.set(app.state.archive_bittensor_client)
-                logger.warning(f"UnknownBlock in {func.__name__}, retrying with archive client")
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(app, *args, **kwargs):
+            # Try to get block from kwargs first, then from positional args
+            block = kwargs.get("block", None)
+            if block is None and len(args) > block_param_index:
+                block = args[block_param_index]
+
+            use_archive = (
+                block is not None
+                and app.state.latest_block is not None
+                and app.state.latest_block - block > settings.bittensor_archive_blocks_cutoff
+            )
+
+            try:
+                bittensor_context.set(app.state.archive_bittensor_client if use_archive else app.state.bittensor_client)
                 return await func(app, *args, **kwargs)
-            else:
-                raise
+            except UnknownBlock:
+                if not use_archive:
+                    bittensor_context.set(app.state.archive_bittensor_client)
+                    logger.warning(f"UnknownBlock in {func.__name__}, retrying with archive client")
+                    return await func(app, *args, **kwargs)
+                else:
+                    raise
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
 def get_bt_wallet(settings: Settings):
@@ -87,7 +98,7 @@ async def cache_metagraph(app: Litestar, block: int, block_hash: str):
     app.state.metagraph_cache[block] = metagraph
 
 
-@archive_fallback
+@archive_fallback(block_param_index=0)
 async def get_metagraph(app: Litestar, block: int) -> Metagraph:
     if block not in app.state.metagraph_cache:
         client = bittensor_context.get()
@@ -150,7 +161,7 @@ async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
     # return neuron.last_update
 
 
-@archive_fallback
+@archive_fallback(block_param_index=1)
 async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None) -> str | None:
     """
     Fetches a specific commitment (as hex) for a hotkey, optionally at a given block.
@@ -164,7 +175,7 @@ async def get_commitment(app: Litestar, hotkey: Hotkey, block: int | None = None
     return commitment.hex() if commitment is not None else None
 
 
-@archive_fallback
+@archive_fallback(block_param_index=0)
 async def get_commitments(app: Litestar, block: int | None = None) -> dict[Hotkey, str]:
     """
     Fetches all commitments (hotkey: commitment_hex) for the configured subnet.
