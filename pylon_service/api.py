@@ -283,12 +283,13 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
         logger.warning(msg)
         return Response({"detail": msg}, status_code=404)
 
-    await commit_weights(request.app, weights)
+    reveal_round = await commit_weights(request.app, weights)
 
     return Response(
         {
             "block": block,
             "committed_weights": weights,
+            "reveal_round": reveal_round,
         },
         status_code=200,
     )

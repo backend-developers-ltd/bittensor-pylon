@@ -85,6 +85,10 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
                 logger.warning("No weights returned by get_latest_weights. Skipping commit for this cycle.")
                 continue
 
+            if all(weight <= 0.0001 for weight in weights_to_set.values()):
+                logger.warning("All weights are zero. Will try later.")
+                continue
+
             logger.info(f"Found {len(weights_to_set)} weights to set. Committing...")
             try:
                 reveal_round = await commit_weights(app, weights_to_set)
