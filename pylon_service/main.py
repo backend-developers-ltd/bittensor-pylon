@@ -13,6 +13,7 @@ from pylon_service.api import (
     block_timestamp,
     epoch_start_endpoint,
     force_commit_weights_endpoint,
+    get_block_last_weight_commit_endpoint,
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
@@ -106,6 +107,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
             update_weight_endpoint,
             force_commit_weights_endpoint,
             # Commitments
+            get_block_last_weight_commit_endpoint,
             get_commitment_endpoint,
             get_commitments_endpoint,
             set_commitment_endpoint,

@@ -5,6 +5,7 @@ from litestar import Request, Response, get, post, put
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_BLOCK_LAST_WEIGHT_COMMIT,
     ENDPOINT_BLOCK_TIMESTAMP,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -28,6 +29,7 @@ from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
     get_block_hash,
+    fetch_block_last_weight_commit,
     get_block_timestamp,
     get_commitment,
     get_commitments,
@@ -294,6 +296,17 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
         },
         status_code=200,
     )
+
+
+@get(ENDPOINT_BLOCK_LAST_WEIGHT_COMMIT)
+@safe_endpoint
+async def get_block_last_weight_commit_endpoint(request: Request) -> Response:
+    """Get the block number of the last successful weight commitment."""
+    last_commit_block = request.app.state.last_commit_block
+    if last_commit_block is None:
+        last_commit_block = await fetch_block_last_weight_commit(request.app)
+    reveal_round = request.app.state.reveal_round
+    return Response({"last_weight_commit": last_commit_block, "reveal_round": reveal_round}, status_code=200)
 
 
 # TODO: wip, to update, to be register endpoints

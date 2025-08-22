@@ -5,7 +5,7 @@ from pylon_common.settings import settings
 from pylon_service.bittensor_client import (
     cache_metagraph,
     commit_weights,
-    fetch_last_weight_commit_block,
+    fetch_block_last_weight_commit,
     get_weights,
 )
 from pylon_service.utils import CommitWindow, get_epoch_containing_block
@@ -44,11 +44,13 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
     """
 
     stop_task = asyncio.create_task(stop_event.wait())
-    last_successful_commit_block = await fetch_last_weight_commit_block(app) or 0
-    logger.info(f"Initial last successful commit block: {last_successful_commit_block}")
-
     while not stop_event.is_set():
         await asyncio.wait([stop_task], timeout=settings.weight_commit_check_task_interval_seconds)
+
+        app.state.last_commit_block = await fetch_block_last_weight_commit(app)
+        if app.state.last_commit_block is None:
+            logger.error("Failed to fetch last successful commit block. Setting to 0.")
+            app.state.last_commit_block = 0
 
         try:
             current_block = app.state.latest_block
@@ -58,41 +60,35 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
 
             # Check if we need to commit weights
             window = CommitWindow(current_block)
-            tempos_since_last_commit = (current_block - last_successful_commit_block) // settings.tempo
+            tempos_since_last_commit = (current_block - app.state.last_commit_block) // settings.tempo
 
             logger.debug(
                 f"Checking weight commit conditions: current_block={current_block}, "
-                f"last_commit_block={last_successful_commit_block}, tempos_passed={tempos_since_last_commit}, "
+                f"last_commit_block={app.state.last_commit_block}, tempos_passed={tempos_since_last_commit}, "
                 f"required_tempos={settings.commit_cycle_length}, "
                 f"commit_window=({window.commit_start} - {window.commit_stop})"
             )
 
             if tempos_since_last_commit < settings.commit_cycle_length:
-                logger.debug("Not enough tempos passed. Skipping weight commit")
+                logger.info("Not enough tempos passed. Skipping weight commit")
                 continue
 
             if current_block not in window.commit_window:
-                logger.debug("Not in commit window. Skipping weight commit")
+                logger.info("Not in commit window. Skipping weight commit")
                 continue
-
-            # Commit weights
-            logger.info(
-                f"Attempting to commit weights at block {current_block} for epoch starting at {app.state.current_epoch_start}"
-            )
 
             weights_to_set = await get_weights(app, current_block)
             if not weights_to_set:
                 logger.warning("No weights returned by get_latest_weights. Skipping commit for this cycle.")
                 continue
 
-            logger.info(f"Found {len(weights_to_set)} weights to set. Committing...")
+            logger.info(
+                f"Attempting to commit {len(weights_to_set)} weights at block {current_block} for epoch starting at {app.state.current_epoch_start}"
+            )
             try:
                 reveal_round = await commit_weights(app, weights_to_set)
                 logger.info(f"Successfully committed weights. Expected reveal round: {reveal_round}")
                 app.state.reveal_round = reveal_round
-                app.state.last_commit_block = current_block
-                logger.info(f"Successfully committed weights at block {current_block}")
-                last_successful_commit_block = current_block
             except Exception as commit_exc:
                 logger.error(f"Failed to commit weights: {commit_exc}")
 
