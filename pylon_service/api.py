@@ -23,13 +23,6 @@ from pylon_common.constants import (
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS_TYPED,
 )
-from pylon_common.models import (
-    SetCommitmentRequest,
-    SetHyperparamRequest,
-    SetWeightRequest,
-    SetWeightsRequest,
-    UpdateWeightRequest,
-)
 from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
@@ -41,6 +34,13 @@ from pylon_service.bittensor_client import (
     get_weights,
     set_commitment,
     set_hyperparam,
+)
+from pylon_service.models import (
+    SetCommitmentRequest,
+    SetHyperparamRequest,
+    SetWeightRequest,
+    SetWeightsRequest,
+    UpdateWeightRequest,
 )
 from pylon_service.utils import get_epoch_containing_block
 
