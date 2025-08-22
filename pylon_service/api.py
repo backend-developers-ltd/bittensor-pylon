@@ -27,6 +27,7 @@ from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
+    get_block_hash,
     get_block_timestamp,
     get_commitment,
     get_commitments,
@@ -150,8 +151,8 @@ async def metagraph(request: Request, block: int) -> dict:
 @safe_endpoint
 async def block_hash(request: Request, block: int) -> dict:
     """Get the block hash for a specific block number."""
-    metagraph = await get_metagraph(request.app, block=block)
-    return {"block_hash": metagraph.block_hash}
+    block_hash = await get_block_hash(request.app, block=block)
+    return {"block_hash": block_hash}
 
 
 @get(ENDPOINT_BLOCK_TIMESTAMP)
@@ -283,12 +284,13 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
         logger.warning(msg)
         return Response({"detail": msg}, status_code=404)
 
-    await commit_weights(request.app, weights)
+    reveal_round = await commit_weights(request.app, weights)
 
     return Response(
         {
             "block": block,
-            "committed_weights": weights,
+            "reveal_round": reveal_round,
+            "weights": weights,
         },
         status_code=200,
     )

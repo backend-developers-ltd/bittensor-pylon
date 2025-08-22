@@ -106,6 +106,22 @@ async def get_block_timestamp(app: Litestar, *, block: int) -> datetime | None:
 
 
 @archive_fallback
+async def get_block_hash(app: Litestar, *, block: int) -> str | None:
+    """
+    Fetches the block hash for a specific block.
+    """
+    metagraph = app.state.metagraph_cache.get(block, None)
+    if metagraph is not None:
+        return metagraph.block_hash
+
+    # fetch it from subtensor
+    block_obj = await app.state.bittensor_client.head.get(block=block)
+    if block_obj is None or block_obj.hash is None:
+        return None
+    return block_obj.hash
+
+
+@archive_fallback
 async def get_metagraph(app: Litestar, *, block: int) -> Metagraph:
     if block not in app.state.metagraph_cache:
         client = bittensor_context.get()

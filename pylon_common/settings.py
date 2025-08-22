@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     fetch_latest_metagraph_task_interval_seconds: int = 10
 
     # metagraph cache
-    metagraph_cache_ttl: int = 600  # TODO: not 10 minutes
+    metagraph_cache_ttl: int = 600  # 10 minutes
     metagraph_cache_maxsize: int = 1000
 
     # sentry
