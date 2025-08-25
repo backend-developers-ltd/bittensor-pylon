@@ -1,3 +1,5 @@
+import pathlib
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +12,7 @@ class Settings(BaseSettings):
     bittensor_wallet_name: str
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str = "~/.bittensor/wallets/"
-    bittensor_host_wallet_path: str
+    bittensor_host_wallet_path: str = (pathlib.Path("~").expanduser() / ".bittensor" / "wallets").as_posix()
 
     # guard against validator specific endpoints
     am_i_a_validator: bool = False

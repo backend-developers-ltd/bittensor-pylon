@@ -38,10 +38,8 @@ def update_app_state(app, block):
 @pytest.mark.asyncio
 @patch("pylon_service.tasks.commit_weights", new_callable=AsyncMock)
 @patch("pylon_service.tasks.get_weights", new_callable=AsyncMock)
-@patch("pylon_service.tasks.fetch_block_last_weight_commit", new_callable=AsyncMock)
-async def test_set_weights_commit_flow(test_client, mock_get_weights, mock_commit_weights_call, mock_fetch_last_commit):
+async def test_set_weights_commit_flow(mock_get_weights, mock_commit_weights_call, test_client):
     mock_app = test_client.app
-    mock_fetch_last_commit.return_value = 0  # Start as if no prior commits
     mock_get_weights.return_value = {1: 0.5, 2: 0.5, 3: 0.5}
 
     # Track the last successful commit block

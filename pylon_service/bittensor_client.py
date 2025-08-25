@@ -130,7 +130,7 @@ async def get_block_hash(app: Litestar, *, block: int) -> str | None:
         return metagraph.block_hash
 
     # fetch it from subtensor
-    block_obj = await app.state.bittensor_client.head.get(block=block)
+    block_obj = await app.state.bittensor_client.block(block).get()
     if block_obj is None or block_obj.hash is None:
         return None
     return block_obj.hash
