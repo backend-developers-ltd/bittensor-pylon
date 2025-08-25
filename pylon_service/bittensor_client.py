@@ -19,6 +19,15 @@ logger = logging.getLogger(__name__)
 bittensor_context: contextvars.ContextVar[Bittensor] = contextvars.ContextVar("bittensor")
 
 
+def my_wallet() -> Wallet:
+    return get_bt_wallet(settings)
+
+
+def my_hotkey() -> Hotkey:
+    hotkey = my_wallet().hotkey.ss58_address
+    return Hotkey(hotkey)
+
+
 def archive_fallback(func):
     """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions.
 
@@ -89,6 +98,12 @@ async def cache_metagraph(app: Litestar, *, block: int, block_hash: str):
     neurons = {neuron.hotkey: neuron for neuron in neurons}
     metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
     app.state.metagraph_cache[block] = metagraph
+
+    neuron = neurons.get(my_hotkey(), None)
+    if neuron:
+        app.state.last_commit_block = neuron.last_update
+    else:
+        logger.warning(f"Own hotkey {my_hotkey()} not found in metagraph at block {block}.")
 
 
 @archive_fallback
@@ -165,28 +180,6 @@ async def commit_weights(app: Litestar, weights: dict[int, float]):
     except Exception as e:
         logger.error(f"Failed to commit weights: {e}", exc_info=True)
         raise
-
-
-async def fetch_block_last_weight_commit(app: Litestar) -> int | None:
-    """
-    Fetches the block number of the last successful weight commitment
-    """
-    wallet = get_bt_wallet(settings)
-    hotkey = wallet.hotkey.ss58_address
-
-    latest_block = app.state.latest_block
-    if latest_block is None:
-        logger.error("Latest block is not available in app state.")
-        return None
-
-    metagraph = await get_metagraph(app, block=latest_block)
-
-    neuron = metagraph.get_neuron(hotkey)
-    if neuron is None:
-        logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
-        return None
-
-    return neuron.last_update
 
 
 @archive_fallback

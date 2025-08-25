@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     bittensor_archive_blocks_cutoff: int = 300
     bittensor_wallet_name: str
     bittensor_wallet_hotkey_name: str
-    bittensor_wallet_path: str
+    bittensor_wallet_path: str = "~/.bittensor/wallets/"
+    bittensor_host_wallet_path: str
 
     # guard against validator specific endpoints
     am_i_a_validator: bool = False

@@ -28,7 +28,6 @@ from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
-    fetch_block_last_weight_commit,
     get_block_hash,
     get_block_timestamp,
     get_commitment,
@@ -286,6 +285,7 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
         return Response({"detail": msg}, status_code=404)
 
     reveal_round = await commit_weights(request.app, weights)
+    request.app.state.reveal_round = reveal_round
 
     return Response(
         {
@@ -301,10 +301,8 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
 @safe_endpoint
 async def get_block_last_weight_commit_endpoint(request: Request) -> Response:
     """Get the block number of the last successful weight commitment."""
-    last_commit_block = request.app.state.last_commit_block
-    if last_commit_block is None:
-        last_commit_block = await fetch_block_last_weight_commit(request.app)
     reveal_round = request.app.state.reveal_round
+    last_commit_block = request.app.state.last_commit_block
     return Response({"last_weight_commit": last_commit_block, "reveal_round": reveal_round}, status_code=200)
 
 

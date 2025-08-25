@@ -6,20 +6,12 @@ import pytest_asyncio
 
 from pylon_client.async_client import AsyncPylonClient
 from pylon_client.docker_manager import PylonDockerManager
-from pylon_common.settings import settings
 
 PYLON_TEST_PORT = 8001
 
 
 @pytest_asyncio.fixture
-async def client(monkeypatch, temp_db_config):
-    """
-    Pytest fixture to initialize AsyncPylonClient and manage the Pylon Docker service
-    with validator mode enabled and temporary database configuration.
-    """
-    # mock db dir for docker based tests
-    monkeypatch.setattr(settings, "pylon_db_dir", temp_db_config["db_dir"])
-    monkeypatch.setattr(settings, "am_i_a_validator", True)
+async def client(mock_wallet):
     client = AsyncPylonClient(base_url=f"http://127.0.0.1:{PYLON_TEST_PORT}")
     manager = PylonDockerManager(port=PYLON_TEST_PORT)
     async with client, manager:

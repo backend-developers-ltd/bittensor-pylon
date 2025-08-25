@@ -1,14 +1,22 @@
+import asyncio
 import tempfile
 from dataclasses import asdict
 from ipaddress import IPv4Address
 from unittest.mock import AsyncMock, MagicMock
 
+import bittensor_wallet
 import pytest
+from cachetools import TTLCache
+from litestar.testing import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from turbobt import Neuron as TurboNeuron
 from turbobt.neuron import AxonInfo as TurboAxonInfo
 from turbobt.neuron import AxonProtocolEnum
 
 from pylon_common.models import Metagraph, Neuron
+from pylon_common.settings import settings
+from pylon_service import db
+from pylon_service.main import create_app
 
 
 class MockSubnet:
@@ -24,6 +32,7 @@ class MockSubnet:
             "liquid_alpha_enabled": False,
         }
         self.weights = AsyncMock()
+        self.weights.commit = AsyncMock(return_value=123)
         self.commitments = AsyncMock()
 
     async def get_hyperparameters(self):
@@ -41,6 +50,7 @@ class MockBittensorClient:
         self.head = MagicMock()
         self.head.get = AsyncMock(return_value=MagicMock(number=0, hash="0xabc"))
         self._subnets = {}
+        self.subnet = MagicMock(side_effect=self._get_subnet)
 
     async def __aenter__(self):
         return self
@@ -48,7 +58,7 @@ class MockBittensorClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def subnet(self, netuid):
+    def _get_subnet(self, netuid):
         if netuid not in self._subnets:
             self._subnets[netuid] = MockSubnet(netuid)
         return self._subnets[netuid]
@@ -89,10 +99,48 @@ def get_mock_metagraph(block: int):
     )
 
 
-@pytest.fixture(scope="session")
-def temp_db_config():
+@pytest.fixture(autouse=True)
+def setup_test_db(monkeypatch):
     with tempfile.TemporaryDirectory() as temp_dir:
-        db_file_path = f"{temp_dir}/pylon.db"
-        db_uri = f"sqlite+aiosqlite:///{db_file_path}"
+        db_uri = f"sqlite+aiosqlite:///{temp_dir}/pylon.db"
+        monkeypatch.setenv("PYLON_DB_URI", db_uri)
+        monkeypatch.setenv("PYLON_DB_DIR", temp_dir)
 
-        yield {"db_uri": db_uri, "db_dir": temp_dir}
+        new_engine = create_async_engine(db_uri, echo=False, future=True)
+        new_session_local = async_sessionmaker(bind=new_engine, class_=AsyncSession, expire_on_commit=False)
+        monkeypatch.setattr(db, "engine", new_engine)
+        monkeypatch.setattr(db, "SessionLocal", new_session_local)
+        yield
+
+
+@pytest.fixture()
+def mock_wallet() -> bittensor_wallet.Wallet:
+    wallet = bittensor_wallet.Wallet(
+        name=settings.bittensor_wallet_name,
+        hotkey=settings.bittensor_wallet_hotkey_name,
+    )
+    wallet.create_if_non_existent(coldkey_use_password=False, hotkey_use_password=False)
+    return wallet
+
+
+@pytest.fixture
+def test_client(monkeypatch):
+    monkeypatch.setenv("AM_I_A_VALIDATOR", "True")
+
+    test_app = create_app(tasks=[])
+    with TestClient(test_app) as test_client:
+        test_client.app.state.bittensor_client = MockBittensorClient()
+        test_client.app.state.archive_bittensor_client = MockBittensorClient()
+        test_client.app.state.latest_block = None
+        test_client.app.state.reveal_round = None
+        test_client.app.state.last_commit_block = 0
+        test_client.app.state.metagraph_cache = TTLCache(
+            maxsize=settings.metagraph_cache_maxsize, ttl=settings.metagraph_cache_ttl
+        )
+        test_client.app.state.current_epoch_start = 0
+        test_client.app.state.hyperparams = {}
+
+        # Initialize task-related state
+        test_client.app.state._stop_event = asyncio.Event()
+        test_client.app.state._background_tasks = []
+        yield test_client

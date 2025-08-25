@@ -1,12 +1,8 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from litestar.testing import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from pylon_common.settings import settings
-from pylon_service import db
-from pylon_service.main import create_app
 from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient, get_mock_metagraph
 
@@ -14,26 +10,11 @@ EPOCH = 1500
 
 
 @pytest.fixture
-def client(monkeypatch, temp_db_config):
-    # mock db uri for local unit tests
-    test_db_uri = temp_db_config["db_uri"]
-    monkeypatch.setattr(settings, "pylon_db_uri", test_db_uri)
-    monkeypatch.setenv("PYLON_DB_URI", test_db_uri)
-
-    new_engine = create_async_engine(test_db_uri, echo=False, future=True)
-    new_session_local = async_sessionmaker(bind=new_engine, class_=AsyncSession, expire_on_commit=False)
-
-    monkeypatch.setattr(db, "engine", new_engine)
-    monkeypatch.setattr(db, "SessionLocal", new_session_local)
-
-    monkeypatch.setattr(settings, "am_i_a_validator", True)
-    test_app = create_app(tasks=[])
-    with TestClient(test_app) as test_client:
-        test_client.app.state.bittensor_client = MockBittensorClient()
-        test_client.app.state.latest_block = EPOCH
-        test_client.app.state.metagraph_cache = {EPOCH: get_mock_metagraph(EPOCH)}
-        test_client.app.state.current_epoch_start = get_epoch_containing_block(EPOCH).start
-        yield test_client
+def client(test_client):
+    test_client.app.state.latest_block = EPOCH
+    test_client.app.state.metagraph_cache = {EPOCH: get_mock_metagraph(EPOCH)}
+    test_client.app.state.current_epoch_start = get_epoch_containing_block(EPOCH).start
+    return test_client
 
 
 def test_latest_metagraph__success(client):
@@ -110,7 +91,7 @@ def test_weights__set_update_requests(client):
     resp = client.post("/force_commit_weights")
     assert resp.status_code == 200
     assert resp.json()["block"] == EPOCH
-    assert resp.json()["committed_weights"] is not None
+    assert resp.json()["weights"] is not None
 
 
 def test_set_weight__missing_params(client):

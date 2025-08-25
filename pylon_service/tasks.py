@@ -5,7 +5,6 @@ from pylon_common.settings import settings
 from pylon_service.bittensor_client import (
     cache_metagraph,
     commit_weights,
-    fetch_block_last_weight_commit,
     get_weights,
 )
 from pylon_service.utils import CommitWindow, get_epoch_containing_block
@@ -47,7 +46,6 @@ async def commit_weights_task(app, stop_event: asyncio.Event):
     while not stop_event.is_set():
         await asyncio.wait([stop_task], timeout=settings.commit_weights_task_interval_seconds)
 
-        app.state.last_commit_block = await fetch_block_last_weight_commit(app)
         if app.state.last_commit_block is None:
             logger.error("Failed to fetch last successful commit block. Setting to 0.")
             app.state.last_commit_block = 0
