@@ -19,15 +19,6 @@ logger = logging.getLogger(__name__)
 bittensor_context: contextvars.ContextVar[Bittensor] = contextvars.ContextVar("bittensor")
 
 
-def my_wallet() -> Wallet:
-    return get_bt_wallet(settings)
-
-
-def my_hotkey() -> Hotkey:
-    hotkey = my_wallet().hotkey.ss58_address
-    return Hotkey(hotkey)
-
-
 def archive_fallback(func):
     """Decorator that determines what bittensor client to use and retries with archive client on UnknownBlock exceptions.
 
@@ -71,6 +62,11 @@ def get_bt_wallet(settings: Settings):
         raise
 
 
+def my_hotkey() -> Hotkey:
+    hotkey = get_bt_wallet(settings).hotkey.ss58_address
+    return Hotkey(hotkey)
+
+
 async def create_bittensor_clients() -> tuple[Bittensor, Bittensor]:
     """Creates both main and archive Bittensor clients.
 
@@ -99,11 +95,14 @@ async def cache_metagraph(app: Litestar, *, block: int, block_hash: str):
     metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
     app.state.metagraph_cache[block] = metagraph
 
-    neuron = neurons.get(my_hotkey(), None)
-    if neuron:
-        app.state.last_commit_block = neuron.last_update
-    else:
-        logger.warning(f"Own hotkey {my_hotkey()} not found in metagraph at block {block}.")
+    try:
+        neuron = neurons.get(my_hotkey(), None)
+        if neuron:
+            app.state.last_commit_block = neuron.last_update
+        else:
+            logger.warning(f"Own hotkey {my_hotkey()} not found in metagraph at block {block}.")
+    except Exception as e:
+        logger.error(f"Error updating last_commit_block from metagraph: {e}")
 
 
 @archive_fallback

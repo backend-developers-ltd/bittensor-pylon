@@ -36,7 +36,7 @@ class PylonDockerManager:
                 ports={"8000/tcp": self.port},
                 volumes={
                     settings.pylon_db_dir: {"bind": "/app/db/", "mode": "rw"},
-                    settings.bittensor_host_wallet_path: {"bind": "/root/.bittensor/wallets/", "mode": "rw"},
+                    settings.host_wallet_dir: {"bind": "/root/.bittensor/wallets/", "mode": "rw"},
                 },
                 environment=settings.model_dump(),
             )
