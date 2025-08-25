@@ -22,14 +22,14 @@ from pylon_common.constants import (
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
-    ENDPOINT_WEIGHTS_TYPED,
+    ENDPOINT_WEIGHTS,
 )
 from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
-    get_block_hash,
     fetch_block_last_weight_commit,
+    get_block_hash,
     get_block_timestamp,
     get_commitment,
     get_commitments,
@@ -244,12 +244,11 @@ async def set_weights_endpoint(request: Request, data: SetWeightsRequest) -> Res
     return Response({"weights": data.weights, "epoch": epoch, "count": len(data.weights)}, status_code=200)
 
 
-# TODO: refactor to epochs_ago ?
 @get(ENDPOINT_LATEST_WEIGHTS)
 @safe_endpoint
 async def latest_weights_endpoint(request: Request) -> Response:
     """
-    Get raw weights for the current epoch.
+    Get hotkey weights for the current epoch.
     """
     epoch = get_current_epoch(request)
     weights = await db.get_hotkey_weights_dict(epoch)
@@ -258,7 +257,7 @@ async def latest_weights_endpoint(request: Request) -> Response:
     return Response({"epoch": epoch, "weights": weights}, status_code=200)
 
 
-@get(ENDPOINT_WEIGHTS_TYPED)
+@get(ENDPOINT_WEIGHTS)
 @safe_endpoint
 async def weights_endpoint(request: Request, block: int) -> Response:
     """

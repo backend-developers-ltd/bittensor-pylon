@@ -17,7 +17,6 @@ ENDPOINT_SET_WEIGHT = "/set_weight"
 ENDPOINT_SET_WEIGHTS = "/set_weights"
 ENDPOINT_LATEST_WEIGHTS = "/latest_weights"
 ENDPOINT_WEIGHTS = "/weights/{block:int}"
-ENDPOINT_WEIGHTS_TYPED = "/weights/{block:int}"
 ENDPOINT_FORCE_COMMIT_WEIGHTS = "/force_commit_weights"
 ENDPOINT_BLOCK_LAST_WEIGHT_COMMIT = "/block_last_weight_commit"
 

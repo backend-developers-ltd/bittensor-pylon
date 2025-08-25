@@ -37,7 +37,7 @@ async def fetch_hyperparams(app):
             app.state.hyperparams[k] = v
 
 
-async def set_weights_periodically_task(app, stop_event: asyncio.Event):
+async def commit_weights_task(app, stop_event: asyncio.Event):
     """
     Periodically checks conditions and commits weights to the Bittensor network.
     Commits weights every N tempos, only if within the specified commit window.
@@ -45,7 +45,7 @@ async def set_weights_periodically_task(app, stop_event: asyncio.Event):
 
     stop_task = asyncio.create_task(stop_event.wait())
     while not stop_event.is_set():
-        await asyncio.wait([stop_task], timeout=settings.weight_commit_check_task_interval_seconds)
+        await asyncio.wait([stop_task], timeout=settings.commit_weights_task_interval_seconds)
 
         app.state.last_commit_block = await fetch_block_last_weight_commit(app)
         if app.state.last_commit_block is None:
