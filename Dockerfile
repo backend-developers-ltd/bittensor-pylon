@@ -21,7 +21,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
 RUN /bin/uv sync --no-install-project
 
 # database mounting
-VOLUME ["/app/db"]
+# VOLUME ["/app/db"]
 
 EXPOSE 8000
 CMD [".venv/bin/python", "-m", "uvicorn", "pylon_service.main:app", "--host", "0.0.0.0", "--port", "8000"]

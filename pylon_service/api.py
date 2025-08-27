@@ -5,6 +5,7 @@ from litestar import Request, Response, get, post, put
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
+    ENDPOINT_BLOCK_LAST_WEIGHT_COMMIT,
     ENDPOINT_BLOCK_TIMESTAMP,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
@@ -21,19 +22,13 @@ from pylon_common.constants import (
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_SET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
-    ENDPOINT_WEIGHTS_TYPED,
-)
-from pylon_common.models import (
-    SetCommitmentRequest,
-    SetHyperparamRequest,
-    SetWeightRequest,
-    SetWeightsRequest,
-    UpdateWeightRequest,
+    ENDPOINT_WEIGHTS,
 )
 from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
+    get_block_hash,
     get_block_timestamp,
     get_commitment,
     get_commitments,
@@ -41,6 +36,13 @@ from pylon_service.bittensor_client import (
     get_weights,
     set_commitment,
     set_hyperparam,
+)
+from pylon_service.models import (
+    SetCommitmentRequest,
+    SetHyperparamRequest,
+    SetWeightRequest,
+    SetWeightsRequest,
+    UpdateWeightRequest,
 )
 from pylon_service.utils import get_epoch_containing_block
 
@@ -150,8 +152,8 @@ async def metagraph(request: Request, block: int) -> dict:
 @safe_endpoint
 async def block_hash(request: Request, block: int) -> dict:
     """Get the block hash for a specific block number."""
-    metagraph = await get_metagraph(request.app, block=block)
-    return {"block_hash": metagraph.block_hash}
+    block_hash = await get_block_hash(request.app, block=block)
+    return {"block_hash": block_hash}
 
 
 @get(ENDPOINT_BLOCK_TIMESTAMP)
@@ -241,12 +243,11 @@ async def set_weights_endpoint(request: Request, data: SetWeightsRequest) -> Res
     return Response({"weights": data.weights, "epoch": epoch, "count": len(data.weights)}, status_code=200)
 
 
-# TODO: refactor to epochs_ago ?
 @get(ENDPOINT_LATEST_WEIGHTS)
 @safe_endpoint
 async def latest_weights_endpoint(request: Request) -> Response:
     """
-    Get raw weights for the current epoch.
+    Get hotkey weights for the current epoch.
     """
     epoch = get_current_epoch(request)
     weights = await db.get_hotkey_weights_dict(epoch)
@@ -255,7 +256,7 @@ async def latest_weights_endpoint(request: Request) -> Response:
     return Response({"epoch": epoch, "weights": weights}, status_code=200)
 
 
-@get(ENDPOINT_WEIGHTS_TYPED)
+@get(ENDPOINT_WEIGHTS)
 @safe_endpoint
 async def weights_endpoint(request: Request, block: int) -> Response:
     """
@@ -283,15 +284,26 @@ async def force_commit_weights_endpoint(request: Request) -> Response:
         logger.warning(msg)
         return Response({"detail": msg}, status_code=404)
 
-    await commit_weights(request.app, weights)
+    reveal_round = await commit_weights(request.app, weights)
+    request.app.state.reveal_round = reveal_round
 
     return Response(
         {
             "block": block,
-            "committed_weights": weights,
+            "reveal_round": reveal_round,
+            "weights": weights,
         },
         status_code=200,
     )
+
+
+@get(ENDPOINT_BLOCK_LAST_WEIGHT_COMMIT)
+@safe_endpoint
+async def get_block_last_weight_commit_endpoint(request: Request) -> Response:
+    """Get the block number of the last successful weight commitment."""
+    reveal_round = request.app.state.reveal_round
+    last_commit_block = request.app.state.last_commit_block
+    return Response({"last_weight_commit": last_commit_block, "reveal_round": reveal_round}, status_code=200)
 
 
 # TODO: wip, to update, to be register endpoints

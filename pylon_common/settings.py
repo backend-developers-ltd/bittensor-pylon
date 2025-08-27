@@ -1,3 +1,5 @@
+import pathlib
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,7 +11,8 @@ class Settings(BaseSettings):
     bittensor_archive_blocks_cutoff: int = 300
     bittensor_wallet_name: str
     bittensor_wallet_hotkey_name: str
-    bittensor_wallet_path: str
+    bittensor_wallet_path: str = "~/.bittensor/wallets/"
+    host_wallet_dir: str = (pathlib.Path("~").expanduser() / ".bittensor" / "wallets").as_posix()
 
     # guard against validator specific endpoints
     am_i_a_validator: bool = False
@@ -25,17 +28,18 @@ class Settings(BaseSettings):
     tempo: int = 360
 
     # commit-reveal cycle
+    commit_weights_task_enable: bool = False
+    commit_weights_task_interval_seconds: int = 60
     commit_cycle_length: int = 3  # Number of tempos to wait between weight commitments
     commit_window_start_offset: int = 180  # Offset from interval start to begin commit window
     commit_window_end_buffer: int = 10  # Buffer at the end of commit window before interval ends
 
-    # task-specific: how often to run
-    weight_commit_check_task_interval_seconds: int = 60
+    # fetch tasks
     fetch_hyperparams_task_interval_seconds: int = 60
     fetch_latest_metagraph_task_interval_seconds: int = 10
 
     # metagraph cache
-    metagraph_cache_ttl: int = 600  # TODO: not 10 minutes
+    metagraph_cache_ttl: int = 600  # 10 minutes
     metagraph_cache_maxsize: int = 1000
 
     # sentry

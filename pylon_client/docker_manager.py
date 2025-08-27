@@ -34,7 +34,10 @@ class PylonDockerManager:
                 settings.pylon_docker_image_name,
                 detach=True,
                 ports={"8000/tcp": self.port},
-                volumes={settings.pylon_db_dir: {"bind": "/app/db/", "mode": "rw"}},
+                volumes={
+                    settings.pylon_db_dir: {"bind": "/app/db/", "mode": "rw"},
+                    settings.host_wallet_dir: {"bind": "/root/.bittensor/wallets/", "mode": "rw"},
+                },
                 environment=settings.model_dump(),
             )
             await self._wait_for_service()

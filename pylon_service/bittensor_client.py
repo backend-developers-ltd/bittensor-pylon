@@ -62,6 +62,11 @@ def get_bt_wallet(settings: Settings):
         raise
 
 
+def my_hotkey() -> Hotkey:
+    hotkey = get_bt_wallet(settings).hotkey.ss58_address
+    return Hotkey(hotkey)
+
+
 async def create_bittensor_clients() -> tuple[Bittensor, Bittensor]:
     """Creates both main and archive Bittensor clients.
 
@@ -90,6 +95,15 @@ async def cache_metagraph(app: Litestar, *, block: int, block_hash: str):
     metagraph = Metagraph(block=block, block_hash=block_hash, neurons=neurons)
     app.state.metagraph_cache[block] = metagraph
 
+    try:
+        neuron = neurons.get(my_hotkey(), None)
+        if neuron:
+            app.state.last_commit_block = neuron.last_update
+        else:
+            logger.warning(f"Own hotkey {my_hotkey()} not found in metagraph at block {block}.")
+    except Exception as e:
+        logger.error(f"Error updating last_commit_block from metagraph: {e}")
+
 
 @archive_fallback
 async def get_block_timestamp(app: Litestar, *, block: int) -> datetime | None:
@@ -103,6 +117,22 @@ async def get_block_timestamp(app: Litestar, *, block: int) -> datetime | None:
     except Exception as e:
         logger.error(f"Failed to fetch timestamp for block {block}: {e}")
         return None
+
+
+@archive_fallback
+async def get_block_hash(app: Litestar, *, block: int) -> str | None:
+    """
+    Fetches the block hash for a specific block.
+    """
+    metagraph = app.state.metagraph_cache.get(block, None)
+    if metagraph is not None:
+        return metagraph.block_hash
+
+    # fetch it from subtensor
+    block_obj = await app.state.bittensor_client.block(block).get()
+    if block_obj is None or block_obj.hash is None:
+        return None
+    return block_obj.hash
 
 
 @archive_fallback
@@ -149,23 +179,6 @@ async def commit_weights(app: Litestar, weights: dict[int, float]):
     except Exception as e:
         logger.error(f"Failed to commit weights: {e}", exc_info=True)
         raise
-
-
-# TODO: fix last_update fetching or replace with CRV3WeightsCommitted ?
-async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
-    """
-    Fetches the block number of the last successful weight commitment
-    """
-    return 0
-    # hotkey = settings.bittensor_wallet_hotkey_name
-    # metagraph = await get_metagraph(app, app.state.latest_block)
-    # neuron = metagraph.get_neuron(hotkey)
-    #
-    # if neuron is None:
-    #     logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
-    #     return None
-    #
-    # return neuron.last_update
 
 
 @archive_fallback

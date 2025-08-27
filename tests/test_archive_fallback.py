@@ -5,27 +5,13 @@ from turbobt.substrate.exceptions import UnknownBlock
 
 from pylon_common.settings import settings
 from pylon_service.bittensor_client import cache_metagraph
-from pylon_service.main import create_app
-from tests.conftest import MockBittensorClient, MockSubnet, get_mock_turbo_neuron
+from tests.conftest import MockSubnet, get_mock_turbo_neuron
 
 
 @pytest.fixture
-def mock_app():
-    app = create_app(tasks=[])
-    main_client = MockBittensorClient()
-    archive_client = MockBittensorClient()
-
-    with patch.object(main_client, "subnet", wraps=main_client.subnet) as mock_main_subnet:
-        with patch.object(archive_client, "subnet", wraps=archive_client.subnet) as mock_archive_subnet:
-            app.state.bittensor_client = main_client
-            app.state.archive_bittensor_client = archive_client
-            app.state.latest_block = 1100
-            app.state.metagraph_cache = {}
-
-            app.state.bittensor_client.subnet = mock_main_subnet
-            app.state.archive_bittensor_client.subnet = mock_archive_subnet
-
-            yield app
+def mock_app(test_client):
+    test_client.app.state.latest_block = 1100
+    return test_client.app
 
 
 @pytest.fixture
@@ -36,7 +22,7 @@ def mock_list_neurons():
 
 
 @pytest.mark.asyncio
-async def test_recent_block_uses_main_client(mock_app, mock_list_neurons):
+async def test_recent_block_uses_main_client(mock_app, mock_wallet, mock_list_neurons):
     await cache_metagraph(mock_app, block=1100, block_hash="0x44c")
 
     assert 1100 in mock_app.state.metagraph_cache
@@ -46,7 +32,7 @@ async def test_recent_block_uses_main_client(mock_app, mock_list_neurons):
 
 
 @pytest.mark.asyncio
-async def test_old_block_uses_archive_client(mock_app, mock_list_neurons):
+async def test_old_block_uses_archive_client(mock_app, mock_wallet, mock_list_neurons):
     await cache_metagraph(mock_app, block=799, block_hash="0x320")
 
     assert 799 in mock_app.state.metagraph_cache
@@ -56,7 +42,7 @@ async def test_old_block_uses_archive_client(mock_app, mock_list_neurons):
 
 
 @pytest.mark.asyncio
-async def test_main_fails_fallback_to_archive(mock_app, mock_list_neurons):
+async def test_main_fails_fallback_to_archive(mock_app, mock_wallet, mock_list_neurons):
     mock_neurons = [get_mock_turbo_neuron(uid) for uid in range(3)]
     call_count = 0
 
@@ -77,7 +63,7 @@ async def test_main_fails_fallback_to_archive(mock_app, mock_list_neurons):
 
 
 @pytest.mark.asyncio
-async def test_archive_fails_exception_reraised(mock_app, mock_list_neurons):
+async def test_archive_fails_exception_reraised(mock_app, mock_wallet, mock_list_neurons):
     mock_list_neurons.side_effect = UnknownBlock("Block not found")
 
     with pytest.raises(UnknownBlock):
@@ -90,7 +76,7 @@ async def test_archive_fails_exception_reraised(mock_app, mock_list_neurons):
 
 
 @pytest.mark.asyncio
-async def test_no_latest_block_uses_main(mock_app, mock_list_neurons):
+async def test_no_latest_block_uses_main(mock_app, mock_wallet, mock_list_neurons):
     mock_app.state.latest_block = None
 
     await cache_metagraph(mock_app, block=100, block_hash="0x64")

@@ -13,6 +13,7 @@ from pylon_service.api import (
     block_timestamp,
     epoch_start_endpoint,
     force_commit_weights_endpoint,
+    get_block_last_weight_commit_endpoint,
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
@@ -32,9 +33,9 @@ from pylon_service.bittensor_client import create_bittensor_clients
 from pylon_service.db import init_db
 from pylon_service.sentry_config import init_sentry
 from pylon_service.tasks import (
+    commit_weights_task,
     fetch_latest_hyperparams_task,
     fetch_latest_metagraph_task,
-    set_weights_periodically_task,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
         logger.debug(f"{route.path} -> {getattr(route, 'handler', None)}")
 
     logger.info("Env vars:")
-    for key, value in settings.dict().items():
+    for key, value in settings.model_dump().items():
         logger.info(f"{key} = {value}")
 
 
@@ -106,6 +107,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
             update_weight_endpoint,
             force_commit_weights_endpoint,
             # Commitments
+            get_block_last_weight_commit_endpoint,
             get_commitment_endpoint,
             get_commitments_endpoint,
             set_commitment_endpoint,
@@ -123,8 +125,11 @@ def create_app(tasks: list[Callable]) -> Litestar:
 defined_startup_tasks = [
     fetch_latest_hyperparams_task,
     fetch_latest_metagraph_task,
-    set_weights_periodically_task,
 ]
+
+# Conditionally add weight commit task based on settings
+if settings.commit_weights_task_enable:
+    defined_startup_tasks.append(commit_weights_task)
 
 init_sentry()
 app = create_app(tasks=defined_startup_tasks)
