@@ -163,7 +163,7 @@ def test_set_weights__empty_dict(client):
     """Test set_weights with empty weights dict."""
     resp = client.put("/set_weights", json={"weights": {}})
     assert resp.status_code == 400
-    assert "No weights provided" in str(resp.json())
+    assert "Dictionary should have at least 1 item" in str(resp.json())
 
 
 def test_set_weights__validation_errors(client):
@@ -177,8 +177,7 @@ def test_set_weights__validation_errors(client):
     resp = client.put("/set_weights", json={"weights": {"": 0.5}})
     assert resp.status_code == 400
     response_text = str(resp.json())
-    assert "Invalid hotkey" in response_text
-    assert "must be a non-empty string" in response_text
+    assert "String should have at least 1 character" in response_text
 
 
 def test_validator_endpoints_forbidden(client, monkeypatch):

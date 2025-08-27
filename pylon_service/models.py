@@ -1,4 +1,7 @@
-from pydantic import BaseModel, field_validator
+from typing import Annotated
+
+from pydantic import BaseModel, Field
+from pydantic.types import StringConstraints
 
 
 class SetHyperparamRequest(BaseModel):
@@ -7,45 +10,20 @@ class SetHyperparamRequest(BaseModel):
 
 
 class UpdateWeightRequest(BaseModel):
-    hotkey: str
+    hotkey: Annotated[str, StringConstraints(min_length=1)]
     weight_delta: float
-
-    @field_validator("hotkey")
-    @classmethod
-    def validate_hotkey(cls, v):
-        if not v or not isinstance(v, str):
-            raise ValueError("hotkey must be a non-empty string")
-        return v
 
 
 class SetWeightRequest(BaseModel):
-    hotkey: str
+    hotkey: Annotated[str, StringConstraints(min_length=1)]
     weight: float
-
-    @field_validator("hotkey")
-    @classmethod
-    def validate_hotkey(cls, v):
-        if not v or not isinstance(v, str):
-            raise ValueError("hotkey must be a non-empty string")
-        return v
 
 
 class SetWeightsRequest(BaseModel):
-    weights: dict[str, float]
-
-    @field_validator("weights")
-    @classmethod
-    def validate_weights(cls, v):
-        if not v:
-            raise ValueError("No weights provided")
-
-        for hotkey, weight in v.items():
-            if not hotkey or not isinstance(hotkey, str):
-                raise ValueError(f"Invalid hotkey: '{hotkey}' must be a non-empty string")
-            if not isinstance(weight, int | float):
-                raise ValueError(f"Invalid weight for hotkey '{hotkey}': '{weight}' must be a number")
-
-        return v
+    weights: dict[
+        Annotated[str, StringConstraints(min_length=1)],
+        float | int,
+    ] = Field(min_length=1)
 
 
 class SetCommitmentRequest(BaseModel):
