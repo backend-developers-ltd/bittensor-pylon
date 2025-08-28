@@ -13,9 +13,13 @@ from pylon_service.api import (
     block_timestamp,
     epoch_start_endpoint,
     force_commit_weights_endpoint,
+    generate_certificate_keypair_endpoint,
+    get_certificate_endpoint,
+    get_certificates_endpoint,
     get_commitment_endpoint,
     get_commitments_endpoint,
     get_hyperparams_endpoint,
+    get_own_certificate_endpoint,
     health_check,
     latest_block,
     latest_metagraph,
@@ -109,6 +113,11 @@ def create_app(tasks: list[Callable]) -> Litestar:
             get_commitment_endpoint,
             get_commitments_endpoint,
             set_commitment_endpoint,
+            # Certificates
+            generate_certificate_keypair_endpoint,
+            get_certificate_endpoint,
+            get_certificates_endpoint,
+            get_own_certificate_endpoint,
         ],
         openapi_config=OpenAPIConfig(
             title="Bittensor Pylon API",
@@ -117,6 +126,7 @@ def create_app(tasks: list[Callable]) -> Litestar:
         ),
         on_startup=[partial(on_startup, tasks_to_run=tasks)],
         on_shutdown=[on_shutdown],
+        debug=settings.debug,
     )
 
 

@@ -6,6 +6,9 @@ from litestar import Request, Response, get, post, put
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
     ENDPOINT_BLOCK_TIMESTAMP,
+    ENDPOINT_CERTIFICATES,
+    ENDPOINT_CERTIFICATES_HOTKEY,
+    ENDPOINT_CERTIFICATES_SELF,
     ENDPOINT_COMMITMENT,
     ENDPOINT_COMMITMENTS,
     ENDPOINT_EPOCH,
@@ -24,6 +27,7 @@ from pylon_common.constants import (
     ENDPOINT_WEIGHTS_TYPED,
 )
 from pylon_common.models import (
+    GenerateCertificateKeypairRequest,
     SetCommitmentRequest,
     SetHyperparamRequest,
     SetWeightRequest,
@@ -34,7 +38,10 @@ from pylon_common.settings import settings
 from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
+    generate_certificate_keypair,
     get_block_timestamp,
+    get_certificate,
+    get_certificates,
     get_commitment,
     get_commitments,
     get_metagraph,
@@ -338,3 +345,53 @@ async def set_commitment_endpoint(request: Request, data: SetCommitmentRequest) 
         return Response({"detail": "Invalid 'data_hex' in request body"}, status_code=400)
     await set_commitment(request.app, commitment_data)
     return Response({"detail": "Commitment successfully set"}, status_code=200)
+
+
+@get(ENDPOINT_CERTIFICATES)
+@safe_endpoint
+async def get_certificates_endpoint(request: Request) -> Response:
+    """
+    Get all certificates for the subnet.
+    """
+    certificates = await get_certificates(request.app)
+
+    return Response(certificates, status_code=200)
+
+
+@get(ENDPOINT_CERTIFICATES_HOTKEY)
+@safe_endpoint
+async def get_certificate_endpoint(request: Request, hotkey: str) -> Response:
+    """
+    Get a specific certificate for a hotkey.
+    """
+    certificate = await get_certificate(request.app, hotkey)
+    if certificate is None:
+        return Response({"detail": "Certificate not found or error fetching."}, status_code=404)
+
+    return Response(certificate, status_code=200)
+
+
+@get(ENDPOINT_CERTIFICATES_SELF)
+@safe_endpoint
+async def get_own_certificate_endpoint(request: Request) -> Response:
+    """
+    Get a certificate for the app's wallet.
+    """
+    certificate = await get_certificate(request.app)
+    if certificate is None:
+        return Response({"detail": "Certificate not found or error fetching."}, status_code=404)
+
+    return Response(certificate, status_code=200)
+
+
+@post(ENDPOINT_CERTIFICATES_SELF)
+@safe_endpoint
+async def generate_certificate_keypair_endpoint(request: Request, data: GenerateCertificateKeypairRequest) -> Response:
+    """
+    Generate a certificate keypair for the app's wallet.
+    """
+    certificate_keypair = await generate_certificate_keypair(request.app, algorithm=data.algorithm)
+    if certificate_keypair is None:
+        return Response({"detail": "Could not generate certificate pair."}, status_code=400)
+
+    return Response(certificate_keypair, status_code=201)

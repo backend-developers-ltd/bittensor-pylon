@@ -24,6 +24,10 @@ ENDPOINT_COMMITMENT = "/commitment/{hotkey:str}"
 ENDPOINT_COMMITMENTS = "/commitments"
 ENDPOINT_SET_COMMITMENT = "/set_commitment"
 
+ENDPOINT_CERTIFICATES = "/certificates"
+ENDPOINT_CERTIFICATES_SELF = "/certificates/self"
+ENDPOINT_CERTIFICATES_HOTKEY = "/certificates/{hotkey:str}"
+
 
 def format_endpoint(endpoint: str, **kwargs) -> str:
     # remove :int and :str from the endpoint to be able to format it

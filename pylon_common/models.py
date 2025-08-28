@@ -1,8 +1,13 @@
+import typing
 from ipaddress import IPv4Address
 
 from pydantic import BaseModel, field_validator
 
 Hotkey = str
+
+CertificateAlgorithm: typing.TypeAlias = int
+PrivateKey: typing.TypeAlias = str
+PublicKey: typing.TypeAlias = str
 
 
 # Request models for API endpoints
@@ -57,6 +62,17 @@ class SetCommitmentRequest(BaseModel):
     data_hex: str
 
 
+class GenerateCertificateKeypairRequest(BaseModel):
+    algorithm: CertificateAlgorithm = 1  # EdDSA using ed25519 curve
+
+    @classmethod
+    @field_validator("algorithm")
+    def validate_algorithm(cls, v):
+        if not isinstance(v, int) and v != 1:
+            raise ValueError("Currently, only algorithm equals 1 is supported which is EdDSA using Ed25519 curve")
+        return v
+
+
 class Epoch(BaseModel):
     start: int
     end: int
@@ -100,3 +116,12 @@ class Metagraph(BaseModel):
 
     def get_active_neurons(self) -> list[Neuron]:
         return [neuron for neuron in self.neurons.values() if neuron.active]
+
+
+class Certificate(BaseModel):
+    algorithm: CertificateAlgorithm = 1  # EdDSA using ed25519 curve
+    public_key: PublicKey
+
+
+class CertificateKeypair(Certificate):
+    private_key: PrivateKey
