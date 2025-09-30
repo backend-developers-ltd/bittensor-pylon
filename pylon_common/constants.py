@@ -24,6 +24,9 @@ ENDPOINT_COMMITMENT = "/commitment/{hotkey:str}"
 ENDPOINT_COMMITMENTS = "/commitments"
 ENDPOINT_SET_COMMITMENT = "/set_commitment"
 
+# v2 endpoints
+ENDPOINT_SUBNET_WEIGHTS = "/subnet/weights"
+
 
 def format_endpoint(endpoint: str, **kwargs) -> str:
     # remove :int and :str from the endpoint to be able to format it

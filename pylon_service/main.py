@@ -21,6 +21,7 @@ from pylon_service.api import (
     latest_metagraph,
     latest_weights_endpoint,
     metagraph,
+    put_weights_endpoint,
     set_commitment_endpoint,
     set_hyperparam_endpoint,
     set_weight_endpoint,
@@ -120,6 +121,20 @@ def create_app(tasks: list[Callable]) -> Litestar:
     )
 
 
+def create_app_v2() -> Litestar:
+    """Create a Litestar app with limited number of resources"""
+    return Litestar(
+        route_handlers=[
+            put_weights_endpoint,
+        ],
+        openapi_config=OpenAPIConfig(
+            title="Bittensor Pylon API",
+            version="2.0.0",
+            description="REST API for the bittensor-pylon service",
+        ),
+    )
+
+
 defined_startup_tasks = [
     fetch_latest_hyperparams_task,
     fetch_latest_metagraph_task,
@@ -127,4 +142,4 @@ defined_startup_tasks = [
 ]
 
 init_sentry()
-app = create_app(tasks=defined_startup_tasks)
+app = create_app_v2()

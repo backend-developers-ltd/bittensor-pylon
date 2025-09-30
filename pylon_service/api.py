@@ -1,7 +1,9 @@
 import functools
 import logging
+import secrets
 
 from litestar import Request, Response, get, post, put
+from turbobt import Bittensor
 
 from pylon_common.constants import (
     ENDPOINT_BLOCK_HASH,
@@ -20,6 +22,7 @@ from pylon_common.constants import (
     ENDPOINT_SET_HYPERPARAM,
     ENDPOINT_SET_WEIGHT,
     ENDPOINT_SET_WEIGHTS,
+    ENDPOINT_SUBNET_WEIGHTS,
     ENDPOINT_UPDATE_WEIGHT,
     ENDPOINT_WEIGHTS_TYPED,
 )
@@ -35,6 +38,7 @@ from pylon_service import db
 from pylon_service.bittensor_client import (
     commit_weights,
     get_block_timestamp,
+    get_bt_wallet,
     get_commitment,
     get_commitments,
     get_metagraph,
@@ -42,9 +46,37 @@ from pylon_service.bittensor_client import (
     set_commitment,
     set_hyperparam,
 )
+from pylon_service.tasks import ApplyWeights
 from pylon_service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
+
+
+def token_required(func):
+    """Decorator to restrict endpoint access for requests having proper token set in headers."""
+
+    @functools.wraps(func)
+    async def wrapper(request: Request, *args, **kwargs):
+        expected_token = settings.auth_token
+        if not expected_token:
+            return Response(status_code=500, content={"detail": "Token auth not configured"})
+
+        provided_token = request.headers.get("x-auth-token")
+
+        if provided_token is None:
+            return Response(
+                status_code=401,
+                content={"detail": "Auth token required"},
+            )
+
+        provided_token = provided_token.strip()
+        if not provided_token or not secrets.compare_digest(provided_token, expected_token):
+            logger.warning("Invalid authorization token for %s", func.__name__)
+            return Response({"detail": "Invalid auth token"}, status_code=401)
+
+        return await func(request, *args, **kwargs)
+
+    return wrapper
 
 
 def validator_only(func):
@@ -338,3 +370,23 @@ async def set_commitment_endpoint(request: Request, data: SetCommitmentRequest) 
         return Response({"detail": "Invalid 'data_hex' in request body"}, status_code=400)
     await set_commitment(request.app, commitment_data)
     return Response({"detail": "Commitment successfully set"}, status_code=200)
+
+
+@put(ENDPOINT_SUBNET_WEIGHTS)
+@token_required
+@safe_endpoint
+async def put_weights_endpoint(request: Request, data: SetWeightsRequest) -> Response:
+    """
+    Set multiple hotkeys' weights for the current epoch in a single transaction.
+    (access validated by token in http headers)
+    """
+    client = Bittensor(wallet=get_bt_wallet(settings), uri=settings.bittensor_network)
+    await ApplyWeights.schedule(client, data.weights)
+
+    return Response(
+        {
+            "detail": "weights update scheduled",
+            "count": len(data.weights),
+        },
+        status_code=200,
+    )
