@@ -53,7 +53,10 @@ logger = logging.getLogger(__name__)
 
 
 def token_required(func):
-    """Decorator to restrict endpoint access for requests having proper token set in headers."""
+    """Decorator to restrict endpoint access for requests having proper token set in headers.
+
+    Uses standard HTTP Authorization header with Bearer scheme.
+    """
 
     @functools.wraps(func)
     async def wrapper(request: Request, *args, **kwargs):
@@ -61,15 +64,21 @@ def token_required(func):
         if not expected_token:
             return Response(status_code=500, content={"detail": "Token auth not configured"})
 
-        provided_token = request.headers.get("x-auth-token")
+        auth_header = request.headers.get("Authorization")
 
-        if provided_token is None:
+        if auth_header is None:
             return Response(
                 status_code=401,
                 content={"detail": "Auth token required"},
             )
 
-        provided_token = provided_token.strip()
+        # Parse "Bearer <token>" scheme (case-insensitive for scheme)
+        parts = auth_header.strip().split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            logger.warning("Invalid authorization header format for %s", func.__name__)
+            return Response({"detail": "Invalid auth token"}, status_code=401)
+
+        provided_token = parts[1].strip()
         if not provided_token or not secrets.compare_digest(provided_token, expected_token):
             logger.warning("Invalid authorization token for %s", func.__name__)
             return Response({"detail": "Invalid auth token"}, status_code=401)
