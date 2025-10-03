@@ -147,40 +147,52 @@ class ApplyWeights:
         task.add_done_callback(apply_weights._log_done)
         return apply_weights
 
+    async def get_current_block(self):
+        while True:
+            try:
+                latest_block = await self._client.head.get()
+                assert latest_block is not None
+                return latest_block
+            except Exception as e:
+                logger.error(f"Error fetching latest block: {e}")
+                await asyncio.sleep(settings.weights_retry_delay_seconds)
+                continue
+
+
     async def run_job(self, weights: dict[str, float]) -> None:
         async with self._client:
-            latest_block = await self._client.head.get()
-            if latest_block.number is None:
-                raise RuntimeError("Latest block number not available (run_job)")
+            start_block = await self.get_current_block()
 
-            tempo = get_epoch_containing_block(latest_block.number)
-            initial_tempo_start = tempo.start
+            tempo = get_epoch_containing_block(start_block.number)
+            initial_tempo = tempo
 
             retry_count = settings.weights_retry_attempts
-            timeout = settings.weights_call_timeout_seconds
-            async with asyncio.timeout(timeout):
-                for retry_no in range(retry_count + 1):
-                    try:
-                        if not self._is_current_tempo(latest_block, initial_tempo_start):
-                            logger.warning("Apply weights job task cancelled: tempo changed")
-                            break
-                        logger.info(f"apply weights {retry_no}")
-                        await self._apply_weights(weights, latest_block)
-                        break
-                    except Exception as exc:
-                        logger.error(
-                            "Error executing %s: %s (retry %s)",
-                            self.JOB_NAME,
-                            exc,
-                            retry_no,
-                            exc_info=True,
-                        )
-                        await asyncio.sleep(settings.weights_retry_delay_seconds)
+            next_sleep_seconds = settings.weights_retry_delay_seconds
+            max_sleep_seconds = next_sleep_seconds * 10
+            for retry_no in range(retry_count + 1):
+                latest_block = await self.get_current_block()
+                if latest_block.number > initial_tempo.end:
+                    logger.error(f"Apply weights job task cancelled: tempo ended "
+                                   f"({latest_block.number} > {initial_tempo.end}, {start_block.number=})")
+                    return
+                logger.info(f"apply weights {retry_no}, {latest_block.number=}, "
+                            f"still got {initial_tempo.end - latest_block.number} blocks left to go.")
+                try:
+                    await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
+                    return
+                except Exception as exc:
+                    logger.error(
+                        "Error executing %s: %s (retry %s)",
+                        self.JOB_NAME,
+                        exc,
+                        retry_no,
+                        exc_info=True,
+                    )
+                    logger.info(f"Sleeping for {next_sleep_seconds} seconds before retrying...")
+                    await asyncio.sleep(next_sleep_seconds)
+                    next_sleep_seconds = min(next_sleep_seconds * 2, max_sleep_seconds)
 
     def _is_current_tempo(self, latest_block: Block, initial_tempo_start: int) -> bool:
-        if latest_block.number is None:
-            raise RuntimeError("Latest block number not available (_is_current_tempo)")
-
         tempo = get_epoch_containing_block(latest_block.number)
         if tempo.start != initial_tempo_start:
             return False
