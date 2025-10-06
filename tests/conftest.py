@@ -1,3 +1,4 @@
+import asyncio
 import tempfile
 from dataclasses import asdict
 from ipaddress import IPv4Address
@@ -96,3 +97,17 @@ def temp_db_config():
         db_uri = f"sqlite+aiosqlite:///{db_file_path}"
 
         yield {"db_uri": db_uri, "db_dir": temp_dir}
+
+
+@pytest.fixture
+def wait_for_tasks(client):
+    async def _wait_for_tasks(task_names: list[str]):
+        tasks = asyncio.all_tasks()
+        selected_tasks = [task for task in tasks if task.get_name() in task_names]
+        await asyncio.gather(*selected_tasks)
+
+    def _wait_sync(task_names: list[str]):
+        with client.portal() as portal:
+            portal.call(_wait_for_tasks, task_names)
+
+    return _wait_sync

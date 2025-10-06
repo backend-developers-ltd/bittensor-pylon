@@ -8,6 +8,7 @@ from litestar.testing import TestClient
 
 from pylon_common.settings import settings
 from pylon_service.api import put_weights_endpoint
+from pylon_service.tasks import ApplyWeights
 from tests.conftest import MockBittensorClient
 
 
@@ -88,12 +89,16 @@ def test_put_weights_endpoint_invalid_token(headers, expected_detail, put_weight
     schedule_mock.assert_not_called()
 
 
-def test_put_weights_endpoint_no_token_configured(put_weights_client, monkeypatch):
+def test_put_weights_endpoint_no_token_configured(put_weights_client, monkeypatch, wait_for_tasks):
     client, _token, schedule_mock, mock_bittensor_class, _mock_bittensor_instance = put_weights_client
 
     monkeypatch.setattr(settings, "auth_token", "")
 
-    response = client.put("/subnet/weights", json={"weights": {"hotkey": 1.0}}, headers={"Authorization": "Bearer some token"})
+    response = client.put(
+        "/subnet/weights", json={"weights": {"hotkey": 1.0}}, headers={"Authorization": "Bearer some token"}
+    )
+    wait_for_tasks([ApplyWeights.JOB_NAME])
+
     assert response.status_code == 500
     assert response.json() == {"detail": "Token auth not configured"}
 
@@ -114,20 +119,13 @@ def test_put_weights_endpoint_no_token_configured(put_weights_client, monkeypatc
         ),
     ],
 )
-def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bittensor_client, monkeypatch):
-    from pylon_service import tasks
-
-    async def immediate_schedule(cls, client_, weights):
-        job = cls(client_)
-        await job.run_job(weights)
-        return job
-
-    monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
-
+def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bittensor_client, wait_for_tasks):
     mock_bittensor_client.subnet(settings.bittensor_netuid)._hyperparams.update(hyperparams)
     payload = {"weights": {"mock_hotkey_0": 0.7, "mock_hotkey_1": 0.3, "mock_hotkey_321": 0.2}}
 
     response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    wait_for_tasks([ApplyWeights.JOB_NAME])
+
     assert response.status_code == 200
 
     getattr(mock_bittensor_client.subnet(settings.bittensor_netuid).weights, method).assert_called_once_with(
