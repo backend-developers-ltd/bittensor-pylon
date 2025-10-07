@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from pylon_common.models import Epoch
+from pylon_common.models import Block, Epoch
 from pylon_common.settings import settings
 
 
@@ -85,3 +85,7 @@ def hotkeys_to_uids(neurons: Iterable[object], weights: dict[str, float]) -> tup
     missing = [hotkey for hotkey in weights if hotkey not in hotkey_to_uid]
 
     return {hotkey_to_uid[hotkey]: value for hotkey, value in weights.items() if hotkey not in missing}, missing
+
+
+def is_block_after_epoch_end(block: Block, epoch: Epoch):
+    return block.number > epoch.end

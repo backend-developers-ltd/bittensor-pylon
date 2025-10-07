@@ -62,6 +62,11 @@ class Epoch(BaseModel):
     end: int
 
 
+class Block(BaseModel):
+    hash: str
+    number: int
+
+
 class AxonInfo(BaseModel):
     ip: IPv4Address
     port: int

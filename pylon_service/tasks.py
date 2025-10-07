@@ -2,8 +2,9 @@ import asyncio
 import logging
 from typing import Any, ClassVar
 
-from turbobt import Bittensor, Block
+from turbobt import Bittensor
 
+from pylon_common.models import Block
 from pylon_common.settings import settings
 from pylon_service.bittensor_client import (
     cache_metagraph,
@@ -11,7 +12,7 @@ from pylon_service.bittensor_client import (
     fetch_last_weight_commit_block,
     get_weights,
 )
-from pylon_service.utils import CommitWindow, get_epoch_containing_block, hotkeys_to_uids
+from pylon_service.utils import CommitWindow, get_epoch_containing_block, hotkeys_to_uids, is_block_after_epoch_end
 
 logger = logging.getLogger(__name__)
 
@@ -147,36 +148,39 @@ class ApplyWeights:
         task.add_done_callback(apply_weights._log_done)
         return apply_weights
 
-    async def get_current_block(self):
+    async def get_current_block(self) -> Block:
         while True:
             try:
                 latest_block = await self._client.head.get()
                 assert latest_block is not None
-                return latest_block
+                assert latest_block.number is not None
+                return Block(number=latest_block.number, hash=latest_block.hash)
             except Exception as e:
                 logger.error(f"Error fetching latest block: {e}")
                 await asyncio.sleep(settings.weights_retry_delay_seconds)
                 continue
 
-
     async def run_job(self, weights: dict[str, float]) -> None:
         async with self._client:
             start_block = await self.get_current_block()
 
-            tempo = get_epoch_containing_block(start_block.number)
-            initial_tempo = tempo
+            initial_epoch = get_epoch_containing_block(start_block.number)
 
             retry_count = settings.weights_retry_attempts
             next_sleep_seconds = settings.weights_retry_delay_seconds
             max_sleep_seconds = next_sleep_seconds * 10
             for retry_no in range(retry_count + 1):
                 latest_block = await self.get_current_block()
-                if latest_block.number > initial_tempo.end:
-                    logger.error(f"Apply weights job task cancelled: tempo ended "
-                                   f"({latest_block.number} > {initial_tempo.end}, {start_block.number=})")
+                if is_block_after_epoch_end(latest_block, initial_epoch):
+                    logger.error(
+                        f"Apply weights job task cancelled: tempo ended "
+                        f"({latest_block.number} > {initial_epoch.end}, {start_block.number=})"
+                    )
                     return
-                logger.info(f"apply weights {retry_no}, {latest_block.number=}, "
-                            f"still got {initial_tempo.end - latest_block.number} blocks left to go.")
+                logger.info(
+                    f"apply weights {retry_no}, {latest_block.number=}, "
+                    f"still got {initial_epoch.end - latest_block.number} blocks left to go."
+                )
                 try:
                     await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
                     return
@@ -191,12 +195,6 @@ class ApplyWeights:
                     logger.info(f"Sleeping for {next_sleep_seconds} seconds before retrying...")
                     await asyncio.sleep(next_sleep_seconds)
                     next_sleep_seconds = min(next_sleep_seconds * 2, max_sleep_seconds)
-
-    def _is_current_tempo(self, latest_block: Block, initial_tempo_start: int) -> bool:
-        tempo = get_epoch_containing_block(latest_block.number)
-        if tempo.start != initial_tempo_start:
-            return False
-        return True
 
     async def _fetch_hyperparams(self, block_hash: str) -> dict[str, Any]:
         subnet = self._client.subnet(settings.bittensor_netuid)
