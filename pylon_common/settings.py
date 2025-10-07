@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # weights endpoint behaviour
     weights_retry_attempts: int = 200
     weights_retry_delay_seconds: int = 1
-    weights_call_timeout_seconds: int = 360
+    weights_call_timeout_seconds: int = 120
 
     # task-specific: how often to run
     weight_commit_check_task_interval_seconds: int = 60

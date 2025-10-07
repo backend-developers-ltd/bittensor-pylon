@@ -149,16 +149,18 @@ class ApplyWeights:
         return apply_weights
 
     async def get_current_block(self) -> Block:
-        while True:
+        retry_count = settings.weights_retry_attempts
+        for retry_no in range(retry_count + 1):
             try:
                 latest_block = await self._client.head.get()
                 assert latest_block is not None
                 assert latest_block.number is not None
                 return Block(number=latest_block.number, hash=latest_block.hash)
             except Exception as e:
-                logger.error(f"Error fetching latest block: {e}")
+                logger.error(f"Error fetching latest block (retry {retry_no}): {e}")
                 await asyncio.sleep(settings.weights_retry_delay_seconds)
                 continue
+        raise RuntimeError("Failed to get current block")
 
     async def run_job(self, weights: dict[str, float]) -> None:
         async with self._client:
@@ -182,7 +184,9 @@ class ApplyWeights:
                     f"still got {initial_epoch.end - latest_block.number} blocks left to go."
                 )
                 try:
-                    await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
+                    await asyncio.wait_for(
+                        self._apply_weights(weights, latest_block), settings.weights_call_timeout_seconds
+                    )
                     return
                 except Exception as exc:
                     logger.error(
