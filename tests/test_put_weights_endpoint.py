@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 from litestar import Litestar
 from litestar.testing import TestClient
+from turbobt import Block
 
 from pylon_common.settings import settings
 from pylon_service.api import put_weights_endpoint
 from pylon_service.tasks import ApplyWeights
+from pylon_service.utils import get_epoch_containing_block
 from tests.conftest import MockBittensorClient
 
 
@@ -133,94 +137,42 @@ def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bi
     )
 
 
-def test_put_weights_endpoint_not_current_tempo(client, token, mock_bittensor_client, monkeypatch):
-    # WARNING: llm generated
-    from pylon_service import tasks
-    from pylon_service.utils import get_epoch_containing_block
+def test_put_weights_endpoint_not_current_tempo(client, token, mock_bittensor_client, wait_for_tasks):
+    payload = {"weights": {"mock_hotkey_0": 0.7, "mock_hotkey_1": 0.3, "does_not_matter": 0.2}}
 
-    payload = {"weights": {"mock_hotkey_0": 0.5, "mock_hotkey_1": 0.5}}
+    initial_block_number = settings.tempo
+    initial_epoch = get_epoch_containing_block(initial_block_number)
+    current_block_number = initial_block_number + 10
+    next_epoch_block_number = initial_epoch.end + 1
 
-    mock_apply_weights = AsyncMock()
-    monkeypatch.setattr(tasks.ApplyWeights, "_apply_weights", mock_apply_weights)
-
-    initial_block = settings.tempo
-    initial_epoch = get_epoch_containing_block(initial_block)
-    subsequent_block = initial_epoch.end + 1
-
-    class MutableBlock:
-        def __init__(self, first: int, second: int):
-            self._values = [first, first, second]
-            self._index = 0
-            self.hash = "0xabc"
-
-        @property
-        def number(self):
-            idx = self._index if self._index < len(self._values) else len(self._values) - 1
-            self._index += 1
-            return self._values[idx]
-
-    mutable_block = MutableBlock(initial_block, subsequent_block)
-
-    mock_head = AsyncMock(return_value=mutable_block)
-    monkeypatch.setattr(mock_bittensor_client.head, "get", mock_head)
-
-    async def immediate_schedule(cls, client_, weights):
-        job = cls(client_)
-        await job.run_job(weights)
-        return job
-
-    monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
-
+    mock_bittensor_client.head.get.side_effect = [
+        Block(block_number=current_block_number, block_hash="123", client=mock_bittensor_client),
+        Block(block_number=next_epoch_block_number, block_hash="345", client=mock_bittensor_client),
+    ]
     response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    wait_for_tasks([ApplyWeights.JOB_NAME])
 
     assert response.status_code == 200
-    assert mutable_block._index >= 3  # ensure _is_current_tempo accessed updated block number
-    mock_apply_weights.assert_not_awaited()
 
-    subnet_weights = mock_bittensor_client.subnet(settings.bittensor_netuid).weights
-    subnet_weights.set.assert_not_awaited()
-    subnet_weights.commit.assert_not_awaited()
+    assert len(mock_bittensor_client.head.get.call_args_list) == 2
+    assert not mock_bittensor_client.subnet(settings.bittensor_netuid).weights.set.called
+    assert not mock_bittensor_client.subnet(settings.bittensor_netuid).weights.commit.called
 
 
-def test_put_weights_endpoint_retry(client, token, mock_bittensor_client, monkeypatch):
-    # WARNING: llm generated
-    from pylon_service import tasks
+def test_put_weights_endpoint_retry(client, token, mock_bittensor_client, monkeypatch, wait_for_tasks):
+    payload = {"weights": {"mock_hotkey_0": 0.7, "mock_hotkey_1": 0.3, "does_not_matter": 0.2}}
 
-    payload = {"weights": {"mock_hotkey_0": 1.0}}
+    monkeypatch.setattr(ApplyWeights, "_apply_weights", MagicMock(side_effect=Exception("triggered by test")))
 
-    monkeypatch.setattr(settings, "weights_retry_attempts", 2)
-    monkeypatch.setattr(settings, "weights_retry_delay_seconds", 0)
-
-    apply_mock = AsyncMock(side_effect=[RuntimeError("boom"), RuntimeError("boom again"), None])
-    monkeypatch.setattr(tasks.ApplyWeights, "_apply_weights", apply_mock)
-
-    sleep_mock = AsyncMock()
-    monkeypatch.setattr(tasks.asyncio, "sleep", sleep_mock)
-
-    error_calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
-    original_error = tasks.logger.error
-
-    def error_spy(message, *args, **kwargs):
-        formatted = message % args if args else message
-        error_calls.append((formatted, args, kwargs))
-        return original_error(message, *args, **kwargs)
-
-    monkeypatch.setattr(tasks.logger, "error", error_spy)
-
-    latest_block = MagicMock(number=settings.tempo, hash="0xabc")
-    monkeypatch.setattr(mock_bittensor_client.head, "get", AsyncMock(return_value=latest_block))
-
-    async def immediate_schedule(cls, client_, weights):
-        job = cls(client_)
-        await job.run_job(weights)
-        return job
-
-    monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
+    mock_sleep = AsyncMock()
+    monkeypatch.setattr(asyncio, "sleep", mock_sleep)
+    monkeypatch.setattr(settings, "weights_retry_attempts", 3)
 
     response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    wait_for_tasks([ApplyWeights.JOB_NAME])
 
     assert response.status_code == 200
-    assert apply_mock.await_count == 3
-    assert sleep_mock.await_count == 2
-    assert len(error_calls) == 2
-    assert error_calls[0][0].startswith("Error executing apply_weights")
+    assert mock_sleep.call_args_list == [mock.call(x) for x in [1, 2, 4, 8]]
+
+    assert not mock_bittensor_client.subnet(settings.bittensor_netuid).weights.set.called
+    assert not mock_bittensor_client.subnet(settings.bittensor_netuid).weights.commit.called
