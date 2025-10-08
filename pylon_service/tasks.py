@@ -158,7 +158,6 @@ class ApplyWeights:
                 await asyncio.sleep(settings.weights_retry_delay_seconds)
                 continue
 
-
     async def run_job(self, weights: dict[str, float]) -> None:
         async with self._client:
             start_block = await self.get_current_block()
@@ -172,11 +171,15 @@ class ApplyWeights:
             for retry_no in range(retry_count + 1):
                 latest_block = await self.get_current_block()
                 if latest_block.number > initial_tempo.end:
-                    logger.error(f"Apply weights job task cancelled: tempo ended "
-                                   f"({latest_block.number} > {initial_tempo.end}, {start_block.number=})")
+                    logger.error(
+                        f"Apply weights job task cancelled: tempo ended "
+                        f"({latest_block.number} > {initial_tempo.end}, {start_block.number=})"
+                    )
                     return
-                logger.info(f"apply weights {retry_no}, {latest_block.number=}, "
-                            f"still got {initial_tempo.end - latest_block.number} blocks left to go.")
+                logger.info(
+                    f"apply weights {retry_no}, {latest_block.number=}, "
+                    f"still got {initial_tempo.end - latest_block.number} blocks left to go."
+                )
                 try:
                     await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
                     return

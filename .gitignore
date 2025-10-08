@@ -9,3 +9,4 @@ bittensor_pylon.egg-info/
 bittensor_pylon.sqlite3
 build/
 .turbobt/
+.idea/

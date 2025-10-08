@@ -25,7 +25,7 @@ ENDPOINT_COMMITMENTS = "/commitments"
 ENDPOINT_SET_COMMITMENT = "/set_commitment"
 
 # v2 endpoints
-ENDPOINT_SUBNET_WEIGHTS = "/subnet/weights"
+ENDPOINT_SUBNET_WEIGHTS = "/api/v1/subnet/weights"
 
 
 def format_endpoint(endpoint: str, **kwargs) -> str:

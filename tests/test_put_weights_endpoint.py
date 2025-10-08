@@ -6,6 +6,7 @@ import pytest
 from litestar import Litestar
 from litestar.testing import TestClient
 
+from pylon_common.constants import ENDPOINT_SUBNET_WEIGHTS
 from pylon_common.settings import settings
 from pylon_service.api import put_weights_endpoint
 from tests.conftest import MockBittensorClient
@@ -54,7 +55,7 @@ def test_put_weights_endpoint_success(put_weights_client):
 
     payload = {"weights": {"hotkey1": 0.7, "hotkey2": 0.3}}
 
-    response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    response = client.put(ENDPOINT_SUBNET_WEIGHTS, json=payload, headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     assert response.json() == {"detail": "weights update scheduled", "count": 2}
@@ -79,7 +80,7 @@ def test_put_weights_endpoint_success(put_weights_client):
 def test_put_weights_endpoint_invalid_token(headers, expected_detail, put_weights_client):
     client, _token, schedule_mock, mock_bittensor_class, _mock_bittensor_instance = put_weights_client
 
-    response = client.put("/subnet/weights", json={"weights": {"hotkey": 1.0}}, headers=headers)
+    response = client.put(ENDPOINT_SUBNET_WEIGHTS, json={"weights": {"hotkey": 1.0}}, headers=headers)
 
     assert response.status_code == 401
     assert response.json() == {"detail": expected_detail}
@@ -93,7 +94,9 @@ def test_put_weights_endpoint_no_token_configured(put_weights_client, monkeypatc
 
     monkeypatch.setattr(settings, "auth_token", "")
 
-    response = client.put("/subnet/weights", json={"weights": {"hotkey": 1.0}}, headers={"Authorization": "Bearer some token"})
+    response = client.put(
+        ENDPOINT_SUBNET_WEIGHTS, json={"weights": {"hotkey": 1.0}}, headers={"Authorization": "Bearer some token"}
+    )
     assert response.status_code == 500
     assert response.json() == {"detail": "Token auth not configured"}
 
@@ -127,7 +130,7 @@ def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bi
     mock_bittensor_client.subnet(settings.bittensor_netuid)._hyperparams.update(hyperparams)
     payload = {"weights": {"mock_hotkey_0": 0.7, "mock_hotkey_1": 0.3, "mock_hotkey_321": 0.2}}
 
-    response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    response = client.put(ENDPOINT_SUBNET_WEIGHTS, json=payload, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
 
     getattr(mock_bittensor_client.subnet(settings.bittensor_netuid).weights, method).assert_called_once_with(
@@ -173,7 +176,7 @@ def test_put_weights_endpoint_not_current_tempo(client, token, mock_bittensor_cl
 
     monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
 
-    response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    response = client.put(ENDPOINT_SUBNET_WEIGHTS, json=payload, headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     assert mutable_block._index >= 3  # ensure _is_current_tempo accessed updated block number
@@ -219,7 +222,7 @@ def test_put_weights_endpoint_retry(client, token, mock_bittensor_client, monkey
 
     monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
 
-    response = client.put("/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
+    response = client.put(ENDPOINT_SUBNET_WEIGHTS, json=payload, headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     assert apply_mock.await_count == 3
