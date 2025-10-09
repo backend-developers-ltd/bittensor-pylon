@@ -1,0 +1,9 @@
+services:
+  pylon:
+    image: docker.io/backenddevelopersltd/bittensor-pylon:git-169a0e490aa92b7d0ca6392d65eb0d322c5b700c
+    restart: unless-stopped
+    env_file: ./.env
+    ports:
+      - 8000:8000
+    volumes:
+      - ~/.bittensor/wallets/:/root/.bittensor/wallets
