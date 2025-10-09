@@ -88,6 +88,11 @@ The service exposes several endpoints to interact with the subnet:
 - `/commitments`: Get all commitments for the subnet
 - `/set_commitment`: Set a commitment for the app's wallet
 
+### Certificate Operations
+- `/certificates/self`: Get a certificate for the app's wallet or generate a keypair (GET, POST)
+- `/certificates/{hotkey}`: Get a specific certificate for a hotkey
+- `/certificates`: Get all certificates for the subnet
+
 ### Subnet Configuration
 - `/set_hyperparam`: Set a subnet hyperparameter (subnet owner only)
 

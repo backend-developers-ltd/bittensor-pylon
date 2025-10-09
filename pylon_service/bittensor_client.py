@@ -8,9 +8,11 @@ from typing import Any
 from bittensor_wallet import Wallet
 from litestar.app import Litestar
 from turbobt.client import Bittensor
+from turbobt.subnet import CertificateAlgorithm as NeuronCertificateAlgorithm
+from turbobt.subnet import NeuronCertificate
 from turbobt.substrate.exceptions import UnknownBlock
 
-from pylon_common.models import Hotkey, Metagraph, Neuron
+from pylon_common.models import CertificateAlgorithm, Hotkey, Metagraph, Neuron
 from pylon_common.settings import Settings, settings
 from pylon_service.db import get_uid_weights_dict
 
@@ -208,6 +210,64 @@ async def set_commitment(app: Litestar, data: bytes, timeout: int = 30):
     print(f"extrinsic: {extrinsic}")
     async with asyncio.timeout(timeout):
         await extrinsic.wait_for_finalization()
+
+
+@archive_fallback
+async def get_certificates(app: Litestar, *, block: int | None = None) -> dict[Hotkey, NeuronCertificate]:
+    """
+    Get all certificates for the configured subnet.
+
+    Optionally uses a specific block_hash.
+    """
+    if block is not None:
+        metagraph = await get_metagraph(app, block=block)
+        block_hash = metagraph.block_hash
+    else:
+        block_hash = None
+
+    client = bittensor_context.get()
+    netuid = settings.bittensor_netuid
+    certificates = await client.subnet(netuid).neurons.get_certificates(block_hash=block_hash)
+
+    return {} if certificates is None else certificates
+
+
+@archive_fallback
+async def get_certificate(
+    app: Litestar, hotkey: Hotkey | None = None, *, block: int | None = None
+) -> NeuronCertificate | None:
+    """
+    Get a specific certificates for a hotkey.
+
+    If the hotkey is not specified, the hotkey of the current wallet is used.
+    Optionally uses a specific block_hash.
+    """
+    if block is not None:
+        metagraph = await get_metagraph(app, block=block)
+        block_hash = metagraph.block_hash
+    else:
+        block_hash = None
+
+    client = bittensor_context.get()
+    netuid = settings.bittensor_netuid
+
+    if hotkey is None:
+        hotkey = client.wallet.hotkey.ss58_address
+
+    return await client.subnet(netuid).neuron(hotkey=hotkey).get_certificate(block_hash=block_hash)
+
+
+@archive_fallback
+async def generate_certificate_keypair(app: Litestar, algorithm: CertificateAlgorithm) -> NeuronCertificate | None:
+    """
+    Generate a certificate keypair for the app's wallet.
+    """
+    netuid = settings.bittensor_netuid
+    client = bittensor_context.get()
+
+    return await client.subnet(netuid).neurons.generate_certificate_keypair(
+        algorithm=NeuronCertificateAlgorithm(algorithm)
+    )
 
 
 async def set_hyperparam(app: Litestar, name: str, value: Any, timeout: int = 30):

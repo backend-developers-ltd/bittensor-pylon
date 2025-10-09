@@ -10,4 +10,5 @@ bittensor_pylon.sqlite3
 build/
 .turbobt/
 .idea/
+.junie/
 docker-compose.yaml
