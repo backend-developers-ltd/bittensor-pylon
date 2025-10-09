@@ -1,14 +1,15 @@
 # UID of bittensor subnet, eg. 12
 BITTENSOR_NETUID=12
-# Bittensor network, eg. finney
+# Bittensor network, eg. finney or ws://127.0.0.1:9944
 BITTENSOR_NETWORK=finney
-# Directory in which the wallet is located (if using docket, it must point to the directory inside the container).
+# Directory in which the wallet is located (if using docker, it must point to the directory inside the container).
 BITTENSOR_WALLET_PATH=~/.bittensor/wallets
 # Name of your wallet located inside BITTENSOR_WALLET_PATH.
 BITTENSOR_WALLET_NAME=test-wallet
 # Name of the wallet hotkey
 BITTENSOR_WALLET_HOTKEY_NAME=test-hotkey
-# Token that must be passed as an Authorization header for each request to succeed.
+# Token that must be passed as an Authorization header for each request to succeed. Must not be empty, otherwise API
+# will refuse any request requiring authentication.
 AUTH_TOKEN=abc
 
 # Sentry Configuration

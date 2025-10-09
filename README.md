@@ -40,7 +40,7 @@ file to the same location as `.env` file:
 
 ```bash
 # Make sure to remove .example from the file name!
-cp pylon_service/envs/docker-compose.example.yaml docker-compose.yml
+cp pylon_service/envs/docker-compose.yaml.example docker-compose.yaml
 ```
 
 Edit the file according to your needs (especially wallets volume) and run:
