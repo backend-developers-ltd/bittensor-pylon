@@ -7,7 +7,7 @@ from typing import Any
 
 from bittensor_wallet import Wallet
 from litestar.app import Litestar
-from turbobt import Bittensor
+from turbobt.client import Bittensor
 from turbobt.subnet import CertificateAlgorithm as NeuronCertificateAlgorithm
 from turbobt.subnet import NeuronCertificate
 from turbobt.substrate.exceptions import UnknownBlock

@@ -26,7 +26,7 @@ class MockSubnet:
         self.weights = AsyncMock()
         self.commitments = AsyncMock()
 
-    async def get_hyperparameters(self):
+    async def get_hyperparameters(self, block_hash=None):
         return self._hyperparams.copy()
 
     async def list_neurons(self, block_hash=None):

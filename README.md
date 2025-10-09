@@ -10,55 +10,57 @@
 Full API documentation is available at `/schema/swagger` when the service is running.
 
 
-## Quick Start
+## Running the REST API on Docker
 
 ### Configuration
 
-Create a `.env` file with your Bittensor settings:
+Create a `.env` file with your Bittensor settings by copying the template:
 
 ```bash
 # Copy the template and edit it
 cp pylon_service/envs/test_env.template .env
 ```
 
-Optionally add Sentry DSN for error tracking in production:
-```bash
-SENTRY_DSN=your_sentry_dsn_here
-SENTRY_ENVIRONMENT=production
-```
-
-#### Weight Committing Window
-
-Pylon commits weights within specific time windows every X epochs:
-```
-    0            180               350      360
-    |_____________|_________________|________|
-    |   OFFSET    |  COMMIT WINDOW  | BUFFER |
-```
-
-- **`COMMIT_WINDOW_START_OFFSET`** (default: 180): Blocks after epoch start before commits begin
-- **`COMMIT_WINDOW_END_BUFFER`** (default: 10): Blocks before epoch end when commits stop
-- **`COMMIT_CYCLE_LENGTH`** (default: 3): Number of epochs between weight commits
-
-Example: With defaults, the commit window is open from block 180 to block 350 of each epoch, and weights are committed every 3 epochs.
+Edit the example values in `.env` file to the desired ones. The meaning of each setting is described in the file.
 
 ### Run the service
 
-Using official docker image:
+Run the Docker container passing the `.env` file created in a previous step. Remember to use the appropriate image tag
+and mount your wallet to the directory set in configuration.
 
 ```bash
-docker pull backenddevelopersltd/bittensor-pylon:v1-latest
-docker run --rm --env-file .env -v "$(pwd)/data:/app/db/" -p 8000:8000 backenddevelopersltd/bittensor-pylon:v1-latest
+docker pull backenddevelopersltd/bittensor-pylon:git-169a0e490aa92b7d0ca6392d65eb0d322c5b700c
+docker run -d --env-file .env -v "/path/to/my/wallet/:/root/.bittensor/wallets" -p 8000:8000 backenddevelopersltd/bittensor-pylon:git-169a0e490aa92b7d0ca6392d65eb0d322c5b700c
 ```
 
-or building and running locally:
+This will run the Pylon on the local machine's port 8000.
+
+Alternatively, you can use docker-compose to run the container. To archive this, copy the example `docker-compose.yaml` 
+file to the same location as `.env` file:
+
 ```bash
-./docker-run.sh
+# Make sure to remove .example from the file name!
+cp pylon_service/envs/docker-compose.yaml.example docker-compose.yaml
 ```
 
-Test the endpoints at `http://localhost:8000/schema/swagger`
+Edit the file according to your needs (especially wallets volume) and run:
 
+```bash
+docker compose up -d
+```
 
+## Using the REST API
+
+All endpoints are listed at `http://localhost:8000/schema/swagger`.
+
+Every request must be authenticated by providing the `Authorization` header with the Bearer token. Request will be 
+authenticated properly, if the token sent in request matches the token set by the `AUTH_TOKEN` setting.
+
+Example of the proper request using `curl`:
+
+```bash
+curl -X PUT http://localhost:8000/api/v1/subnet/weights --data '{"weights": {"hk1": 0.8, "hk2": 0.5}}' -H "Authorization: Bearer abc"
+```
 
 ## Using the Python Client
 

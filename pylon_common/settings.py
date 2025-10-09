@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # guard against validator specific endpoints
     am_i_a_validator: bool = False
 
+    # auth
+    auth_token: str = ""
+
     # docker
     pylon_docker_image_name: str = "bittensor_pylon"
 
@@ -28,6 +31,11 @@ class Settings(BaseSettings):
     commit_cycle_length: int = 3  # Number of tempos to wait between weight commitments
     commit_window_start_offset: int = 180  # Offset from interval start to begin commit window
     commit_window_end_buffer: int = 10  # Buffer at the end of commit window before interval ends
+
+    # weights endpoint behaviour
+    weights_retry_attempts: int = 200
+    weights_retry_delay_seconds: int = 1
+    weights_call_timeout_seconds: int = 360
 
     # task-specific: how often to run
     weight_commit_check_task_interval_seconds: int = 60

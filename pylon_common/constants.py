@@ -28,6 +28,9 @@ ENDPOINT_CERTIFICATES = "/certificates"
 ENDPOINT_CERTIFICATES_SELF = "/certificates/self"
 ENDPOINT_CERTIFICATES_HOTKEY = "/certificates/{hotkey:str}"
 
+# v2 endpoints
+ENDPOINT_SUBNET_WEIGHTS = "/api/v1/subnet/weights"
+
 
 def format_endpoint(endpoint: str, **kwargs) -> str:
     # remove :int and :str from the endpoint to be able to format it

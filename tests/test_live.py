@@ -26,6 +26,7 @@ async def client(monkeypatch, temp_db_config):
         yield client
 
 
+@pytest.mark.skip(reason="old endpoints are disabled")
 @pytest.mark.asyncio
 async def test_client_metagraph_caching(client: AsyncPylonClient):
     """
@@ -58,6 +59,7 @@ async def test_client_metagraph_caching(client: AsyncPylonClient):
     )
 
 
+@pytest.mark.skip(reason="old endpoints are disabled")
 @pytest.mark.asyncio
 async def test_weights_endpoints(client: AsyncPylonClient):
     """

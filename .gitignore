@@ -3,7 +3,7 @@
 *.pyc
 *.db
 .DS_Store
-.env
+.env*
 .vscode
 bittensor_pylon.egg-info/
 bittensor_pylon.sqlite3
@@ -11,3 +11,4 @@ build/
 .turbobt/
 .idea/
 .junie/
+docker-compose.yaml

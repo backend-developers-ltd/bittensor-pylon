@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 from pylon_common.models import Epoch
 from pylon_common.settings import settings
 
@@ -67,3 +69,19 @@ class CommitWindow:
     @property
     def commit_window(self):
         return range(self.commit_start, self.commit_stop)
+
+
+def hotkeys_to_uids(neurons: Iterable[object], weights: dict[str, float]) -> tuple[dict[int, float], list[str]]:
+    """Build a UID -> weight mapping for the provided neurons."""
+
+    hotkey_to_uid: dict[str, int] = {}
+    for neuron in neurons:
+        hotkey = getattr(neuron, "hotkey", None)
+        uid = getattr(neuron, "uid", None)
+        if hotkey is None or uid is None:
+            continue
+        hotkey_to_uid[str(hotkey)] = int(uid)
+
+    missing = [hotkey for hotkey in weights if hotkey not in hotkey_to_uid]
+
+    return {hotkey_to_uid[hotkey]: value for hotkey, value in weights.items() if hotkey not in missing}, missing
