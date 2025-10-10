@@ -10,36 +10,6 @@ PrivateKey: typing.TypeAlias = str
 PublicKey: typing.TypeAlias = str
 
 
-# Request models for API endpoints
-class SetHyperparamRequest(BaseModel):
-    name: str
-    value: float | int | str | bool
-
-
-class UpdateWeightRequest(BaseModel):
-    hotkey: str
-    weight_delta: float
-
-    @field_validator("hotkey")
-    @classmethod
-    def validate_hotkey(cls, v):
-        if not v or not isinstance(v, str):
-            raise ValueError("hotkey must be a non-empty string")
-        return v
-
-
-class SetWeightRequest(BaseModel):
-    hotkey: str
-    weight: float
-
-    @field_validator("hotkey")
-    @classmethod
-    def validate_hotkey(cls, v):
-        if not v or not isinstance(v, str):
-            raise ValueError("hotkey must be a non-empty string")
-        return v
-
-
 class SetWeightsRequest(BaseModel):
     weights: dict[str, float]
 
@@ -56,10 +26,6 @@ class SetWeightsRequest(BaseModel):
                 raise ValueError(f"Invalid weight for hotkey '{hotkey}': '{weight}' must be a number")
 
         return v
-
-
-class SetCommitmentRequest(BaseModel):
-    data_hex: str
 
 
 class GenerateCertificateKeypairRequest(BaseModel):

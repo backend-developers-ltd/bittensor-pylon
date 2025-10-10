@@ -5,13 +5,13 @@ from turbobt.substrate.exceptions import UnknownBlock
 
 from pylon_common.settings import settings
 from pylon_service.bittensor_client import cache_metagraph
-from pylon_service.main import create_app
+from pylon_service.main import create_app_v2
 from tests.conftest import MockBittensorClient, MockSubnet, get_mock_turbo_neuron
 
 
 @pytest.fixture
 def mock_app():
-    app = create_app(tasks=[])
+    app = create_app_v2()
     main_client = MockBittensorClient()
     archive_client = MockBittensorClient()
 
