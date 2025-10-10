@@ -1,6 +1,6 @@
 import re
 
-# v2 endpoints
+# v1 endpoints
 ENDPOINT_CERTIFICATES = "/api/v1/certificates"
 ENDPOINT_CERTIFICATES_SELF = "/api/v1/certificates/self"
 ENDPOINT_CERTIFICATES_HOTKEY = "/api/v1/certificates/{hotkey:str}"
