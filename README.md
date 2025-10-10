@@ -98,13 +98,15 @@ or using the AsyncPylonClient:
 ```python
 import asyncio
 from pylon_client.client import AsyncPylonClient
-from pylon_client.docker_manager import PylonDockerManager
+from pylon._internal.docker_manager import PylonDockerManager
+
 
 async def main():
     async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
         block = await client.get_latest_block()
         print(f"Latest block: {block}")
         ...
+
 
 if __name__ == "__main__":
     asyncio.run(main())

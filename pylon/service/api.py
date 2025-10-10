@@ -5,24 +5,24 @@ import secrets
 from litestar import Request, Response, get, post, put
 from turbobt import Bittensor
 
-from pylon_common.constants import (
+from pylon._internal.common.constants import (
     ENDPOINT_CERTIFICATES,
     ENDPOINT_CERTIFICATES_HOTKEY,
     ENDPOINT_CERTIFICATES_SELF,
     ENDPOINT_SUBNET_WEIGHTS,
 )
-from pylon_common.models import (
+from pylon._internal.common.models import (
     GenerateCertificateKeypairRequest,
     SetWeightsRequest,
 )
-from pylon_common.settings import settings
-from pylon_service.bittensor_client import (
+from pylon._internal.common.settings import settings
+from pylon.service.bittensor_client import (
     generate_certificate_keypair,
     get_bt_wallet,
     get_certificate,
     get_certificates,
 )
-from pylon_service.tasks import ApplyWeights
+from pylon.service.tasks import ApplyWeights
 
 logger = logging.getLogger(__name__)
 

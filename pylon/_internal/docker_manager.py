@@ -4,9 +4,8 @@ from types import TracebackType
 
 import docker
 import httpx
+from common.settings import settings
 from docker.models.containers import Container
-
-from pylon_common.settings import settings
 
 logger = logging.getLogger(__name__)
 

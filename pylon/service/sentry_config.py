@@ -2,7 +2,7 @@ import sentry_sdk
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
 from sentry_sdk.integrations.litestar import LitestarIntegration
 
-from pylon_common.settings import settings
+from pylon._internal.common.settings import settings
 
 
 def init_sentry() -> None:

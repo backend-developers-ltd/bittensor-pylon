@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
-from pylon_common.models import Epoch
-from pylon_common.settings import settings
+from pylon._internal.common.models import Epoch
+from pylon._internal.common.settings import settings
 
 
 def get_epoch_containing_block(

@@ -6,8 +6,9 @@ import pytest
 from litestar import Litestar
 from litestar.testing import TestClient
 
-from pylon_common.settings import settings
-from pylon_service.api import put_weights_endpoint
+from pylon._internal.common.settings import settings
+from pylon.service import tasks
+from pylon.service.api import put_weights_endpoint
 from tests.conftest import MockBittensorClient
 
 
@@ -28,7 +29,7 @@ def token(monkeypatch):
 @pytest.fixture
 def mock_bittensor_client(monkeypatch):
     bt_client = MockBittensorClient()
-    monkeypatch.setattr("pylon_service.api.Bittensor", lambda wallet, uri: bt_client)
+    monkeypatch.setattr("pylon.service.api.Bittensor", lambda wallet, uri: bt_client)
     return bt_client
 
 
@@ -37,14 +38,14 @@ def put_weights_client(monkeypatch, client, token):
     monkeypatch.setattr(settings, "bittensor_network", "mock://network")
 
     dummy_wallet = object()
-    monkeypatch.setattr("pylon_service.api.get_bt_wallet", lambda _settings: dummy_wallet)
+    monkeypatch.setattr("pylon.service.api.get_bt_wallet", lambda _settings: dummy_wallet)
 
     mock_bittensor_instance = MagicMock()
     mock_bittensor_class = MagicMock(return_value=mock_bittensor_instance)
-    monkeypatch.setattr("pylon_service.api.Bittensor", mock_bittensor_class)
+    monkeypatch.setattr("pylon.service.api.Bittensor", mock_bittensor_class)
 
     schedule_mock = AsyncMock()
-    monkeypatch.setattr("pylon_service.api.ApplyWeights.schedule", schedule_mock)
+    monkeypatch.setattr("pylon.service.api.ApplyWeights.schedule", schedule_mock)
 
     yield client, token, schedule_mock, mock_bittensor_class, mock_bittensor_instance
 
@@ -117,8 +118,6 @@ def test_put_weights_endpoint_no_token_configured(put_weights_client, monkeypatc
     ],
 )
 def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bittensor_client, monkeypatch):
-    from pylon_service import tasks
-
     async def immediate_schedule(cls, client_, weights):
         job = cls(client_)
         await job.run_job(weights)
@@ -140,8 +139,8 @@ def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bi
 @pytest.mark.xfail(reason="Will be scrapped and rewritten later anyway")
 def test_put_weights_endpoint_not_current_tempo(client, token, mock_bittensor_client, monkeypatch):
     # WARNING: llm generated
-    from pylon_service import tasks
-    from pylon_service.utils import get_epoch_containing_block
+    from pylon.service import tasks
+    from pylon.service.utils import get_epoch_containing_block
 
     payload = {"weights": {"mock_hotkey_0": 0.5, "mock_hotkey_1": 0.5}}
 
@@ -189,7 +188,7 @@ def test_put_weights_endpoint_not_current_tempo(client, token, mock_bittensor_cl
 
 def test_put_weights_endpoint_retry(client, token, mock_bittensor_client, monkeypatch):
     # WARNING: llm generated
-    from pylon_service import tasks
+    from pylon.service import tasks
 
     payload = {"weights": {"mock_hotkey_0": 1.0}}
 

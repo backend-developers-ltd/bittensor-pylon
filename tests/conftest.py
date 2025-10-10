@@ -8,7 +8,7 @@ from turbobt import Neuron as TurboNeuron
 from turbobt.neuron import AxonInfo as TurboAxonInfo
 from turbobt.neuron import AxonProtocolEnum
 
-from pylon_common.models import Metagraph, Neuron
+from pylon._internal.common.models import Metagraph, Neuron
 
 
 class MockSubnet:

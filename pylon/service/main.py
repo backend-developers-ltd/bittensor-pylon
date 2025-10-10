@@ -6,15 +6,15 @@ from cachetools import TTLCache
 from litestar import Litestar
 from litestar.openapi.config import OpenAPIConfig
 
-from pylon_common.settings import settings
-from pylon_service.api import (
+from pylon._internal.common.settings import settings
+from pylon.service.api import (
     get_certificate_endpoint,
     get_certificates_endpoint,
     get_own_certificate_endpoint,
     put_weights_endpoint,
 )
-from pylon_service.bittensor_client import create_bittensor_clients
-from pylon_service.sentry_config import init_sentry
+from pylon.service.bittensor_client import create_bittensor_clients
+from pylon.service.sentry_config import init_sentry
 
 logger = logging.getLogger(__name__)
 
