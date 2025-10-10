@@ -2,7 +2,6 @@ import asyncio
 import contextvars
 import logging
 from dataclasses import asdict
-from datetime import datetime
 from typing import Any
 
 from bittensor_wallet import Wallet
@@ -14,7 +13,6 @@ from turbobt.substrate.exceptions import UnknownBlock
 
 from pylon_common.models import CertificateAlgorithm, Hotkey, Metagraph, Neuron
 from pylon_common.settings import Settings, settings
-from pylon_service.db import get_uid_weights_dict
 
 logger = logging.getLogger(__name__)
 
@@ -94,20 +92,6 @@ async def cache_metagraph(app: Litestar, *, block: int, block_hash: str):
 
 
 @archive_fallback
-async def get_block_timestamp(app: Litestar, *, block: int) -> datetime | None:
-    """
-    Fetches the creation timestamp for a specific block.
-    """
-    client = bittensor_context.get()
-    try:
-        block_obj = await client.block(block).get()
-        return await block_obj.get_timestamp()
-    except Exception as e:
-        logger.error(f"Failed to fetch timestamp for block {block}: {e}")
-        return None
-
-
-@archive_fallback
 async def get_metagraph(app: Litestar, *, block: int) -> Metagraph:
     if block not in app.state.metagraph_cache:
         client = bittensor_context.get()
@@ -117,99 +101,6 @@ async def get_metagraph(app: Litestar, *, block: int) -> Metagraph:
         await cache_metagraph(app, block=block_obj.number, block_hash=block_obj.hash)
 
     return app.state.metagraph_cache[block]
-
-
-async def get_weights(app: Litestar, block: int) -> dict[int, float]:
-    """
-    Fetches the latest weights from the database for the current epoch.
-    """
-    # Get neurons from the metagraph
-    metagraph = await get_metagraph(app, block=block)
-    # TODO: check if neurons = metagraph.get_active_neurons() is needed instead
-    neurons = metagraph.get_neurons()
-
-    # Fetch neurons weights from db for the current epoch
-    epoch = app.state.current_epoch_start
-    if epoch is None:
-        logger.warning("Epoch not available in app state. Cannot fetch db weights.")
-        return {}
-
-    weights = await get_uid_weights_dict(neurons, epoch)
-    logger.info(f"Current db weights for epoch {epoch}: {weights}")
-    return weights
-
-
-async def commit_weights(app: Litestar, weights: dict[int, float]):
-    """
-    Commits weights to the subnet.
-    """
-    try:
-        bt_client: Bittensor = app.state.bittensor_client
-        subnet = bt_client.subnet(settings.bittensor_netuid)
-        reveal_round = await subnet.weights.commit(weights)
-        return reveal_round
-    except Exception as e:
-        logger.error(f"Failed to commit weights: {e}", exc_info=True)
-        raise
-
-
-# TODO: fix last_update fetching or replace with CRV3WeightsCommitted ?
-async def fetch_last_weight_commit_block(app: Litestar) -> int | None:
-    """
-    Fetches the block number of the last successful weight commitment
-    """
-    return 0
-    # hotkey = settings.bittensor_wallet_hotkey_name
-    # metagraph = await get_metagraph(app, app.state.latest_block)
-    # neuron = metagraph.get_neuron(hotkey)
-    #
-    # if neuron is None:
-    #     logger.error(f"Neuron for own hotkey {hotkey} not found in the latest metagraph.")
-    #     return None
-    #
-    # return neuron.last_update
-
-
-@archive_fallback
-async def get_commitment(app: Litestar, hotkey: Hotkey, *, block: int | None = None) -> str | None:
-    """
-    Fetches a specific commitment (as hex) for a hotkey, optionally at a given block.
-    Uses netuid from settings and block_hash from metagraph cache.
-    """
-    netuid = settings.bittensor_netuid
-    block_hash = app.state.metagraph_cache.get(block).block_hash
-    client = bittensor_context.get()
-    commitment = await client.subnet(netuid).commitments.get(hotkey, block_hash=block_hash)
-
-    return commitment.hex() if commitment is not None else None
-
-
-@archive_fallback
-async def get_commitments(app: Litestar, *, block: int | None = None) -> dict[Hotkey, str]:
-    """
-    Fetches all commitments (hotkey: commitment_hex) for the configured subnet.
-    Optionally uses a specific block_hash.
-    """
-    netuid = settings.bittensor_netuid
-    block_hash = app.state.metagraph_cache.get(block).block_hash
-    client = bittensor_context.get()
-    commitments = await client.subnet(netuid).commitments.fetch(block_hash=block_hash)
-
-    if commitments is None:
-        return {}
-    return {hotkey: data.hex() for hotkey, data in commitments.items()}
-
-
-async def set_commitment(app: Litestar, data: bytes, timeout: int = 30):
-    """
-    Sets a commitment (hex string).
-    """
-    netuid = settings.bittensor_netuid
-    bt_client: Bittensor = app.state.bittensor_client
-    extrinsic = await bt_client.subnet(netuid).commitments.set(data=data)
-    print(f"extrinsic: {extrinsic}")
-    async with asyncio.timeout(timeout):
-        await extrinsic.wait_for_finalization()
 
 
 @archive_fallback

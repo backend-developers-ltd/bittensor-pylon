@@ -11,9 +11,6 @@ class Settings(BaseSettings):
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str
 
-    # guard against validator specific endpoints
-    am_i_a_validator: bool = False
-
     # auth
     auth_token: str = ""
 
@@ -35,12 +32,6 @@ class Settings(BaseSettings):
     # weights endpoint behaviour
     weights_retry_attempts: int = 200
     weights_retry_delay_seconds: int = 1
-    weights_call_timeout_seconds: int = 360
-
-    # task-specific: how often to run
-    weight_commit_check_task_interval_seconds: int = 60
-    fetch_hyperparams_task_interval_seconds: int = 60
-    fetch_latest_metagraph_task_interval_seconds: int = 10
 
     # metagraph cache
     metagraph_cache_ttl: int = 600  # TODO: not 10 minutes

@@ -1,34 +1,9 @@
 import re
 
-# API endpoint paths
-ENDPOINT_LATEST_BLOCK = "/latest_block"
-ENDPOINT_LATEST_METAGRAPH = "/latest_metagraph"
-ENDPOINT_METAGRAPH = "/metagraph/{block:int}"
-ENDPOINT_BLOCK_HASH = "/block_hash/{block:int}"
-ENDPOINT_BLOCK_TIMESTAMP = "/block_timestamp/{block:int}"
-ENDPOINT_EPOCH = "/epoch"
-ENDPOINT_EPOCH_BLOCK = "/epoch/{block:int}"
-
-ENDPOINT_HYPERPARAMS = "/hyperparams"
-ENDPOINT_SET_HYPERPARAM = "/set_hyperparam"
-
-ENDPOINT_UPDATE_WEIGHT = "/update_weight"
-ENDPOINT_SET_WEIGHT = "/set_weight"
-ENDPOINT_SET_WEIGHTS = "/set_weights"
-ENDPOINT_LATEST_WEIGHTS = "/latest_weights"
-ENDPOINT_WEIGHTS = "/weights/{block:int}"
-ENDPOINT_WEIGHTS_TYPED = "/weights/{block:int}"
-ENDPOINT_FORCE_COMMIT_WEIGHTS = "/force_commit_weights"
-
-ENDPOINT_COMMITMENT = "/commitment/{hotkey:str}"
-ENDPOINT_COMMITMENTS = "/commitments"
-ENDPOINT_SET_COMMITMENT = "/set_commitment"
-
-ENDPOINT_CERTIFICATES = "/certificates"
-ENDPOINT_CERTIFICATES_SELF = "/certificates/self"
-ENDPOINT_CERTIFICATES_HOTKEY = "/certificates/{hotkey:str}"
-
-# v2 endpoints
+# v1 endpoints
+ENDPOINT_CERTIFICATES = "/api/v1/certificates"
+ENDPOINT_CERTIFICATES_SELF = "/api/v1/certificates/self"
+ENDPOINT_CERTIFICATES_HOTKEY = "/api/v1/certificates/{hotkey:str}"
 ENDPOINT_SUBNET_WEIGHTS = "/api/v1/subnet/weights"
 
 

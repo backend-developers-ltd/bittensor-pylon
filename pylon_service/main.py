@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from collections.abc import Callable
-from functools import partial
 
 from cachetools import TTLCache
 from litestar import Litestar
@@ -9,45 +8,19 @@ from litestar.openapi.config import OpenAPIConfig
 
 from pylon_common.settings import settings
 from pylon_service.api import (
-    block_hash,
-    block_timestamp,
-    epoch_start_endpoint,
-    force_commit_weights_endpoint,
-    generate_certificate_keypair_endpoint,
     get_certificate_endpoint,
     get_certificates_endpoint,
-    get_commitment_endpoint,
-    get_commitments_endpoint,
-    get_hyperparams_endpoint,
     get_own_certificate_endpoint,
-    health_check,
-    latest_block,
-    latest_metagraph,
-    latest_weights_endpoint,
-    metagraph,
     put_weights_endpoint,
-    set_commitment_endpoint,
-    set_hyperparam_endpoint,
-    set_weight_endpoint,
-    set_weights_endpoint,
-    update_weight_endpoint,
-    weights_endpoint,
 )
 from pylon_service.bittensor_client import create_bittensor_clients
-from pylon_service.db import init_db
 from pylon_service.sentry_config import init_sentry
-from pylon_service.tasks import (
-    fetch_latest_hyperparams_task,
-    fetch_latest_metagraph_task,
-    set_weights_periodically_task,
-)
 
 logger = logging.getLogger(__name__)
 
 
 async def on_startup(app: Litestar, tasks_to_run: list[Callable]) -> None:
     logger.debug("Litestar app startup")
-    await init_db()
 
     main_client, archive_client = await create_bittensor_clients()
     app.state.bittensor_client = main_client
@@ -88,54 +61,14 @@ async def on_shutdown(app: Litestar) -> None:
     await app.state.archive_bittensor_client.__aexit__(None, None, None)
 
 
-def create_app(tasks: list[Callable]) -> Litestar:
-    """Creates a Litestar app with a specific set of background tasks."""
-    return Litestar(
-        route_handlers=[
-            health_check,
-            # Bittensor state
-            latest_block,
-            block_hash,
-            block_timestamp,
-            metagraph,
-            latest_metagraph,
-            epoch_start_endpoint,
-            # Hyperparams
-            get_hyperparams_endpoint,
-            set_hyperparam_endpoint,
-            # Validator weights
-            set_weight_endpoint,
-            set_weights_endpoint,
-            latest_weights_endpoint,
-            weights_endpoint,
-            update_weight_endpoint,
-            force_commit_weights_endpoint,
-            # Commitments
-            get_commitment_endpoint,
-            get_commitments_endpoint,
-            set_commitment_endpoint,
-            # Certificates
-            generate_certificate_keypair_endpoint,
-            get_certificate_endpoint,
-            get_certificates_endpoint,
-            get_own_certificate_endpoint,
-        ],
-        openapi_config=OpenAPIConfig(
-            title="Bittensor Pylon API",
-            version="1.0.0",
-            description="REST API for the bittensor-pylon service.",
-        ),
-        on_startup=[partial(on_startup, tasks_to_run=tasks)],
-        on_shutdown=[on_shutdown],
-        debug=settings.debug,
-    )
-
-
 def create_app_v2() -> Litestar:
     """Create a Litestar app with limited number of resources"""
     return Litestar(
         route_handlers=[
             put_weights_endpoint,
+            get_certificate_endpoint,
+            get_certificates_endpoint,
+            get_own_certificate_endpoint,
         ],
         openapi_config=OpenAPIConfig(
             title="Bittensor Pylon API",
@@ -144,12 +77,6 @@ def create_app_v2() -> Litestar:
         ),
     )
 
-
-defined_startup_tasks = [
-    fetch_latest_hyperparams_task,
-    fetch_latest_metagraph_task,
-    set_weights_periodically_task,
-]
 
 init_sentry()
 app = create_app_v2()
