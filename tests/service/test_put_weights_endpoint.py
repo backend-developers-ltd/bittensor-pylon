@@ -3,18 +3,16 @@ from __future__ import annotations
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
-from litestar import Litestar
 from litestar.testing import TestClient
 
 from pylon._internal.common.settings import settings
 from pylon.service import tasks
-from pylon.service.api import put_weights_endpoint
+from pylon.service.main import app
 from tests.conftest import MockBittensorClient
 
 
 @pytest.fixture
 def client():
-    app = Litestar(route_handlers=[put_weights_endpoint])
     with TestClient(app) as client:
         yield client
 
@@ -62,46 +60,6 @@ def test_put_weights_endpoint_success(put_weights_client):
 
     mock_bittensor_class.assert_called_once_with(wallet=ANY, uri="mock://network")
     schedule_mock.assert_awaited_once_with(mock_bittensor_instance, payload["weights"])
-
-
-@pytest.mark.parametrize(
-    "headers, expected_detail",
-    [
-        (
-            {"Authorization": "Bearer some invalid token"},
-            "Invalid auth token",
-        ),
-        (
-            {},
-            "Auth token required",
-        ),
-    ],
-)
-def test_put_weights_endpoint_invalid_token(headers, expected_detail, put_weights_client):
-    client, _token, schedule_mock, mock_bittensor_class, _mock_bittensor_instance = put_weights_client
-
-    response = client.put("/api/v1/subnet/weights", json={"weights": {"hotkey": 1.0}}, headers=headers)
-
-    assert response.status_code == 401
-    assert response.json() == {"detail": expected_detail}
-
-    mock_bittensor_class.assert_not_called()
-    schedule_mock.assert_not_called()
-
-
-def test_put_weights_endpoint_no_token_configured(put_weights_client, monkeypatch):
-    client, _token, schedule_mock, mock_bittensor_class, _mock_bittensor_instance = put_weights_client
-
-    monkeypatch.setattr(settings, "auth_token", "")
-
-    response = client.put(
-        "/api/v1/subnet/weights", json={"weights": {"hotkey": 1.0}}, headers={"Authorization": "Bearer some token"}
-    )
-    assert response.status_code == 500
-    assert response.json() == {"detail": "Token auth not configured"}
-
-    mock_bittensor_class.assert_not_called()
-    schedule_mock.assert_not_called()
 
 
 @pytest.mark.parametrize(

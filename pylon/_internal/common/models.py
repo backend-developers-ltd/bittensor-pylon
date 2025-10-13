@@ -1,7 +1,11 @@
 import typing
+from abc import ABC
 from ipaddress import IPv4Address
 
 from pydantic import BaseModel, field_validator
+
+from pylon._internal.common.apiver import ApiVersion
+from pylon._internal.common.endpoints import Endpoint
 
 Hotkey = str
 
@@ -10,7 +14,27 @@ PrivateKey: typing.TypeAlias = str
 PublicKey: typing.TypeAlias = str
 
 
-class SetWeightsRequest(BaseModel):
+class PylonRequest(BaseModel, ABC):
+    http_method: typing.ClassVar[str]
+    endpoint: typing.ClassVar[Endpoint]
+    api_version: typing.ClassVar[ApiVersion]
+
+    def request_args(self) -> dict:
+        """
+        Returns args to be passed to the httpx client 'request' method to make a proper request.
+        """
+        return {
+            "method": self.http_method,
+            "url": self.endpoint.for_version(self.api_version),
+            "json": self.model_dump(),
+        }
+
+
+class SetWeightsRequest(PylonRequest):
+    http_method = "PUT"
+    endpoint = Endpoint.SUBNET_WEIGHTS
+    api_version = ApiVersion.V1
+
     weights: dict[str, float]
 
     @field_validator("weights")
