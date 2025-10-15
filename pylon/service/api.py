@@ -5,7 +5,7 @@ from litestar import Request, Response, get, post, put
 from turbobt import Bittensor
 
 from pylon._internal.common.endpoints import Endpoint
-from pylon._internal.common.models import (
+from pylon._internal.common.requests import (
     GenerateCertificateKeypairRequest,
     SetWeightsRequest,
 )

@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from pylon._internal.common.models import Epoch
+from pylon._internal.common.requests import Epoch
 from pylon._internal.common.settings import settings
 
 

@@ -1,26 +1,20 @@
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import Generic, TypeVar
 
-from httpx import AsyncClient, HTTPStatusError, RequestError, Response
-from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
+from pylon._internal.client.communicators.abstract import AbstractCommunicator
+from pylon._internal.client.config import PylonAsyncClientConfig
+from pylon._internal.common.requests import PylonRequest
+from pylon._internal.common.responses import PylonResponse
 
-from pylon._internal.common.apiver import ApiVersion
-from pylon._internal.common.exceptions import PylonRequestException
-from pylon._internal.common.models import PylonRequest
+C = TypeVar("C", bound=AbstractCommunicator)
 
 
-class AbstractAsyncPylonClient(ABC):
-    api_version: ApiVersion
+class AbstractAsyncPylonClient(Generic[C], ABC):
+    _communicator_cls: type[C]
 
-    def __init__(self, address: str, raw_client_config: dict = None, retry: AsyncRetrying | None = None):
-        self.raw_client: AsyncClient | None = None
-        self.raw_client_config = raw_client_config or {}
-        self.address = address
-        self.retry = retry or AsyncRetrying(
-            wait=wait_exponential_jitter(initial=0.1, jitter=0.2),
-            stop=stop_after_attempt(3),
-            retry=retry_if_exception_type(PylonRequestException),
-        )
-        self.retry.reraise = True
+    def __init__(self, config: PylonAsyncClientConfig):
+        self.config = config
+        self._communicator: C | None = None
 
     async def __aenter__(self):
         await self.open()
@@ -29,52 +23,31 @@ class AbstractAsyncPylonClient(ABC):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-    @abstractmethod
     async def open(self) -> None:
         """
-        Prepares the client to work. Sets all the fields necessary for the client to work like
+        Prepares the client to work. Sets all the fields necessary for the client to work for example
         `raw_client`.
         """
+        assert self._communicator is None
+        self._communicator = self._communicator_cls(self.config)
+        await self._communicator.open()
 
-    @abstractmethod
     async def close(self) -> None:
         """
         Cleans up connections etc...
         """
+        assert self._communicator is not None
+        await self._communicator.close()
+        self._communicator = None
 
-    @abstractmethod
-    async def _handle_request_error(self, exc: RequestError) -> None:
+    async def request(self, request: PylonRequest) -> PylonResponse:
         """
-        Handles httpx request error by throwing appropriate pylon client exception.
-        """
+        Entrypoint to the Pylon.
 
-    @abstractmethod
-    async def _handle_status_error(self, exc: HTTPStatusError) -> None:
+        Makes a request to the Pylon api based on a passed PylonRequest. Retries on failures based on a retry
+        config.
         """
-        Handles httpx status error raised on every non 2XX request by throwing the appropriate pylon
-        client exception. May return None in case erroneous response should be returned anyway.
-        """
-
-    async def _request(self, *args, **kwargs):
-        assert self.raw_client and not self.raw_client.is_closed, (
-            "Client is not open, use context manager or open() method."
+        assert self._communicator is not None, (
+            "Client is not open, use context manager or the open() method before making a request."
         )
-        async for attempt in self.retry.copy():
-            with attempt:
-                try:
-                    response = await self.raw_client.request(*args, **kwargs)
-                except RequestError as e:
-                    await self._handle_request_error(e)
-                    # _handle_request_error should throw its own error, this is just a safeguard.
-                    raise e
-                try:
-                    response.raise_for_status()
-                except HTTPStatusError as e:
-                    await self._handle_status_error(e)
-        return response
-
-    @abstractmethod
-    async def request(self, request: PylonRequest) -> Response:
-        """
-        Makes a request to the HTTP Pylon api based on a passed PylonRequest subclass.
-        """
+        return await self._communicator.request(request)
