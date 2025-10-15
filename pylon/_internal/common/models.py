@@ -1,5 +1,6 @@
 import typing
 from abc import ABC
+from http import HTTPMethod
 from ipaddress import IPv4Address
 
 from pydantic import BaseModel, field_validator
@@ -15,7 +16,7 @@ PublicKey: typing.TypeAlias = str
 
 
 class PylonRequest(BaseModel, ABC):
-    http_method: typing.ClassVar[str]
+    http_method: typing.ClassVar[HTTPMethod]
     endpoint: typing.ClassVar[Endpoint]
     api_version: typing.ClassVar[ApiVersion]
 
@@ -31,7 +32,7 @@ class PylonRequest(BaseModel, ABC):
 
 
 class SetWeightsRequest(PylonRequest):
-    http_method = "PUT"
+    http_method = HTTPMethod.PUT
     endpoint = Endpoint.SUBNET_WEIGHTS
     api_version = ApiVersion.V1
 

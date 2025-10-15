@@ -1,9 +1,14 @@
+import logging
+
 from httpx import AsyncClient, HTTPStatusError, RequestError, Response
 
 from pylon._internal.client.abstract import AbstractAsyncPylonClient
 from pylon._internal.common.apiver import ApiVersion
 from pylon._internal.common.exceptions import PylonHttpStatusException, PylonRequestException
 from pylon._internal.common.models import PylonRequest
+
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncPylonClient(AbstractAsyncPylonClient):
@@ -13,12 +18,15 @@ class AsyncPylonClient(AbstractAsyncPylonClient):
         assert "base_url" not in self.raw_client_config, (
             "Do not provide 'base_url' in raw_client_config, it is set automatically to the value of address arg."
         )
+        logger.debug(f"Opening client for the server {self.address}")
         self.raw_client = AsyncClient(base_url=self.address, **self.raw_client_config)
 
     async def close(self) -> None:
+        logger.debug(f"Closing client for the server {self.address}")
         await self.raw_client.aclose()
 
     async def request(self, request: PylonRequest) -> Response:
+        logger.debug(f"Performing request of {type(request).__name__} type.")
         return await self._request(**request.request_args())
 
     async def _handle_request_error(self, exc: RequestError) -> None:
