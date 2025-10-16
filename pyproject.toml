@@ -23,8 +23,6 @@ dependencies = [
     "sentry-sdk[litestar]",
     "greenlet",
     "flask",
-    "respx>=0.22.0",
-    "pytest-asyncio>=1.1.0",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +34,7 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "pytest-httpx",
     "turbobt>=0.2.2",
+    "respx>=0.22.0",
 ]
 format = [
     "ruff",
