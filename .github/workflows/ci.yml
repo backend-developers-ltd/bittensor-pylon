@@ -40,7 +40,7 @@ jobs:
           docker image tag "${IMAGE_NAME}" "${SHA_IMAGE_NAME}"
 
       - name: Create dotenv file
-        run: cp ./pylon_service/envs/test_env.template .env
+        run: cp ./pylon/service/envs/test_env.template .env
 
       - name: Run unit tests with nox
         env:

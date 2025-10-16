@@ -4,8 +4,8 @@ from typing import Any, ClassVar
 
 from turbobt import Bittensor, Block
 
-from pylon_common.settings import settings
-from pylon_service.utils import get_epoch_containing_block, hotkeys_to_uids
+from pylon._internal.common.settings import settings
+from pylon.service.utils import get_epoch_containing_block, hotkeys_to_uids
 
 logger = logging.getLogger(__name__)
 

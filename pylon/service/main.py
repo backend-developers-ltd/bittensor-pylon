@@ -6,15 +6,10 @@ from cachetools import TTLCache
 from litestar import Litestar
 from litestar.openapi.config import OpenAPIConfig
 
-from pylon_common.settings import settings
-from pylon_service.api import (
-    get_certificate_endpoint,
-    get_certificates_endpoint,
-    get_own_certificate_endpoint,
-    put_weights_endpoint,
-)
-from pylon_service.bittensor_client import create_bittensor_clients
-from pylon_service.sentry_config import init_sentry
+from pylon._internal.common.settings import settings
+from pylon.service.bittensor_client import create_bittensor_clients
+from pylon.service.routers import v1_router
+from pylon.service.sentry_config import init_sentry
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +60,7 @@ def create_app_v2() -> Litestar:
     """Create a Litestar app with limited number of resources"""
     return Litestar(
         route_handlers=[
-            put_weights_endpoint,
-            get_certificate_endpoint,
-            get_certificates_endpoint,
-            get_own_certificate_endpoint,
+            v1_router,
         ],
         openapi_config=OpenAPIConfig(
             title="Bittensor Pylon API",
