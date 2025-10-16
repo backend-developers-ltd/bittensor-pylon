@@ -28,8 +28,7 @@ class AbstractAsyncPylonClient(Generic[C], ABC):
 
     async def open(self) -> None:
         """
-        Prepares the client to work. Sets all the fields necessary for the client to work for example
-        `raw_client`.
+        Prepares the client to work by opening a communicator.
         """
         assert self._communicator is None
         logger.debug(f"Opening client for the server {self.config.address}")
@@ -38,7 +37,7 @@ class AbstractAsyncPylonClient(Generic[C], ABC):
 
     async def close(self) -> None:
         """
-        Cleans up connections etc...
+        Closes the communicator.
         """
         assert self._communicator is not None
         logger.debug(f"Closing client for the server {self.config.address}")

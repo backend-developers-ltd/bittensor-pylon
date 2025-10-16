@@ -19,6 +19,8 @@ class PylonRequest(BaseModel):
 
     Pylon requests are objects supplied to the Pylon client to make a request. Each class represents an action
     (e.g., setting weights) and defines arguments needed to perform the action.
+    Every Pylon request class has its respective response class that will be returned by
+    the pylon client after performing a request.
     """
 
     rtype: typing.ClassVar[str]

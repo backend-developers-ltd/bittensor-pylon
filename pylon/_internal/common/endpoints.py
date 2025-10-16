@@ -1,4 +1,3 @@
-import re
 from enum import StrEnum
 
 from pylon._internal.common.apiver import ApiVersion
