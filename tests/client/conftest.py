@@ -2,6 +2,7 @@ import pytest
 import respx
 
 from pylon._internal.client.asynchronous import AsyncPylonClient
+from pylon._internal.client.config import AsyncPylonClientConfig
 
 
 @pytest.fixture
@@ -11,7 +12,7 @@ def test_url():
 
 @pytest.fixture
 def async_client(test_url):
-    return AsyncPylonClient(test_url)
+    return AsyncPylonClient(AsyncPylonClientConfig(address=test_url))
 
 
 @pytest.fixture

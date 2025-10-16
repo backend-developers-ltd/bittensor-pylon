@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from pylon._internal.client.abstract import AbstractAsyncPylonClient
 from pylon._internal.client.communicators.mock import MockCommunicator
-from pylon._internal.client.config import PylonAsyncClientConfig
+from pylon._internal.client.config import AsyncPylonClientConfig
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import PylonRequest
 from pylon._internal.common.responses import PylonResponse
@@ -12,7 +12,7 @@ class AsyncMockClient(AbstractAsyncPylonClient):
     _communicator_cls = MockCommunicator
 
     def __init__(self, behavior: list["Behavior"] | None = None):
-        super().__init__(PylonAsyncClientConfig(address="http://testserver"))
+        super().__init__(AsyncPylonClientConfig(address="http://testserver"))
         self.last_behavior = None
         self.behavior = behavior or [WorkNormally]
         self.requests_made = []

@@ -1,18 +1,21 @@
+import logging
 from abc import ABC
 from typing import Generic, TypeVar
 
 from pylon._internal.client.communicators.abstract import AbstractCommunicator
-from pylon._internal.client.config import PylonAsyncClientConfig
+from pylon._internal.client.config import AsyncPylonClientConfig
 from pylon._internal.common.requests import PylonRequest
 from pylon._internal.common.responses import PylonResponse
 
 C = TypeVar("C", bound=AbstractCommunicator)
 
+logger = logging.getLogger(__name__)
+
 
 class AbstractAsyncPylonClient(Generic[C], ABC):
     _communicator_cls: type[C]
 
-    def __init__(self, config: PylonAsyncClientConfig):
+    def __init__(self, config: AsyncPylonClientConfig):
         self.config = config
         self._communicator: C | None = None
 
@@ -29,6 +32,7 @@ class AbstractAsyncPylonClient(Generic[C], ABC):
         `raw_client`.
         """
         assert self._communicator is None
+        logger.debug(f"Opening client for the server {self.config.address}")
         self._communicator = self._communicator_cls(self.config)
         await self._communicator.open()
 
@@ -37,6 +41,7 @@ class AbstractAsyncPylonClient(Generic[C], ABC):
         Cleans up connections etc...
         """
         assert self._communicator is not None
+        logger.debug(f"Closing client for the server {self.config.address}")
         await self._communicator.close()
         self._communicator = None
 

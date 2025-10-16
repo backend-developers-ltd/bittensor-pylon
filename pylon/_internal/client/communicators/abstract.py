@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from pylon._internal.client.config import PylonAsyncClientConfig
+from pylon._internal.client.config import AsyncPylonClientConfig
 from pylon._internal.common.requests import PylonRequest
 from pylon._internal.common.responses import PylonResponse
 
@@ -17,7 +17,7 @@ class AbstractCommunicator(Generic[RawRequest, RawResponse], ABC):
     interface and the Pylon API interface, for example, changing an http response object into a PylonResponse object.
     """
 
-    def __init__(self, config: PylonAsyncClientConfig):
+    def __init__(self, config: AsyncPylonClientConfig):
         self.config = config
 
     async def __aenter__(self):

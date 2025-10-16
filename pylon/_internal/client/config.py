@@ -1,10 +1,11 @@
+
 from pydantic import BaseModel, ConfigDict
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
 from pylon._internal.common.exceptions import PylonRequestException
 
 
-class PylonAsyncClientConfig(BaseModel):
+class AsyncPylonClientConfig(BaseModel):
     """
     Configuration for the asynchronous Pylon clients.
     """
@@ -17,3 +18,7 @@ class PylonAsyncClientConfig(BaseModel):
         stop=stop_after_attempt(3),
         retry=retry_if_exception_type(PylonRequestException),
     )
+
+    def model_post_init(self, context) -> None:
+        # Force reraise to ensure proper error handling in the client.
+        self.retry.reraise = True
