@@ -71,88 +71,37 @@ pip install git+https://github.com/backend-developers-ltd/bittensor-pylon.git
 
 ### Basic Usage
 
-The client can connect to a running Pylon service. For production or long-lived services, you should run the Pylon service directly using Docker as described in the "Run the service" section.
-Use the PylonClient to connect with the running service:
-
-```python
-from pylon_client import PylonClient
-
-def main():
-    client = PylonClient(base_url="http://your-server.com:port")
-
-    block = client.get_latest_block()
-    print(f"Latest block: {block}")
-
-    metagraph = client.get_metagraph()
-    print(f"Metagraph: {metagraph}")
-
-    hyperparams = client.get_hyperparams()
-    print(f"Hyperparams: {hyperparams}")
-
-if __name__ == "__main__":
-    main()
-```
-
-or using the AsyncPylonClient:
+The client can connect to a running Pylon service. For production or long-lived services, 
+you should run the Pylon service directly using Docker as described in the "Running the REST API on Docker" section. 
+Use the Pylon client to connect with the running service:
 
 ```python
 import asyncio
-from pylon_client.client import AsyncPylonClient
-from pylon._internal.docker_manager import PylonDockerManager
 
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest
 
 async def main():
-    async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
-        block = await client.get_latest_block()
-        print(f"Latest block: {block}")
-        ...
-
+    config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
+    async with AsyncPylonClient(config) as client:
+        await client.request(SetWeightsRequest(weights={"h1": 0.1}))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-If you need to manage the Pylon service programmatically you can use the `PylonDockerManager`. 
+If you need to manage the Pylon service programmatically, you can use the `PylonDockerManager`. 
 It's a context manager that starts the Pylon service and stops it when the `async with` block is exited. Only suitable for ad-hoc use cases like scripts, short-lived tasks or testing.
 
 ```python
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, PylonDockerManager
+
 async def main():
-    async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
-        async with PylonDockerManager(port=port) as client:
-            block = await client.get_latest_block()
-            print(f"Latest block: {block}")
+    config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
+    async with AsyncPylonClient(config) as client:
+        async with PylonDockerManager(port=8000):
+            await client.request(SetWeightsRequest(weights={"h1": 0.1}))
             ...
 
-```
-
-### Mock Mode for Testing
-
-For testing without a live service:
-
-```python
-from pylon_client.client import PylonClient
-
-def main():
-    # Use mock data from JSON file
-    client = PylonClient(mock_data_path="tests/mock_data.json")
-
-    # Returns mock data - client methods return specific types
-    block = client.get_latest_block()
-    print(f"Mocked latest block: {block}")
-
-    metagraph = client.get_metagraph()
-    print(f"Mocked metagraph block: {metagraph.block}")
-
-    # Verify the mock was called
-    client.mock.latest_block.assert_called_once()
-
-    # Override responses for specific tests
-    client.override("get_latest_block/", 99999)
-    block = client.get_latest_block()
-    assert block == 99999
-
-if __name__ == "__main__":
-    main()
 ```
 
 ## Development

@@ -24,5 +24,6 @@ class SetWeightsResponse(PylonResponse):
     """
     Response class that is returned for the SetWeightsRequest.
     """
+    # TODO: Modify this model after set weights endpoint is made clean.
 
     pass

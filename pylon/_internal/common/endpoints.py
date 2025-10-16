@@ -12,7 +12,3 @@ class Endpoint(StrEnum):
 
     def for_version(self, version: ApiVersion):
         return f"{version.prefix}{self}"
-
-    def format_endpoint(self, **kwargs) -> str:
-        # remove :int and :str from the endpoint to be able to format it
-        return re.sub(r":(\w+)", "", self).format(**kwargs)

@@ -40,7 +40,6 @@ def safe_endpoint(func):
 async def put_weights_endpoint(request: Request, data: SetWeightsRequest) -> Response:
     """
     Set multiple hotkeys' weights for the current epoch in a single transaction.
-    (access validated by token in http headers)
     """
     client = Bittensor(wallet=get_bt_wallet(settings), uri=settings.bittensor_network)
     await ApplyWeights.schedule(client, data.weights)
