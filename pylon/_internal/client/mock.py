@@ -5,7 +5,7 @@ from pylon._internal.client.communicators.mock import MockCommunicator
 from pylon._internal.client.config import AsyncPylonClientConfig
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import PylonRequest
-from pylon._internal.common.responses import PylonResponse
+from pylon._internal.common.responses import PylonResponse, PylonResponseStatus
 
 
 class AsyncMockClient(AbstractAsyncPylonClient):
@@ -14,7 +14,7 @@ class AsyncMockClient(AbstractAsyncPylonClient):
     def __init__(self, behavior: list["Behavior"] | None = None):
         super().__init__(AsyncPylonClientConfig(address="http://testserver"))
         self.last_behavior = None
-        self.behavior = behavior or [WorkNormally]
+        self.behavior = behavior or [WorkNormally(PylonResponse(status=PylonResponseStatus.SUCCESS))]
         self.requests_made = []
 
     async def open(self) -> None:
