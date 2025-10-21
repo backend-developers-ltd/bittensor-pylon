@@ -48,12 +48,9 @@ async def test_async_client_set_weights_retries_success(async_client, service_mo
 
 @pytest.mark.asyncio
 async def test_async_client_set_weights_request_error(async_client, service_mock):
-    assert async_client.config.retry.stop.max_attempt_number == 3
+    assert async_client.config.retry.stop.max_attempt_number <= 3  # Don't let the tests grow slow.
     service_mock.put("/api/v1/subnet/weights").mock(
-        side_effect=[
-            ConnectTimeout("Connection timed out"),
-        ]
-        * 3
+        side_effect=ConnectTimeout("Connection timed out"),
     )
     async with async_client:
         with pytest.raises(PylonRequestException, match="An error occurred while making a request to Pylon API."):
