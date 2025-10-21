@@ -11,8 +11,8 @@ from turbobt.subnet import CertificateAlgorithm as NeuronCertificateAlgorithm
 from turbobt.subnet import NeuronCertificate
 from turbobt.substrate.exceptions import UnknownBlock
 
-from pylon_common.models import CertificateAlgorithm, Hotkey, Metagraph, Neuron
-from pylon_common.settings import Settings, settings
+from pylon._internal.common.requests import CertificateAlgorithm, Hotkey, Metagraph, Neuron
+from pylon._internal.common.settings import Settings, settings
 
 logger = logging.getLogger(__name__)
 

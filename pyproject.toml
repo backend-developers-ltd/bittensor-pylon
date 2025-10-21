@@ -34,6 +34,7 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "pytest-httpx",
     "turbobt>=0.2.2",
+    "respx>=0.22.0",
 ]
 format = [
     "ruff",
@@ -56,6 +57,10 @@ ignore = [
     "E501", "B027", "B904", "B905",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+
+"__init__.py" = ["I", "F401"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -69,8 +74,8 @@ documentation = "https://github.com/backend-developers-ltd/bittensor-pylon#readm
 # uv-specific settings can go here
 
 [tool.hatch.version]
-path = "pylon_client/__init__.py"
+path = "pylon/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pylon_client", "pylon_service", "pylon_common"]
+packages = ["pylon._internal", "pylon.v1"]
 

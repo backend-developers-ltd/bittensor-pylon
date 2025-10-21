@@ -12,3 +12,4 @@ build/
 .idea/
 .junie/
 docker-compose.yaml
+_ignore_*

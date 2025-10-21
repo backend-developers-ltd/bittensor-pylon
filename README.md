@@ -71,87 +71,90 @@ pip install git+https://github.com/backend-developers-ltd/bittensor-pylon.git
 
 ### Basic Usage
 
-The client can connect to a running Pylon service. For production or long-lived services, you should run the Pylon service directly using Docker as described in the "Run the service" section.
-Use the PylonClient to connect with the running service:
-
-```python
-from pylon_client import PylonClient
-
-def main():
-    client = PylonClient(base_url="http://your-server.com:port")
-
-    block = client.get_latest_block()
-    print(f"Latest block: {block}")
-
-    metagraph = client.get_metagraph()
-    print(f"Metagraph: {metagraph}")
-
-    hyperparams = client.get_hyperparams()
-    print(f"Hyperparams: {hyperparams}")
-
-if __name__ == "__main__":
-    main()
-```
-
-or using the AsyncPylonClient:
+The client can connect to a running Pylon service. For production or long-lived services, 
+you should run the Pylon service directly using Docker as described in the "Running the REST API on Docker" section. 
+Use the Pylon client to connect with the running service:
 
 ```python
 import asyncio
-from pylon_client.client import AsyncPylonClient
-from pylon_client.docker_manager import PylonDockerManager
+
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest
 
 async def main():
-    async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
-        block = await client.get_latest_block()
-        print(f"Latest block: {block}")
-        ...
+    config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
+    async with AsyncPylonClient(config) as client:
+        await client.request(SetWeightsRequest(weights={"h1": 0.1}))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-If you need to manage the Pylon service programmatically you can use the `PylonDockerManager`. 
+If you need to manage the Pylon service programmatically, you can use the `PylonDockerManager`. 
 It's a context manager that starts the Pylon service and stops it when the `async with` block is exited. Only suitable for ad-hoc use cases like scripts, short-lived tasks or testing.
 
 ```python
-async def main():
-    async with AsyncPylonClient(base_url="http://your-server.com:port") as client:
-        async with PylonDockerManager(port=port) as client:
-            block = await client.get_latest_block()
-            print(f"Latest block: {block}")
-            ...
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, PylonDockerManager
 
+async def main():
+    async with PylonDockerManager(port=8000):
+        config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
+        async with AsyncPylonClient(config) as client:
+            await client.request(SetWeightsRequest(weights={"h1": 0.1}))
+                ...
 ```
 
-### Mock Mode for Testing
+### Retries
 
-For testing without a live service:
+In case of an unsuccessful request, Pylon client will automatically retry it. By default, request will fail after 3rd.
+failed attempt.
+
+Retrying behavior can be tweaked by passing a `retry` argument to the client config. It accepts an instance of
+[tenacity.AsyncRetrying](https://tenacity.readthedocs.io/en/latest/api.html#tenacity.AsyncRetrying); please refer to
+[tenacity documentation](https://tenacity.readthedocs.io/en/latest/index.html).
+
+**Example:**
+
+This example shows how to configure the client to retry up to 5 times, waiting between 0.1 and 0.3 seconds after every 
+attempt.
 
 ```python
-from pylon_client.client import PylonClient
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, PylonRequestException
 
-def main():
-    # Use mock data from JSON file
-    client = PylonClient(mock_data_path="tests/mock_data.json")
+from tenacity import AsyncRetrying, stop_after_attempt, retry_if_exception_type, wait_random
 
-    # Returns mock data - client methods return specific types
-    block = client.get_latest_block()
-    print(f"Mocked latest block: {block}")
-
-    metagraph = client.get_metagraph()
-    print(f"Mocked metagraph block: {metagraph.block}")
-
-    # Verify the mock was called
-    client.mock.latest_block.assert_called_once()
-
-    # Override responses for specific tests
-    client.override("get_latest_block/", 99999)
-    block = client.get_latest_block()
-    assert block == 99999
-
-if __name__ == "__main__":
-    main()
+async def main():
+    config = AsyncPylonClientConfig(
+        address="http://127.0.0.1:8000",
+        retry=AsyncRetrying(
+            wait=wait_random(min=0.1, max=0.3),
+            stop=stop_after_attempt(5),
+            retry=retry_if_exception_type(PylonRequestException),
+        )
+    )
+    async with AsyncPylonClient(config) as client:
+        ...
 ```
+
+To avoid manual exception handling, we recommend using `pylon.v1.DEFAULT_RETRIES` object as following:
+
+
+```python
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, DEFAULT_RETRIES
+
+from tenacity import stop_after_attempt, wait_random
+
+async def main():
+    config = AsyncPylonClientConfig(
+        address="http://127.0.0.1:8000",
+        retry=DEFAULT_RETRIES.copy(
+            wait=wait_random(min=0.1, max=0.3),
+            stop=stop_after_attempt(5),
+        )
+    )
+    async with AsyncPylonClient(config) as client:
+        ...
+```
+
 
 ## Development
 

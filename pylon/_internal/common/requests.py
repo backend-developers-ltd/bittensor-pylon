@@ -3,6 +3,9 @@ from ipaddress import IPv4Address
 
 from pydantic import BaseModel, field_validator
 
+from pylon._internal.common.apiver import ApiVersion
+from pylon._internal.common.responses import PylonResponse, SetWeightsResponse
+
 Hotkey = str
 
 CertificateAlgorithm: typing.TypeAlias = int
@@ -10,7 +13,30 @@ PrivateKey: typing.TypeAlias = str
 PublicKey: typing.TypeAlias = str
 
 
-class SetWeightsRequest(BaseModel):
+class PylonRequest(BaseModel):
+    """
+    Base class for all Pylon requests.
+
+    Pylon requests are objects supplied to the Pylon client to make a request. Each class represents an action
+    (e.g., setting weights) and defines arguments needed to perform the action.
+    Every Pylon request class has its respective response class that will be returned by
+    the pylon client after performing a request.
+    """
+
+    rtype: typing.ClassVar[str]
+    version: typing.ClassVar[ApiVersion]
+    response_cls: typing.ClassVar[type[PylonResponse]]
+
+
+class SetWeightsRequest(PylonRequest):
+    """
+    Class used to perform setting weights by the Pylon client.
+    """
+
+    rtype = "set_weights"
+    version = ApiVersion.V1
+    response_cls = SetWeightsResponse
+
     weights: dict[str, float]
 
     @field_validator("weights")
