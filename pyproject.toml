@@ -57,7 +57,7 @@ ignore = [
     "E501", "B027", "B904", "B905",
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 
 "__init__.py" = ["I", "F401"]
 
@@ -77,5 +77,5 @@ documentation = "https://github.com/backend-developers-ltd/bittensor-pylon#readm
 path = "pylon/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pylon_client", "pylon_service", "pylon_common"]
+packages = ["pylon._internal", "pylon.v1"]
 

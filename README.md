@@ -96,13 +96,65 @@ It's a context manager that starts the Pylon service and stops it when the `asyn
 from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, PylonDockerManager
 
 async def main():
-    config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
-    async with AsyncPylonClient(config) as client:
-        async with PylonDockerManager(port=8000):
+    async with PylonDockerManager(port=8000):
+        config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
+        async with AsyncPylonClient(config) as client:
             await client.request(SetWeightsRequest(weights={"h1": 0.1}))
-            ...
-
+                ...
 ```
+
+### Retries
+
+In case of an unsuccessful request, Pylon client will automatically retry it. By default, request will fail after 3rd.
+failed attempt.
+
+Retrying behavior can be tweaked by passing a `retry` argument to the client config. It accepts an instance of
+[tenacity.AsyncRetrying](https://tenacity.readthedocs.io/en/latest/api.html#tenacity.AsyncRetrying); please refer to
+[tenacity documentation](https://tenacity.readthedocs.io/en/latest/index.html).
+
+**Example:**
+
+This example shows how to configure the client to retry up to 5 times, waiting between 0.1 and 0.3 seconds after every 
+attempt.
+
+```python
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, PylonRequestException
+
+from tenacity import AsyncRetrying, stop_after_attempt, retry_if_exception_type, wait_random
+
+async def main():
+    config = AsyncPylonClientConfig(
+        address="http://127.0.0.1:8000",
+        retry=AsyncRetrying(
+            wait=wait_random(min=0.1, max=0.3),
+            stop=stop_after_attempt(5),
+            retry=retry_if_exception_type(PylonRequestException),
+        )
+    )
+    async with AsyncPylonClient(config) as client:
+        ...
+```
+
+To avoid manual exception handling, we recommend using `pylon.v1.DEFAULT_RETRIES` object as following:
+
+
+```python
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, DEFAULT_RETRIES
+
+from tenacity import stop_after_attempt, wait_random
+
+async def main():
+    config = AsyncPylonClientConfig(
+        address="http://127.0.0.1:8000",
+        retry=DEFAULT_RETRIES.copy(
+            wait=wait_random(min=0.1, max=0.3),
+            stop=stop_after_attempt(5),
+        )
+    )
+    async with AsyncPylonClient(config) as client:
+        ...
+```
+
 
 ## Development
 

@@ -16,6 +16,6 @@ def async_client(test_url):
 
 
 @pytest.fixture
-def api_mock(test_url):
+def service_mock(test_url):
     with respx.mock(base_url=test_url) as respx_mock:
         yield respx_mock
