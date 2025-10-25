@@ -18,11 +18,13 @@ from pylon.service.bittensor.models import (
     Block,
     CertificateAlgorithm,
     Hotkey,
+    Metagraph,
     Neuron,
     NeuronCertificate,
     NeuronCertificateKeypair,
     RevealRound,
     SubnetHyperparams,
+    SubnetState,
     WeightsMapping,
 )
 
@@ -203,6 +205,20 @@ class MockBittensorClient(AbstractBittensorClient[None]):
         """
         self.calls["set_weights"].append((netuid, weights))
         return await self._execute_behavior("set_weights", netuid, weights)
+
+    async def _get_subnet_state(self, netuid: int, block: Block | None = None) -> SubnetState:
+        """
+        Get subnet state.
+        """
+        self.calls["_get_subnet_state"].append((netuid, block))
+        return await self._execute_behavior("_get_subnet_state", netuid, block)
+
+    async def get_metagraph(self, netuid: int, block: Block | None = None) -> Metagraph:
+        """
+        Get metagraph for a subnet.
+        """
+        self.calls["get_metagraph"].append((netuid, block))
+        return await self._execute_behavior("get_metagraph", netuid, block)
 
     async def reset_call_tracking(self) -> None:
         """

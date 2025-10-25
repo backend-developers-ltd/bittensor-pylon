@@ -2,6 +2,7 @@ import ipaddress
 from unittest.mock import Mock
 
 import pytest
+from turbobt.block import Block as TurboBtBlock
 from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
@@ -15,6 +16,7 @@ from pylon.service.bittensor.models import (
     Hotkey,
     Metagraph,
     Neuron,
+    Stakes,
 )
 
 
@@ -70,19 +72,37 @@ def subnet_spec(subnet_spec):
             pruning_score=60,
         ),
     ]
+    subnet_spec.get_state.return_value = {
+        "netuid": 1,
+        "hotkeys": ["hotkey1", "hotkey2"],
+        "coldkeys": ["coldkey1", "coldkey2"],
+        "active": [True, False],
+        "validator_permit": [True, False],
+        "pruning_score": [50, 60],
+        "last_update": [1000, 2000],
+        "emission": [10_000_000_000, 20_000_000_000],
+        "dividends": [400_000_000, 300_000_000],
+        "incentives": [800_000_000, 700_000_000],
+        "consensus": [900_000_000, 800_000_000],
+        "trust": [700_000_000, 900_000_000],
+        "rank": [500_000_000, 600_000_000],
+        "block_at_registration": [0, 0],
+        "alpha_stake": [50_000_000_000, 100_000_000_000],
+        "tao_stake": [30_000_000_000, 60_000_000_000],
+        "total_stake": [55_400_000_000, 110_800_000_000],
+        "emission_history": [[], []],
+    }
     return subnet_spec
 
 
-@pytest.mark.asyncio
-async def test_turbobt_client_get_metagraph(turbobt_client, subnet_spec):
-    """
-    Test that get_metagraph returns a Metagraph with neurons indexed by hotkey.
-    """
-    block = Block(number=1000, hash=BlockHash("0xabc123"))
+@pytest.fixture
+def block():
+    return Block(number=1000, hash=BlockHash("0xabc123"))
 
-    result = await turbobt_client.get_metagraph(netuid=1, block=block)
 
-    assert result == Metagraph(
+@pytest.fixture
+def metagraph(block):
+    return Metagraph(
         block=block,
         neurons={
             Hotkey("hotkey1"): Neuron(
@@ -102,6 +122,7 @@ async def test_turbobt_client_get_metagraph(turbobt_client, subnet_spec):
                 last_update=1000,
                 validator_permit=True,
                 pruning_score=50,
+                stakes=Stakes(alpha=50.0, tao=30.0, total=55.4),
             ),
             Hotkey("hotkey2"): Neuron(
                 uid=2,
@@ -120,6 +141,24 @@ async def test_turbobt_client_get_metagraph(turbobt_client, subnet_spec):
                 last_update=2000,
                 validator_permit=False,
                 pruning_score=60,
+                stakes=Stakes(alpha=100.0, tao=60.0, total=110.8),
             ),
         },
     )
+
+
+@pytest.mark.asyncio
+async def test_turbobt_client_get_metagraph(turbobt_client, block, metagraph):
+    """
+    Test that get_metagraph returns a Metagraph with neurons indexed by hotkey.
+    """
+    assert await turbobt_client.get_metagraph(netuid=1, block=block) == metagraph
+
+
+@pytest.mark.asyncio
+async def test_turbobt_client_get_metagraph_block_none(turbobt_client, block_spec, block, metagraph):
+    """
+    Test that get_metagraph works properly without explicitly providing a block.
+    """
+    block_spec.get.return_value = TurboBtBlock(block.hash, block.number, client=turbobt_client._raw_client)
+    assert await turbobt_client.get_metagraph(netuid=1, block=None) == metagraph

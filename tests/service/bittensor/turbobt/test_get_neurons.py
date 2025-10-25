@@ -6,7 +6,7 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Coldkey, Hotkey, Neuron
+from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Coldkey, Hotkey, Neuron, Stakes
 
 
 @pytest.fixture
@@ -61,6 +61,26 @@ def subnet_spec(subnet_spec):
             pruning_score=60,
         ),
     ]
+    subnet_spec.get_state.return_value = {
+        "netuid": 1,
+        "hotkeys": ["hotkey1", "hotkey2"],
+        "coldkeys": ["coldkey1", "coldkey2"],
+        "active": [True, False],
+        "validator_permit": [True, False],
+        "pruning_score": [50, 60],
+        "last_update": [1000, 2000],
+        "emission": [10_000_000_000, 20_000_000_000],
+        "dividends": [400_000_000, 300_000_000],
+        "incentives": [800_000_000, 700_000_000],
+        "consensus": [900_000_000, 800_000_000],
+        "trust": [700_000_000, 900_000_000],
+        "rank": [500_000_000, 600_000_000],
+        "block_at_registration": [0, 0],
+        "alpha_stake": [50_000_000_000, 100_000_000_000],
+        "tao_stake": [30_000_000_000, 60_000_000_000],
+        "total_stake": [55_400_000_000, 110_800_000_000],
+        "emission_history": [[], []],
+    }
     return subnet_spec
 
 
@@ -85,6 +105,7 @@ async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec):
             last_update=1000,
             validator_permit=True,
             pruning_score=50,
+            stakes=Stakes(alpha=50.0, tao=30.0, total=55.4),
         ),
         Neuron(
             uid=2,
@@ -103,5 +124,6 @@ async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec):
             last_update=2000,
             validator_permit=False,
             pruning_score=60,
+            stakes=Stakes(alpha=100.0, tao=60.0, total=110.8),
         ),
     ]
