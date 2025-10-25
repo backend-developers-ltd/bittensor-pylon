@@ -7,6 +7,7 @@ class Endpoint(StrEnum):
     CERTIFICATES = "/certificates"
     CERTIFICATES_SELF = "/certificates/self"
     CERTIFICATES_HOTKEY = "/certificates/{hotkey:str}"
+    METAGRAPH = "/metagraph"
     SUBNET_WEIGHTS = "/subnet/weights"
 
     def for_version(self, version: ApiVersion):

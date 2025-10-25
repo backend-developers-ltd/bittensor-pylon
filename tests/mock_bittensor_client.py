@@ -23,6 +23,7 @@ from pylon.service.bittensor.models import (
     NeuronCertificate,
     NeuronCertificateKeypair,
     SubnetHyperparams,
+    SubnetState,
 )
 
 Behavior: TypeAlias = Callable | Exception | Any
@@ -202,6 +203,13 @@ class MockBittensorClient(AbstractBittensorClient):
         """
         self.calls["set_weights"].append((netuid, weights))
         return await self._execute_behavior("set_weights", netuid, weights)
+
+    async def _get_subnet_state(self, netuid: NetUid, block: Block | None = None) -> SubnetState:
+        """
+        Get subnet state.
+        """
+        self.calls["_get_subnet_state"].append((netuid, block))
+        return await self._execute_behavior("_get_subnet_state", netuid, block)
 
     async def get_metagraph(self, netuid: NetUid, block: Block) -> Metagraph:
         """

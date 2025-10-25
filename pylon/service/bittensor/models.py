@@ -72,6 +72,12 @@ class AxonInfo(BittensorModel):
     protocol: AxonProtocol
 
 
+class Stakes(BittensorModel):
+    alpha: float
+    tao: float
+    total: float
+
+
 class Neuron(BittensorModel):
     uid: NeuronUid
     coldkey: Coldkey
@@ -89,6 +95,8 @@ class Neuron(BittensorModel):
     last_update: Timestamp
     validator_permit: ValidatorPermit
     pruning_score: PruningScore
+    # Field below may not be fetched by get_neurons method - it is taken from the subnet's state.
+    stakes: Stakes
 
 
 class Metagraph(BittensorModel):
@@ -113,3 +121,31 @@ class NeuronCertificate(BittensorModel):
 
 class NeuronCertificateKeypair(NeuronCertificate):
     private_key: PrivateKey
+
+
+class SubnetState(BittensorModel):
+    netuid: int
+    hotkeys: list[Hotkey]
+    coldkeys: list[Coldkey]
+    active: list[bool]
+    validator_permit: list[bool]
+    pruning_score: list[int]
+    last_update: list[int]
+    emission: list[int]
+    dividends: list[int]
+    incentives: list[int]
+    consensus: list[int]
+    trust: list[int]
+    rank: list[int]
+    block_at_registration: list[int]
+    alpha_stake: list[int]
+    tao_stake: list[int]
+    total_stake: list[int]
+    emission_history: list[list[int]]
+
+    @property
+    def hotkeys_stakes(self) -> dict[Hotkey, Stakes]:
+        return {
+            hotkey: Stakes(alpha=alpha / 1_000_000_000, tao=tao / 1_000_000_000, total=total / 1_000_000_000)
+            for hotkey, alpha, tao, total in zip(self.hotkeys, self.alpha_stake, self.tao_stake, self.total_stake)
+        }

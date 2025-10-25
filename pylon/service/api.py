@@ -9,10 +9,17 @@ from pylon._internal.common.requests import (
 )
 from pylon._internal.common.settings import settings
 from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import Hotkey
+from pylon.service.bittensor.models import Hotkey, Metagraph
 from pylon.service.tasks import ApplyWeights
 
 logger = logging.getLogger(__name__)
+
+
+@get(Endpoint.METAGRAPH)
+async def get_metagraph(bt_client: AbstractBittensorClient, block_number: int | None = None) -> Metagraph:
+    # TODO: TurboBT struggles with fetching old blocks, for tb try to ask for block 4671121
+    block = await bt_client.get_block(block_number) if block_number is not None else None
+    return await bt_client.get_metagraph(settings.bittensor_netuid, block=block)
 
 
 @put(Endpoint.SUBNET_WEIGHTS)

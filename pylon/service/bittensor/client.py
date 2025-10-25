@@ -61,6 +61,8 @@ from pylon.service.bittensor.models import (
     NeuronCertificate,
     NeuronCertificateKeypair,
     SubnetHyperparams,
+    SubnetState,
+    Stakes
 )
 
 logger = logging.getLogger(__name__)
@@ -142,6 +144,12 @@ class AbstractBittensorClient(ABC):
         """
 
     @abstractmethod
+    async def _get_subnet_state(self, netuid: int, block: Block | None = None) -> SubnetState:
+        """
+        Fetches subnet's state at the given block.
+        """
+
+    @abstractmethod
     async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
         """
         Commits weights. Returns round number when weights have to be revealed.
@@ -201,7 +209,7 @@ class TurboBtClient(AbstractBittensorClient):
         return block
 
     @staticmethod
-    async def _translate_neuron(neuron: TurboBtNeuron) -> Neuron:
+    async def _translate_neuron(neuron: TurboBtNeuron, stakes: Stakes) -> Neuron:
         return Neuron(
             uid=NeuronUid(neuron.uid),
             coldkey=Coldkey(neuron.coldkey),
@@ -223,6 +231,7 @@ class TurboBtClient(AbstractBittensorClient):
             last_update=Timestamp(neuron.last_update),
             validator_permit=ValidatorPermit(neuron.validator_permit),
             pruning_score=PruningScore(neuron.pruning_score),
+            stakes=stakes,
         )
 
     async def get_neurons(self, netuid: NetUid, block: Block) -> list[Neuron]:
@@ -231,7 +240,10 @@ class TurboBtClient(AbstractBittensorClient):
         )
         logger.debug(f"Fetching neurons from subnet {netuid} at block {block.number}, {self.uri}")
         neurons = await self._raw_client.subnet(netuid).list_neurons(block_hash=block.hash)
-        return [await self._translate_neuron(neuron) for neuron in neurons]
+        # We need stakes fetched from subnet's state.
+        state = await self._get_subnet_state(netuid, block)
+        stakes = state.hotkeys_stakes
+        return [await self._translate_neuron(neuron, stakes[neuron.hotkey]) for neuron in neurons]
 
     @staticmethod
     async def _translate_hyperparams(params: TurboBtSubnetHyperparams) -> SubnetHyperparams:
@@ -309,7 +321,20 @@ class TurboBtClient(AbstractBittensorClient):
             keypair = await self._translate_certificate_keypair(keypair)
         return keypair
 
+    async def _get_subnet_state(self, netuid: int, block: Block | None = None) -> SubnetState:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
+        block_num = block.number if block else "latest"
+        logger.debug(f"Fetching subnet {netuid} state at the {block_num} block, {self.uri}")
+        block_hash = block and block.hash
+        state = await self._raw_client.subnet(netuid).get_state(block_hash)
+        return SubnetState(**state)
+
     async def _translate_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> dict[int, float]:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
         translated_weights = {}
         missing = []
         latest_block = await self.get_latest_block()

@@ -5,6 +5,7 @@ from pylon.service.api import (
     generate_certificate_keypair_endpoint,
     get_certificate_endpoint,
     get_certificates_endpoint,
+    get_metagraph,
     get_own_certificate_endpoint,
     put_weights_endpoint,
 )
@@ -12,6 +13,7 @@ from pylon.service.api import (
 v1_router = Router(
     path=ApiVersion.V1.prefix,
     route_handlers=[
+        get_metagraph,
         put_weights_endpoint,
         get_certificate_endpoint,
         get_certificates_endpoint,
