@@ -10,7 +10,7 @@ import ipaddress
 import pytest
 from turbobt.substrate.exceptions import UnknownBlock
 
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, BlockHash, Coldkey, Hotkey, Neuron
+from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, BlockHash, Coldkey, Hotkey, Neuron, Stakes
 from tests.mock_bittensor_client import MockBittensorClient
 
 
@@ -33,6 +33,7 @@ def test_neuron():
         last_update=1000,
         validator_permit=True,
         pruning_score=50,
+        stakes=Stakes(alpha=50.0, tao=30.0, total=55.4),
     )
 
 
