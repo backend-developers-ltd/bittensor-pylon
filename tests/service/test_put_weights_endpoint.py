@@ -1,188 +1,141 @@
-from __future__ import annotations
-
-from unittest.mock import ANY, AsyncMock, MagicMock
+"""
+Tests for the PUT /subnet/weights endpoint.
+"""
 
 import pytest
-from litestar.testing import TestClient
+from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.settings import settings
-from pylon.service import tasks
-from pylon.service.main import app
-from tests.conftest import MockBittensorClient
+from pylon.service.bittensor.models import Block, BlockHash, RevealRound, SubnetHyperparams
+from pylon.service.tasks import ApplyWeights
+from tests.helpers import wait_for_background_tasks
+from tests.mock_bittensor_client import MockBittensorClient
 
 
-@pytest.fixture
-def client():
-    with TestClient(app) as client:
-        yield client
+@pytest.mark.asyncio
+async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+    """
+    Test setting weights when commit-reveal is enabled.
+    """
+    weights = {
+        "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": 0.5,
+        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": 0.3,
+        "5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL": 0.2,
+    }
+
+    # Set up behaviors that will persist for the background task
+    # The background task calls get_latest_block twice (start and during apply)
+    async with mock_bt_client.mock_behavior(
+        get_latest_block=[
+            Block(number=1000, hash=BlockHash("0xabc123")),  # First call in run_job
+            Block(number=1001, hash=BlockHash("0xabc124")),  # Second call in run_job
+        ],
+        _get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=True)],
+        commit_weights=[RevealRound(1005)],
+    ):
+        response = await test_client.put(
+            "/api/v1/subnet/weights",
+            json={"weights": weights},
+        )
+
+        assert response.status_code == HTTP_200_OK, response.json()
+        assert response.json() == {
+            "detail": "weights update scheduled",
+            "count": 3,
+        }
+
+        # Wait for the background task to complete
+        await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+
+    # Verify the commit_weights was called with correct arguments
+    assert mock_bt_client.calls["commit_weights"] == [
+        (settings.bittensor_netuid, weights),
+    ]
 
 
-@pytest.fixture
-def token(monkeypatch):
-    token_ = "test-token"
-    monkeypatch.setattr(settings, "auth_token", token_)
-    return token_
+@pytest.mark.asyncio
+async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+    """
+    Test setting weights when commit-reveal is disabled.
+    """
+    weights = {
+        "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": 0.7,
+        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": 0.3,
+    }
+
+    # Set up behaviors that will persist for the background task
+    async with mock_bt_client.mock_behavior(
+        get_latest_block=[
+            Block(number=2000, hash=BlockHash("0xdef456")),  # First call in run_job
+            Block(number=2000, hash=BlockHash("0xdef456")),  # Second call in run_job
+        ],
+        _get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=False)],
+        set_weights=[None],
+    ):
+        response = await test_client.put(
+            "/api/v1/subnet/weights",
+            json={"weights": weights},
+        )
+
+        assert response.status_code == HTTP_200_OK, response.json()
+        assert response.json() == {
+            "detail": "weights update scheduled",
+            "count": 2,
+        }
+
+        # Wait for the background task to complete
+        await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+
+    # Verify set_weights was called with correct arguments
+    assert mock_bt_client.calls["set_weights"] == [
+        (settings.bittensor_netuid, weights),
+    ]
 
 
-@pytest.fixture
-def mock_bittensor_client(monkeypatch):
-    bt_client = MockBittensorClient()
-    monkeypatch.setattr("pylon.service.api.Bittensor", lambda wallet, uri: bt_client)
-    return bt_client
-
-
-@pytest.fixture
-def put_weights_client(monkeypatch, client, token):
-    monkeypatch.setattr(settings, "bittensor_network", "mock://network")
-
-    dummy_wallet = object()
-    monkeypatch.setattr("pylon.service.api.get_bt_wallet", lambda _settings: dummy_wallet)
-
-    mock_bittensor_instance = MagicMock()
-    mock_bittensor_class = MagicMock(return_value=mock_bittensor_instance)
-    monkeypatch.setattr("pylon.service.api.Bittensor", mock_bittensor_class)
-
-    schedule_mock = AsyncMock()
-    monkeypatch.setattr("pylon.service.api.ApplyWeights.schedule", schedule_mock)
-
-    yield client, token, schedule_mock, mock_bittensor_class, mock_bittensor_instance
-
-
-def test_put_weights_endpoint_success(put_weights_client):
-    client, token, schedule_mock, mock_bittensor_class, mock_bittensor_instance = put_weights_client
-
-    payload = {"weights": {"hotkey1": 0.7, "hotkey2": 0.3}}
-
-    response = client.put("/api/v1/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
-
-    assert response.status_code == 200
-    assert response.json() == {"detail": "weights update scheduled", "count": 2}
-
-    mock_bittensor_class.assert_called_once_with(wallet=ANY, uri="mock://network")
-    schedule_mock.assert_awaited_once_with(mock_bittensor_instance, payload["weights"])
-
-
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "hyperparams, method",
+    "json_data,expected_extra",
     [
-        (
+        pytest.param(
             {},
-            "set",
+            [{"message": "Field required", "key": "weights"}],
+            id="missing_weights_field",
         ),
-        (
-            {"commit_reveal_weights_enabled": True},
-            "commit",
+        pytest.param(
+            {"weights": {}},
+            [{"message": "Value error, No weights provided", "key": "weights"}],
+            id="empty_weights",
+        ),
+        pytest.param(
+            {"weights": {"5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": "invalid"}},
+            [
+                {
+                    "message": "Input should be a valid number, unable to parse string as a number",
+                    "key": "weights.5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+                }
+            ],
+            id="invalid_weight_value",
+        ),
+        pytest.param(
+            {"weights": {"": 0.5}},
+            [{"message": "Value error, Invalid hotkey: '' must be a non-empty string", "key": "weights"}],
+            id="empty_hotkey",
         ),
     ],
 )
-def test_put_weights_endpoint_reveal(hyperparams, method, client, token, mock_bittensor_client, monkeypatch):
-    async def immediate_schedule(cls, client_, weights):
-        job = cls(client_)
-        await job.run_job(weights)
-        return job
-
-    monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
-
-    mock_bittensor_client.subnet(settings.bittensor_netuid)._hyperparams.update(hyperparams)
-    payload = {"weights": {"mock_hotkey_0": 0.7, "mock_hotkey_1": 0.3, "mock_hotkey_321": 0.2}}
-
-    response = client.put("/api/v1/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-
-    getattr(mock_bittensor_client.subnet(settings.bittensor_netuid).weights, method).assert_called_once_with(
-        {0: 0.7, 1: 0.3}
+async def test_put_weights_validation_errors(test_client: AsyncTestClient, json_data: dict, expected_extra: list):
+    """
+    Test that invalid weight data fails validation.
+    """
+    response = await test_client.put(
+        "/api/v1/subnet/weights",
+        json=json_data,
     )
 
-
-@pytest.mark.xfail(reason="Will be scrapped and rewritten later anyway")
-def test_put_weights_endpoint_not_current_tempo(client, token, mock_bittensor_client, monkeypatch):
-    # WARNING: llm generated
-    from pylon.service import tasks
-    from pylon.service.utils import get_epoch_containing_block
-
-    payload = {"weights": {"mock_hotkey_0": 0.5, "mock_hotkey_1": 0.5}}
-
-    mock_apply_weights = AsyncMock()
-    monkeypatch.setattr(tasks.ApplyWeights, "_apply_weights", mock_apply_weights)
-
-    initial_block = settings.tempo
-    initial_epoch = get_epoch_containing_block(initial_block)
-    subsequent_block = initial_epoch.end + 1
-
-    class MutableBlock:
-        def __init__(self, first: int, second: int):
-            self._values = [first, first, second]
-            self._index = 0
-            self.hash = "0xabc"
-
-        @property
-        def number(self):
-            idx = self._index if self._index < len(self._values) else len(self._values) - 1
-            self._index += 1
-            return self._values[idx]
-
-    mutable_block = MutableBlock(initial_block, subsequent_block)
-
-    mock_head = AsyncMock(return_value=mutable_block)
-    monkeypatch.setattr(mock_bittensor_client.head, "get", mock_head)
-
-    async def immediate_schedule(cls, client_, weights):
-        job = cls(client_)
-        await job.run_job(weights)
-        return job
-
-    monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
-
-    response = client.put("/api/v1/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
-
-    assert response.status_code == 200
-    assert mutable_block._index >= 3  # ensure _is_current_tempo accessed updated block number
-    mock_apply_weights.assert_not_awaited()
-
-    subnet_weights = mock_bittensor_client.subnet(settings.bittensor_netuid).weights
-    subnet_weights.set.assert_not_awaited()
-    subnet_weights.commit.assert_not_awaited()
-
-
-def test_put_weights_endpoint_retry(client, token, mock_bittensor_client, monkeypatch):
-    # WARNING: llm generated
-    from pylon.service import tasks
-
-    payload = {"weights": {"mock_hotkey_0": 1.0}}
-
-    monkeypatch.setattr(settings, "weights_retry_attempts", 2)
-    monkeypatch.setattr(settings, "weights_retry_delay_seconds", 0)
-
-    apply_mock = AsyncMock(side_effect=[RuntimeError("boom"), RuntimeError("boom again"), None])
-    monkeypatch.setattr(tasks.ApplyWeights, "_apply_weights", apply_mock)
-
-    sleep_mock = AsyncMock()
-    monkeypatch.setattr(tasks.asyncio, "sleep", sleep_mock)
-
-    error_calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
-    original_error = tasks.logger.error
-
-    def error_spy(message, *args, **kwargs):
-        formatted = message % args if args else message
-        error_calls.append((formatted, args, kwargs))
-        return original_error(message, *args, **kwargs)
-
-    monkeypatch.setattr(tasks.logger, "error", error_spy)
-
-    latest_block = MagicMock(number=settings.tempo, hash="0xabc")
-    monkeypatch.setattr(mock_bittensor_client.head, "get", AsyncMock(return_value=latest_block))
-
-    async def immediate_schedule(cls, client_, weights):
-        job = cls(client_)
-        await job.run_job(weights)
-        return job
-
-    monkeypatch.setattr(tasks.ApplyWeights, "schedule", classmethod(immediate_schedule))
-
-    response = client.put("/api/v1/subnet/weights", json=payload, headers={"Authorization": f"Bearer {token}"})
-
-    assert response.status_code == 200
-    assert apply_mock.await_count == 3
-    assert sleep_mock.await_count == 2
-    assert len(error_calls) == 2
-    assert error_calls[0][0].startswith("Error executing apply_weights")
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json() == {
+        "status_code": 400,
+        "detail": "Validation failed for PUT /api/v1/subnet/weights",
+        "extra": expected_extra,
+    }

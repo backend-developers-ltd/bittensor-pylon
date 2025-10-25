@@ -2,6 +2,7 @@ from litestar import Router
 
 from pylon._internal.common.apiver import ApiVersion
 from pylon.service.api import (
+    generate_certificate_keypair_endpoint,
     get_certificate_endpoint,
     get_certificates_endpoint,
     get_own_certificate_endpoint,
@@ -15,5 +16,6 @@ v1_router = Router(
         get_certificate_endpoint,
         get_certificates_endpoint,
         get_own_certificate_endpoint,
+        generate_certificate_keypair_endpoint,
     ],
 )
