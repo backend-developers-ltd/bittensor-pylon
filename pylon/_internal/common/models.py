@@ -38,13 +38,14 @@ from pylon._internal.common.types import (
 )
 
 
-class UnknownIntEnumMixin:
+class UnknownIntEnum(IntEnum):
     """
     Allows to use int enum with undefined values.
     """
 
     @classmethod
     def _missing_(cls, value):
+        assert isinstance(value, int)
         member = int.__new__(cls, value)
         member._name_ = f"UNKNOWN_{value}"
         member._value_ = value
@@ -70,7 +71,7 @@ class Block(BittensorModel):
     hash: BlockHash
 
 
-class AxonProtocol(UnknownIntEnumMixin, IntEnum):
+class AxonProtocol(UnknownIntEnum):
     TCP = 0
     UDP = 1
     HTTP = 4
@@ -120,7 +121,7 @@ class SubnetHyperparams(BittensorModel):
     # Add more parameters as needed.
 
 
-class CertificateAlgorithm(UnknownIntEnumMixin, IntEnum):
+class CertificateAlgorithm(UnknownIntEnum):
     ED25519 = 1
 
 

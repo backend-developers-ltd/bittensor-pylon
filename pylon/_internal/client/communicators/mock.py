@@ -11,10 +11,10 @@ class MockCommunicator(AbstractCommunicator[PylonRequest, PylonResponse]):
         pass
 
     async def _request(self, request: PylonRequest) -> PylonResponse:
-        pass
+        raise NotImplementedError
 
     async def _translate_request(self, request: PylonRequest) -> PylonRequest:
-        pass
+        raise NotImplementedError
 
     async def _translate_response(self, pylon_request: PylonRequest, response: PylonResponse) -> PylonResponse:
-        pass
+        raise NotImplementedError

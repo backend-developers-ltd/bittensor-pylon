@@ -4,7 +4,7 @@ import pytest
 from httpx import ConnectTimeout, Response, codes
 from pydantic import ValidationError
 
-from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
+from pylon._internal.client.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import SetWeightsRequest
 from pylon._internal.common.responses import SetWeightsResponse
 from pylon._internal.common.types import Hotkey, Weight

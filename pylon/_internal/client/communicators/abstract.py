@@ -67,7 +67,10 @@ class AbstractCommunicator(Generic[RawRequest, RawResponse], ABC):
         Returns a response translated into a PylonResponse instance.
         """
         raw_request = await self._translate_request(request)
+        raw_response: RawResponse | None = None
         async for attempt in self.config.retry.copy():
             with attempt:
                 raw_response = await self._request(raw_request)
+
+        assert raw_response is not None
         return await self._translate_response(request, raw_response)

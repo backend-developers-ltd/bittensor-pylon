@@ -1,8 +1,8 @@
 from pylon._internal.client.abstract import AbstractAsyncPylonClient
 from pylon._internal.client.asynchronous import AsyncPylonClient
 from pylon._internal.client.config import AsyncPylonClientConfig, DEFAULT_RETRIES
+from pylon._internal.client.exceptions import BasePylonException, PylonRequestException, PylonResponseException
 from pylon._internal.client.mock import Behavior, MockCommunicator, RaiseRequestError, RaiseResponseError, WorkNormally
-from pylon._internal.common.exceptions import BasePylonException, PylonRequestException, PylonResponseException
 from pylon._internal.common.models import (
     CommitReveal,
     BittensorModel,

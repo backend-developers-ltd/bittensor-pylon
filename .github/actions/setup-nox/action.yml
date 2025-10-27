@@ -1,0 +1,23 @@
+name: Setup nox
+description: Set up Python with uv and nox
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install uv (fast Python package manager)
+      shell: bash
+      run: pip install uv
+
+    - name: Install nox
+      shell: bash
+      run: pip install nox

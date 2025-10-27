@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
 
-from pylon._internal.common.exceptions import PylonRequestException
+from pylon._internal.client.exceptions import PylonRequestException
 
 DEFAULT_RETRIES = AsyncRetrying(
     wait=wait_exponential_jitter(initial=0.1, jitter=0.2),

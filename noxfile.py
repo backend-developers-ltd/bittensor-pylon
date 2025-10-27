@@ -26,3 +26,12 @@ def format(session):
     session.run("ruff", "check", "--fix", ".")
     session.run("pyright")
     # session.run("uvx", "ty", "check")
+
+
+@nox.session(name="lint", python=PYTHON_VERSION)
+def lint(session):
+    """Check code formatting and typing without making any changes."""
+    session.run("uv", "sync", "--active", "--extra", "format", "--extra", "dev")
+    session.run("ruff", "format", "--check", "--diff", ".")
+    session.run("ruff", "check", ".")
+    session.run("pyright")
