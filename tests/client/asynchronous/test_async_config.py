@@ -6,7 +6,7 @@ from pylon._internal.client.asynchronous import AsyncPylonClient
 from pylon._internal.client.config import DEFAULT_RETRIES, AsyncPylonClientConfig
 from pylon._internal.common.exceptions import PylonRequestException
 from pylon._internal.common.requests import SetWeightsRequest
-from pylon._internal.common.responses import PylonResponseStatus
+from pylon._internal.common.responses import SetWeightsResponse
 from pylon._internal.common.types import Hotkey, Weight
 
 
@@ -36,7 +36,7 @@ async def test_async_config_retries_success(service_mock, test_url, attempts):
         AsyncPylonClientConfig(address=test_url, retry=DEFAULT_RETRIES.copy(stop=stop_after_attempt(attempts)))
     ) as async_client:
         response = await async_client.request(SetWeightsRequest(weights={Hotkey("h2"): Weight(0.1)}))
-    assert response.status == PylonResponseStatus.SUCCESS
+    assert response == SetWeightsResponse()
     assert route.call_count == attempts
 
 

@@ -7,7 +7,7 @@ from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND
 from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.types import BlockHash, BlockNumber, PublicKey
-from pylon.service.bittensor.models import Block, CertificateAlgorithm, NeuronCertificate
+from pylon._internal.common.models import Block, CertificateAlgorithm, NeuronCertificate
 from tests.mock_bittensor_client import MockBittensorClient
 
 

@@ -3,9 +3,9 @@ import typing
 from pydantic import BaseModel, field_validator
 
 from pylon._internal.common.apiver import ApiVersion
-from pylon._internal.common.responses import PylonResponse, SetWeightsResponse
+from pylon._internal.common.models import CertificateAlgorithm
+from pylon._internal.common.responses import GetMetagraphResponse, PylonResponse, SetWeightsResponse
 from pylon._internal.common.types import Hotkey, Weight
-from pylon.service.bittensor.models import CertificateAlgorithm
 
 
 class PylonRequest(BaseModel):
@@ -28,7 +28,6 @@ class SetWeightsRequest(PylonRequest):
     Class used to perform setting weights by the Pylon client.
     """
 
-    rtype = "set_weights"
     version = ApiVersion.V1
     response_cls = SetWeightsResponse
 
@@ -47,6 +46,17 @@ class SetWeightsRequest(PylonRequest):
                 raise ValueError(f"Invalid weight for hotkey '{hotkey}': '{weight}' must be a number")
 
         return v
+
+
+class GetMetagraphRequest(PylonRequest):
+    """
+    Class used to fetch the metagraph by the Pylon client.
+    """
+
+    version = ApiVersion.V1
+    response_cls = GetMetagraphResponse
+
+    block_number: int | None = None
 
 
 class GenerateCertificateKeypairRequest(PylonRequest):

@@ -1,6 +1,6 @@
 import pytest
 
-from pylon.service.bittensor.models import (
+from pylon._internal.common.models import (
     CertificateAlgorithm,
     NeuronCertificateKeypair,
     PrivateKey,

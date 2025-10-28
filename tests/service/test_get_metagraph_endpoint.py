@@ -8,8 +8,7 @@ import pytest
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import AsyncTestClient
 
-from pylon._internal.common.settings import settings
-from pylon.service.bittensor.models import (
+from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
     Block,
@@ -19,6 +18,7 @@ from pylon.service.bittensor.models import (
     Neuron,
     Stakes,
 )
+from pylon._internal.common.settings import settings
 from tests.mock_bittensor_client import MockBittensorClient
 
 

@@ -50,7 +50,7 @@ from pylon._internal.common.types import (
     ValidatorTrust,
     Weight,
 )
-from pylon.service.bittensor.models import (
+from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
     Block,

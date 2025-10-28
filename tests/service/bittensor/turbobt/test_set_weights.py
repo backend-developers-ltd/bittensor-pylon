@@ -7,7 +7,7 @@ from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
 from pylon._internal.common.types import BlockHash, BlockNumber, Hotkey, Weight
-from pylon.service.bittensor.models import Block
+from pylon._internal.common.models import Block
 
 
 @pytest.fixture

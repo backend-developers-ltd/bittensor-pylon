@@ -4,8 +4,8 @@
 
 ## What's Included
 
-- **REST API Service** (`pylon_service`): High-performance server that connects to Bittensor, caches subnet data, and exposes REST endpoints
-- **Python Client Library** (`pylon_client`): Simple async client for consuming the API with built-in retry logic and mock support
+- **REST API Service**: High-performance server that connects to Bittensor and exposes REST endpoints
+- **Python Client Library**: Simple async client for consuming the API with built-in retry logic and mock support
 
 Full API documentation is available at `/schema/swagger` when the service is running.
 
@@ -18,7 +18,7 @@ Create a `.env` file with your Bittensor settings by copying the template:
 
 ```bash
 # Copy the template and edit it
-cp pylon_service/envs/test_env.template .env
+cp pylon/service/envs/test_env.template .env
 ```
 
 Edit the example values in `.env` file to the desired ones. The meaning of each setting is described in the file.
@@ -40,7 +40,7 @@ file to the same location as `.env` file:
 
 ```bash
 # Make sure to remove .example from the file name!
-cp pylon_service/envs/docker-compose.yaml.example docker-compose.yaml
+cp pylon/service/envs/docker-compose.yaml.example docker-compose.yaml
 ```
 
 Edit the file according to your needs (especially wallets volume) and run:
@@ -78,11 +78,19 @@ Use the Pylon client to connect with the running service:
 ```python
 import asyncio
 
-from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, Hotkey, Weight
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, BlockNumber, SetWeightsRequest, GetMetagraphRequest, Hotkey, Weight
 
 async def main():
     config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
     async with AsyncPylonClient(config) as client:
+        # Get the current metagraph
+        metagraph = await client.request(GetMetagraphRequest())
+        print(f"Block: {metagraph.block.number}, Neurons: {len(metagraph.neurons)}")
+
+        # Get metagraph for a specific block
+        metagraph = await client.request(GetMetagraphRequest(block_number=BlockNumber(1000)))
+
+        # Set weights
         # Wrapping values with Hotkey and Weight is recommended but not necessary if type checker isn't used.
         await client.request(SetWeightsRequest(weights={Hotkey("h1"): Weight(0.1)}))
 
@@ -154,6 +162,39 @@ async def main():
     )
     async with AsyncPylonClient(config) as client:
         ...
+```
+
+
+### Input data validation
+
+The client performs the input data validation when constructing the request object:
+
+```python
+SetWeightsRequest(weights=0.2)  # ValidationError will happen here - weights argument expects a dictionary
+```
+
+The error is always of pydantic.ValidationError type. 
+See the [pydantic documentation](https://docs.pydantic.dev/latest/errors/errors/) for the error reference.
+
+**Warning:** passing a proper request to a client does prevent the PylonResponseException caused by the improper data,
+however it may still be raised for other reasons (improper app state, server error etc.)
+
+#### Bypassing validation
+
+Validation on a client side prevents from sending a malformed data to the server. However, this way validation is
+performed twice (on a client side and on a server side). If you want to skip the client side validation, construct
+the request using `model_construct` class method:
+
+```python
+SetWeightsRequest.model_construct(weights=0.2)
+```
+
+No error will be raised until the request is made and data errors are detected by the server. In case the server
+receives malformed request, the client will raise `PylonResponseException`:
+
+```python
+# Request is made, raises PylonResponseException.
+await client.request(SetWeightsRequest.model_construct(weights=0.2))
 ```
 
 

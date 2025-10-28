@@ -3,13 +3,13 @@ import logging
 from litestar import Response, get, post, put, status_codes
 
 from pylon._internal.common.endpoints import Endpoint
+from pylon._internal.common.models import Hotkey, Metagraph
 from pylon._internal.common.requests import (
     GenerateCertificateKeypairRequest,
     SetWeightsRequest,
 )
 from pylon._internal.common.settings import settings
 from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import Hotkey, Metagraph
 from pylon.service.tasks import ApplyWeights
 
 logger = logging.getLogger(__name__)

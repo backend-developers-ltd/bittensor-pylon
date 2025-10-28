@@ -27,7 +27,7 @@ from pylon._internal.common.types import (
     ValidatorPermit,
     ValidatorTrust,
 )
-from pylon.service.bittensor.models import (
+from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
     Block,

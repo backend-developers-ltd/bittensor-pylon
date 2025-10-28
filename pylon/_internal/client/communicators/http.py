@@ -1,4 +1,5 @@
 import logging
+from functools import singledispatchmethod
 from http import HTTPMethod
 
 from httpx import AsyncClient, HTTPStatusError, Request, RequestError, Response
@@ -7,8 +8,8 @@ from pylon._internal.client.communicators.abstract import AbstractCommunicator
 from pylon._internal.client.config import AsyncPylonClientConfig
 from pylon._internal.common.endpoints import Endpoint
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
-from pylon._internal.common.requests import PylonRequest
-from pylon._internal.common.responses import PylonResponse, PylonResponseStatus
+from pylon._internal.common.requests import GetMetagraphRequest, PylonRequest, SetWeightsRequest
+from pylon._internal.common.responses import PylonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,6 @@ class AsyncHttpCommunicator(AbstractCommunicator[Request, Response]):
     """
     Communicates with Pylon API through HTTP.
     """
-
-    _request_translation = {"set_weights": {"method": HTTPMethod.PUT, "endpoint": Endpoint.SUBNET_WEIGHTS}}
 
     def __init__(self, config: AsyncPylonClientConfig):
         super().__init__(config)
@@ -35,16 +34,28 @@ class AsyncHttpCommunicator(AbstractCommunicator[Request, Response]):
         await self._raw_client.aclose()
         self._raw_client = None
 
+    @singledispatchmethod
     async def _translate_request(self, request: PylonRequest) -> Request:
-        request_params = self._request_translation[request.rtype]
+        raise NotImplementedError(f"Request of type {type(request).__name__} is not supported.")
+
+    @_translate_request.register
+    async def _(self, request: SetWeightsRequest) -> Request:
         return self._raw_client.build_request(
-            method=request_params["method"],
-            url=request_params["endpoint"].for_version(request.version),
+            method=HTTPMethod.PUT,
+            url=Endpoint.SUBNET_WEIGHTS.for_version(request.version),
             json=request.model_dump(),
         )
 
+    @_translate_request.register
+    async def _(self, request: GetMetagraphRequest) -> Request:
+        return self._raw_client.build_request(
+            method=HTTPMethod.GET,
+            url=Endpoint.METAGRAPH.for_version(request.version),
+            params=request.model_dump(exclude_none=True),
+        )
+
     async def _translate_response(self, pylon_request: PylonRequest, response: Response) -> PylonResponse:
-        return pylon_request.response_cls(status=PylonResponseStatus.SUCCESS, **response.json())
+        return pylon_request.response_cls(**response.json())
 
     async def _request(self, request: Request) -> Response:
         assert self._raw_client and not self._raw_client.is_closed, (

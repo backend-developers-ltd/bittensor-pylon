@@ -1,7 +1,7 @@
 import pytest
 
 from pylon._internal.common.types import BlockHash, BlockNumber, Hotkey, PublicKey
-from pylon.service.bittensor.models import Block, CertificateAlgorithm, NeuronCertificate
+from pylon._internal.common.models import Block, CertificateAlgorithm, NeuronCertificate
 
 
 @pytest.fixture

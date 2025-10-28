@@ -26,7 +26,7 @@ from pylon._internal.common.types import (
     ValidatorPermit,
     ValidatorTrust,
 )
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
+from pylon._internal.common.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
 
 
 @pytest.fixture

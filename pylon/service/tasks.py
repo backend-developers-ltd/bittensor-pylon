@@ -2,10 +2,10 @@ import asyncio
 import logging
 from typing import ClassVar, Self
 
+from pylon._internal.common.models import Block, CommitReveal
 from pylon._internal.common.settings import settings
 from pylon._internal.common.types import Hotkey, Weight
 from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import Block, CommitReveal
 from pylon.service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)

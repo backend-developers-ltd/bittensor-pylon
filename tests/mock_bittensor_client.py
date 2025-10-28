@@ -14,8 +14,7 @@ from typing import Any, TypeAlias
 from bittensor_wallet import Wallet
 
 from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
-from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import (
+from pylon._internal.common.models import (
     Block,
     CertificateAlgorithm,
     Metagraph,
@@ -25,6 +24,7 @@ from pylon.service.bittensor.models import (
     SubnetHyperparams,
     SubnetState,
 )
+from pylon.service.bittensor.client import AbstractBittensorClient
 
 Behavior: TypeAlias = Callable | Exception | Any
 MethodName: TypeAlias = str
