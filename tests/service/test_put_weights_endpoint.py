@@ -31,7 +31,7 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
             Block(number=1000, hash=BlockHash("0xabc123")),  # First call in run_job
             Block(number=1001, hash=BlockHash("0xabc124")),  # Second call in run_job
         ],
-        _get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=True)],
+        get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=True)],
         commit_weights=[RevealRound(1005)],
     ):
         response = await test_client.put(
@@ -70,7 +70,7 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
             Block(number=2000, hash=BlockHash("0xdef456")),  # First call in run_job
             Block(number=2000, hash=BlockHash("0xdef456")),  # Second call in run_job
         ],
-        _get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=False)],
+        get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=False)],
         set_weights=[None],
     ):
         response = await test_client.put(

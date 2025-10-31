@@ -6,7 +6,12 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Coldkey, Hotkey, Neuron
+from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, BlockHash, Coldkey, Hotkey, Neuron
+
+
+@pytest.fixture
+def test_block():
+    return Block(number=1000, hash=BlockHash("0xabc123"))
 
 
 @pytest.fixture
@@ -65,8 +70,8 @@ def subnet_spec(subnet_spec):
 
 
 @pytest.mark.asyncio
-async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec):
-    result = await turbobt_client._get_neurons(netuid=1)
+async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec, test_block):
+    result = await turbobt_client.get_neurons(netuid=1, block=test_block)
     assert result == [
         Neuron(
             uid=1,

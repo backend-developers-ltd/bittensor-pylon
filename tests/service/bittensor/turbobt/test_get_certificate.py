@@ -1,6 +1,11 @@
 import pytest
 
-from pylon.service.bittensor.models import CertificateAlgorithm, Hotkey, NeuronCertificate, PublicKey
+from pylon.service.bittensor.models import Block, BlockHash, CertificateAlgorithm, Hotkey, NeuronCertificate, PublicKey
+
+
+@pytest.fixture
+def test_block():
+    return Block(number=1000, hash=BlockHash("0xabc123"))
 
 
 @pytest.fixture
@@ -13,8 +18,8 @@ def neuron_spec(neuron_spec):
 
 
 @pytest.mark.asyncio
-async def test_turbobt_client_get_certificate(turbobt_client, neuron_spec):
-    result = await turbobt_client._get_certificate(netuid=1, hotkey=Hotkey("hotkey1"))
+async def test_turbobt_client_get_certificate(turbobt_client, neuron_spec, test_block):
+    result = await turbobt_client.get_certificate(netuid=1, block=test_block, hotkey=Hotkey("hotkey1"))
     assert result == NeuronCertificate(
         algorithm=CertificateAlgorithm.ED25519,
         public_key=PublicKey("public_key_1"),
@@ -22,7 +27,7 @@ async def test_turbobt_client_get_certificate(turbobt_client, neuron_spec):
 
 
 @pytest.mark.asyncio
-async def test_turbobt_client_get_certificate_empty(turbobt_client, neuron_spec):
+async def test_turbobt_client_get_certificate_empty(turbobt_client, neuron_spec, test_block):
     neuron_spec.get_certificate.return_value = None
-    result = await turbobt_client._get_certificate(netuid=1, hotkey=Hotkey("hotkey1"))
+    result = await turbobt_client.get_certificate(netuid=1, block=test_block, hotkey=Hotkey("hotkey1"))
     assert result is None

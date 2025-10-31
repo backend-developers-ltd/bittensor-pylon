@@ -36,7 +36,8 @@ async def get_certificates_endpoint(bt_client: AbstractBittensorClient) -> Respo
     """
     Get all certificates for the subnet.
     """
-    certificates = await bt_client.get_certificates(settings.bittensor_netuid)
+    block = await bt_client.get_latest_block()
+    certificates = await bt_client.get_certificates(settings.bittensor_netuid, block)
 
     return Response(certificates, status_code=status_codes.HTTP_200_OK)
 
@@ -46,7 +47,8 @@ async def get_certificate_endpoint(hotkey: Hotkey, bt_client: AbstractBittensorC
     """
     Get a specific certificate for a hotkey.
     """
-    certificate = await bt_client.get_certificate(settings.bittensor_netuid, hotkey=hotkey)
+    block = await bt_client.get_latest_block()
+    certificate = await bt_client.get_certificate(settings.bittensor_netuid, block, hotkey=hotkey)
     if certificate is None:
         return Response(
             {"detail": "Certificate not found or error fetching."}, status_code=status_codes.HTTP_404_NOT_FOUND
@@ -60,7 +62,8 @@ async def get_own_certificate_endpoint(bt_client: AbstractBittensorClient) -> Re
     """
     Get a certificate for the app's wallet.
     """
-    certificate = await bt_client.get_certificate(settings.bittensor_netuid)
+    block = await bt_client.get_latest_block()
+    certificate = await bt_client.get_certificate(settings.bittensor_netuid, block)
     if certificate is None:
         return Response(
             {"detail": "Certificate not found or error fetching."}, status_code=status_codes.HTTP_404_NOT_FOUND

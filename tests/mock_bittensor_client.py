@@ -18,6 +18,7 @@ from pylon.service.bittensor.models import (
     Block,
     CertificateAlgorithm,
     Hotkey,
+    Metagraph,
     Neuron,
     NeuronCertificate,
     NeuronCertificateKeypair,
@@ -31,7 +32,7 @@ MethodName: TypeAlias = str
 Call: TypeAlias = tuple
 
 
-class MockBittensorClient(AbstractBittensorClient[None]):
+class MockBittensorClient(AbstractBittensorClient):
     """
     Mock implementation of AbstractBittensorClient for testing.
 
@@ -151,35 +152,35 @@ class MockBittensorClient(AbstractBittensorClient[None]):
         self.calls["get_latest_block"].append(())
         return await self._execute_behavior("get_latest_block")
 
-    async def _get_neurons(self, netuid: int, block: Block | None = None) -> list[Neuron]:
+    async def get_neurons(self, netuid: int, block: Block) -> list[Neuron]:
         """
         Get neurons for a subnet.
         """
-        self.calls["_get_neurons"].append((netuid, block))
-        return await self._execute_behavior("_get_neurons", netuid, block)
+        self.calls["get_neurons"].append((netuid, block))
+        return await self._execute_behavior("get_neurons", netuid, block)
 
-    async def _get_hyperparams(self, netuid: int, block: Block | None = None) -> SubnetHyperparams | None:
+    async def get_hyperparams(self, netuid: int, block: Block) -> SubnetHyperparams | None:
         """
         Get hyperparameters for a subnet.
         """
-        self.calls["_get_hyperparams"].append((netuid, block))
-        return await self._execute_behavior("_get_hyperparams", netuid, block)
+        self.calls["get_hyperparams"].append((netuid, block))
+        return await self._execute_behavior("get_hyperparams", netuid, block)
 
-    async def _get_certificates(self, netuid: int, block: Block | None = None) -> dict[Hotkey, NeuronCertificate]:
+    async def get_certificates(self, netuid: int, block: Block) -> dict[Hotkey, NeuronCertificate]:
         """
         Get all certificates for a subnet.
         """
-        self.calls["_get_certificates"].append((netuid, block))
-        return await self._execute_behavior("_get_certificates", netuid, block)
+        self.calls["get_certificates"].append((netuid, block))
+        return await self._execute_behavior("get_certificates", netuid, block)
 
-    async def _get_certificate(
-        self, netuid: int, hotkey: Hotkey | None = None, block: Block | None = None
+    async def get_certificate(
+        self, netuid: int, block: Block, hotkey: Hotkey | None = None
     ) -> NeuronCertificate | None:
         """
         Get a certificate for a specific hotkey.
         """
-        self.calls["_get_certificate"].append((netuid, hotkey, block))
-        return await self._execute_behavior("_get_certificate", netuid, hotkey, block)
+        self.calls["get_certificate"].append((netuid, block, hotkey))
+        return await self._execute_behavior("get_certificate", netuid, block, hotkey)
 
     async def generate_certificate_keypair(
         self, netuid: int, algorithm: CertificateAlgorithm
@@ -203,6 +204,13 @@ class MockBittensorClient(AbstractBittensorClient[None]):
         """
         self.calls["set_weights"].append((netuid, weights))
         return await self._execute_behavior("set_weights", netuid, weights)
+
+    async def get_metagraph(self, netuid: int, block: Block) -> Metagraph:
+        """
+        Get metagraph for a subnet.
+        """
+        self.calls["get_metagraph"].append((netuid, block))
+        return await self._execute_behavior("get_metagraph", netuid, block)
 
     async def reset_call_tracking(self) -> None:
         """

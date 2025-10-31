@@ -9,7 +9,7 @@ from litestar.openapi.config import OpenAPIConfig
 
 from pylon._internal.common.settings import settings
 from pylon.service import dependencies
-from pylon.service.bittensor.client import TurboBtClient
+from pylon.service.bittensor.client import BittensorClient
 from pylon.service.routers import v1_router
 from pylon.service.sentry_config import init_sentry
 
@@ -24,10 +24,11 @@ async def bittensor_client(app: Litestar) -> AsyncGenerator[None, None]:
         hotkey=settings.bittensor_wallet_hotkey_name,
         path=settings.bittensor_wallet_path,
     )
-    async with TurboBtClient(
+    async with BittensorClient(
         wallet=wallet,
         uri=settings.bittensor_network,
-        archive_client=TurboBtClient(wallet=wallet, uri=settings.bittensor_archive_network),
+        archive_uri=settings.bittensor_archive_network,
+        archive_blocks_cutoff=settings.bittensor_archive_blocks_cutoff,
     ) as client:
         app.state.bittensor_client = client
         yield

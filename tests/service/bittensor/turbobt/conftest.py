@@ -16,7 +16,7 @@ Example:
 
     @pytest.mark.asyncio
     async def test_get_neurons(turbobt_client, subnet_spec):
-        result = await turbobt_client._get_neurons(netuid=1)
+        result = await turbobt_client.get_neurons(netuid=1)
         assert len(result) == 2
 """
 

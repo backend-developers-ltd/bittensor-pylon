@@ -60,7 +60,7 @@ class ApplyWeights:
                 next_sleep_seconds = min(next_sleep_seconds * 2, max_sleep_seconds)
 
     async def _apply_weights(self, weights: WeightsMapping, latest_block: Block) -> None:
-        hyperparams = await self._client.get_hyperparams(settings.bittensor_netuid, block=latest_block)
+        hyperparams = await self._client.get_hyperparams(settings.bittensor_netuid, latest_block)
         if hyperparams is None:
             raise RuntimeError("Failed to fetch hyperparameters")
         commit_reveal_enabled = bool(hyperparams.commit_reveal_weights_enabled)

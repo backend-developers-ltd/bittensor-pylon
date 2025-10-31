@@ -6,7 +6,7 @@ import pytest
 from litestar.status_codes import HTTP_200_OK
 from litestar.testing import AsyncTestClient
 
-from pylon.service.bittensor.models import CertificateAlgorithm, NeuronCertificate, PublicKey
+from pylon.service.bittensor.models import Block, BlockHash, CertificateAlgorithm, NeuronCertificate, PublicKey
 from tests.mock_bittensor_client import MockBittensorClient
 
 
@@ -50,8 +50,10 @@ async def test_get_certificates(
     """
     Test getting certificates from the subnet.
     """
+    latest_block = Block(number=1000, hash=BlockHash("0xabc123"))
     async with mock_bt_client.mock_behavior(
-        _get_certificates=[certificates_input],
+        get_latest_block=[latest_block],
+        get_certificates=[certificates_input],
     ):
         response = await test_client.get("/api/v1/certificates")
 

@@ -1,15 +1,17 @@
 """
-Tests for AbstractBittensorClient.archive_fallback method.
+Tests for BittensorClient archive fallback logic.
 
-These tests verify the archive fallback logic that determines whether to use the main client
-or the archive client based on block age and availability.
+These tests verify the archive fallback logic in BittensorClient that determines whether to use
+the main client or the archive client based on block age and availability.
 """
 
 import ipaddress
 
 import pytest
+from bittensor_wallet import Wallet
 from turbobt.substrate.exceptions import UnknownBlock
 
+from pylon.service.bittensor.client import BittensorClient
 from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, BlockHash, Coldkey, Hotkey, Neuron
 from tests.mock_bittensor_client import MockBittensorClient
 
@@ -37,72 +39,32 @@ def test_neuron():
 
 
 @pytest.fixture
-def main_client():
-    """
-    Create a main MockBittensorClient instance.
-    """
-    return MockBittensorClient()
+def bittensor_client():
+    wallet = Wallet()
+
+    # Create BittensorClient
+    client = BittensorClient(
+        wallet=wallet,
+        uri="ws://main",
+        archive_uri="ws://archive",
+        archive_blocks_cutoff=300,
+        subclient_cls=MockBittensorClient
+    )
+    return client
 
 
 @pytest.fixture
-def archive_client():
-    """
-    Create an archive MockBittensorClient instance.
-    """
-    return MockBittensorClient()
+def main_client(bittensor_client):
+    return bittensor_client._main_client
 
 
 @pytest.fixture
-def main_client_with_archive(main_client, archive_client):
-    """
-    Configure main client with archive client and default cutoff.
-    """
-    main_client.archive_client = archive_client
-    main_client.archive_blocks_cutoff = 300
-    return main_client
+def archive_client(bittensor_client):
+    return bittensor_client._archive_client
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_no_archive_client(main_client, test_neuron):
-    """
-    Test that main client is used when no archive client is configured, even for old blocks.
-    """
-    expected_neurons = [test_neuron]
-    old_block = Block(number=100, hash=BlockHash("0xold"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
-
-    async with main_client:
-        async with main_client.mock_behavior(
-            get_latest_block=[latest_block],
-            _get_neurons=[expected_neurons],
-        ):
-            result = await main_client.get_neurons(netuid=1, block=old_block)
-
-    assert result == expected_neurons
-    assert main_client.calls["_get_neurons"] == [(1, old_block)]
-
-
-@pytest.mark.asyncio
-async def test_archive_fallback_block_none(main_client_with_archive, archive_client, test_neuron):
-    """
-    Test that main client is used when block is None (query for latest).
-    """
-    expected_neurons = [test_neuron]
-
-    async with main_client_with_archive, archive_client:
-        async with main_client_with_archive.mock_behavior(
-            _get_neurons=[expected_neurons],
-        ):
-            result = await main_client_with_archive.get_neurons(netuid=1, block=None)
-
-    assert result == expected_neurons
-    assert main_client_with_archive.calls["get_latest_block"] == []
-    assert main_client_with_archive.calls["_get_neurons"] == [(1, None)]
-    assert archive_client.calls["_get_neurons"] == []
-
-
-@pytest.mark.asyncio
-async def test_archive_fallback_recent_block_main_succeeds(main_client_with_archive, archive_client, test_neuron):
+async def test_archive_fallback_recent_block_main_succeeds(bittensor_client, main_client, archive_client, test_neuron):
     """
     Test that main client is used for recent blocks when it succeeds.
     """
@@ -110,21 +72,21 @@ async def test_archive_fallback_recent_block_main_succeeds(main_client_with_arch
     latest_block = Block(number=500, hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
-    async with main_client_with_archive, archive_client:
-        async with main_client_with_archive.mock_behavior(
+    async with bittensor_client:
+        async with main_client.mock_behavior(
             get_latest_block=[latest_block],
-            _get_neurons=[expected_neurons],
+            get_neurons=[expected_neurons],
         ):
-            result = await main_client_with_archive.get_neurons(netuid=1, block=recent_block)
+            result = await bittensor_client.get_neurons(netuid=1, block=recent_block)
 
     assert result == expected_neurons
-    assert main_client_with_archive.calls["get_latest_block"] == [()]
-    assert main_client_with_archive.calls["_get_neurons"] == [(1, recent_block)]
-    assert archive_client.calls["_get_neurons"] == []
+    assert main_client.calls["get_latest_block"] == [()]
+    assert main_client.calls["get_neurons"] == [(1, recent_block)]
+    assert archive_client.calls["get_neurons"] == []
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_unknown_block_fallback(main_client_with_archive, archive_client, test_neuron):
+async def test_archive_fallback_unknown_block_fallback(bittensor_client, main_client, archive_client, test_neuron):
     """
     Test that archive client is used when main client raises UnknownBlock.
     """
@@ -132,47 +94,47 @@ async def test_archive_fallback_unknown_block_fallback(main_client_with_archive,
     latest_block = Block(number=500, hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
-    async with main_client_with_archive, archive_client:
+    async with bittensor_client:
         async with (
-            main_client_with_archive.mock_behavior(
+            main_client.mock_behavior(
                 get_latest_block=[latest_block],
-                _get_neurons=[UnknownBlock()],
+                get_neurons=[UnknownBlock()],
             ),
             archive_client.mock_behavior(
-                _get_neurons=[expected_neurons],
+                get_neurons=[expected_neurons],
             ),
         ):
-            result = await main_client_with_archive.get_neurons(netuid=1, block=recent_block)
+            result = await bittensor_client.get_neurons(netuid=1, block=recent_block)
 
     assert result == expected_neurons
-    assert main_client_with_archive.calls["get_latest_block"] == [()]
-    assert main_client_with_archive.calls["_get_neurons"] == [(1, recent_block)]
-    assert archive_client.calls["_get_neurons"] == [(1, recent_block)]
+    assert main_client.calls["get_latest_block"] == [()]
+    assert main_client.calls["get_neurons"] == [(1, recent_block)]
+    assert archive_client.calls["get_neurons"] == [(1, recent_block)]
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_exact_cutoff_boundary(main_client_with_archive, archive_client, test_neuron):
+async def test_archive_fallback_exact_cutoff_boundary(bittensor_client, main_client, archive_client, test_neuron):
     """
-    Test behavior when block is exactly at the cutoff boundary.
+    Test behavior when block is exactly at the cutoff boundary (should use main).
     """
     boundary_block = Block(number=200, hash=BlockHash("0xboundary"))
     latest_block = Block(number=500, hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
-    async with main_client_with_archive, archive_client:
-        async with main_client_with_archive.mock_behavior(
+    async with bittensor_client:
+        async with main_client.mock_behavior(
             get_latest_block=[latest_block],
-            _get_neurons=[expected_neurons],
+            get_neurons=[expected_neurons],
         ):
-            result = await main_client_with_archive.get_neurons(netuid=1, block=boundary_block)
+            result = await bittensor_client.get_neurons(netuid=1, block=boundary_block)
 
     assert result == expected_neurons
-    assert main_client_with_archive.calls["_get_neurons"] == [(1, boundary_block)]
-    assert archive_client.calls["_get_neurons"] == []
+    assert main_client.calls["get_neurons"] == [(1, boundary_block)]
+    assert archive_client.calls["get_neurons"] == []
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_one_past_cutoff_boundary(main_client_with_archive, archive_client, test_neuron):
+async def test_archive_fallback_one_past_cutoff_boundary(bittensor_client, main_client, archive_client, test_neuron):
     """
     Test behavior when block is one past the cutoff boundary (should use archive).
     """
@@ -180,46 +142,45 @@ async def test_archive_fallback_one_past_cutoff_boundary(main_client_with_archiv
     latest_block = Block(number=500, hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
-    async with main_client_with_archive, archive_client:
-        async with (
-            main_client_with_archive.mock_behavior(
-                get_latest_block=[latest_block],
-            ),
-            archive_client.mock_behavior(
-                _get_neurons=[expected_neurons],
-            ),
-        ):
-            result = await main_client_with_archive.get_neurons(netuid=1, block=past_cutoff_block)
-
-    assert result == expected_neurons
-    assert main_client_with_archive.calls["_get_neurons"] == []
-    assert archive_client.calls["_get_neurons"] == [(1, past_cutoff_block)]
-
-
-@pytest.mark.asyncio
-async def test_archive_fallback_custom_cutoff(main_client, archive_client, test_neuron):
-    """
-    Test that custom archive_blocks_cutoff value is respected.
-    """
-    main_client.archive_client = archive_client
-    main_client.archive_blocks_cutoff = 100
-
-    old_block = Block(number=350, hash=BlockHash("0xold"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
-    expected_neurons = [test_neuron]
-
-    async with main_client, archive_client:
+    async with bittensor_client:
         async with (
             main_client.mock_behavior(
                 get_latest_block=[latest_block],
             ),
             archive_client.mock_behavior(
-                _get_neurons=[expected_neurons],
+                get_neurons=[expected_neurons],
             ),
         ):
-            result = await main_client.get_neurons(netuid=1, block=old_block)
+            result = await bittensor_client.get_neurons(netuid=1, block=past_cutoff_block)
+
+    assert result == expected_neurons
+    assert main_client.calls["get_neurons"] == []
+    assert archive_client.calls["get_neurons"] == [(1, past_cutoff_block)]
+
+
+@pytest.mark.asyncio
+async def test_archive_fallback_custom_cutoff(bittensor_client, main_client, archive_client, test_neuron):
+    """
+    Test that custom archive_blocks_cutoff value is respected.
+    """
+    bittensor_client._archive_blocks_cutoff = 100
+
+    old_block = Block(number=350, hash=BlockHash("0xold"))
+    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    expected_neurons = [test_neuron]
+
+    async with bittensor_client:
+        async with (
+            main_client.mock_behavior(
+                get_latest_block=[latest_block],
+            ),
+            archive_client.mock_behavior(
+                get_neurons=[expected_neurons],
+            ),
+        ):
+            result = await bittensor_client.get_neurons(netuid=1, block=old_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["_get_neurons"] == []
-    assert archive_client.calls["_get_neurons"] == [(1, old_block)]
+    assert main_client.calls["get_neurons"] == []
+    assert archive_client.calls["get_neurons"] == [(1, old_block)]

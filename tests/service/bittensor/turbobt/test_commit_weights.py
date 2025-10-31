@@ -6,7 +6,14 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
-from pylon.service.bittensor.models import Hotkey, RevealRound
+from pylon.service.bittensor.models import Block, BlockHash, Hotkey, RevealRound
+
+
+@pytest.fixture
+def block_spec(block_spec):
+    test_block = Block(number=1000, hash=BlockHash("0xabc123"))
+    block_spec.get.return_value = test_block
+    return block_spec
 
 
 @pytest.fixture
