@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 from bittensor_wallet import Wallet
 from turbobt.client import Bittensor
@@ -310,7 +310,7 @@ class TurboBtClient(AbstractBittensorClient):
         return Metagraph(block=block, neurons={neuron.hotkey: neuron for neuron in neurons})
 
 
-SubClient = TypeVar('SubClient', bound=AbstractBittensorClient)
+SubClient = TypeVar("SubClient", bound=AbstractBittensorClient)
 
 
 class BittensorClient(Generic[SubClient], AbstractBittensorClient):
@@ -345,49 +345,53 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         await self._archive_client.close()
 
     async def get_block(self, number: int) -> Block | None:
-        return await self._main_client.get_block(number)
+        return await self._delegate(self.subclient_cls.get_block, number=number)
 
     async def get_latest_block(self) -> Block:
-        return await self._main_client.get_latest_block()
+        return await self._delegate(self.subclient_cls.get_latest_block)
 
     async def get_neurons(self, netuid: int, block: Block) -> list[Neuron]:
-        return await self._archive_fallback(self.subclient_cls.get_neurons, netuid=netuid, block=block)
+        return await self._delegate(self.subclient_cls.get_neurons, netuid=netuid, block=block)
 
     async def get_hyperparams(self, netuid: int, block: Block) -> SubnetHyperparams | None:
-        return await self._archive_fallback(self.subclient_cls.get_hyperparams, netuid=netuid, block=block)
+        return await self._delegate(self.subclient_cls.get_hyperparams, netuid=netuid, block=block)
 
     async def get_certificates(self, netuid: int, block: Block) -> dict[Hotkey, NeuronCertificate]:
-        return await self._archive_fallback(self.subclient_cls.get_certificates, netuid=netuid, block=block)
+        return await self._delegate(self.subclient_cls.get_certificates, netuid=netuid, block=block)
 
     async def get_certificate(
         self, netuid: int, block: Block, hotkey: Hotkey | None = None
     ) -> NeuronCertificate | None:
-        return await self._archive_fallback(self.subclient_cls.get_certificate, netuid=netuid, block=block, hotkey=hotkey)
+        return await self._delegate(self.subclient_cls.get_certificate, netuid=netuid, block=block, hotkey=hotkey)
 
     async def generate_certificate_keypair(
         self, netuid: int, algorithm: CertificateAlgorithm
     ) -> NeuronCertificateKeypair | None:
-        return await self._main_client.generate_certificate_keypair(netuid, algorithm)
+        return await self._delegate(self.subclient_cls.generate_certificate_keypair, netuid=netuid, algorithm=algorithm)
 
     async def commit_weights(self, netuid: int, weights: WeightsMapping) -> RevealRound:
-        return await self._main_client.commit_weights(netuid, weights)
+        return await self._delegate(self.subclient_cls.commit_weights, netuid=netuid, weights=weights)
 
     async def set_weights(self, netuid: int, weights: WeightsMapping) -> None:
-        return await self._main_client.set_weights(netuid, weights)
+        return await self._delegate(self.subclient_cls.set_weights, netuid=netuid, weights=weights)
 
     async def get_metagraph(self, netuid: int, block: Block) -> Metagraph:
-        neurons = await self.get_neurons(netuid, block)
-        return Metagraph(block=block, neurons={neuron.hotkey: neuron for neuron in neurons})
+        return await self._delegate(self.subclient_cls.get_metagraph, netuid=netuid, block=block)
 
-    async def _archive_fallback(self, operation: Callable, *args, block: Block, **kwargs):
+    async def _delegate(self, operation: Callable, *args, block: Block | None = None, **kwargs):
         """
-        Execute operation with automatic archive node fallback.
+        Execute operation with a proper client.
+
+        Operations that does not need a block are executed by the main client.
+        Archive client is used when the block is stale (older than archive_blocks_cutoff blocks).
+        Operations on the main client are retried if UnknownBlock exception is raised.
         """
-        kwargs["block"] = block
-        latest_block = await self.get_latest_block()
-        if latest_block.number - block.number > self._archive_blocks_cutoff:
-            logger.debug(f"Block is stale, falling back to the archive client: {self._archive_client.uri}")
-            return await operation(self._archive_client, *args, **kwargs)
+        if block:
+            kwargs["block"] = block
+            latest_block = await self._main_client.get_latest_block()
+            if latest_block.number - block.number > self._archive_blocks_cutoff:
+                logger.debug(f"Block is stale, falling back to the archive client: {self._archive_client.uri}")
+                return await operation(self._archive_client, *args, **kwargs)
 
         try:
             return await operation(self._main_client, *args, **kwargs)

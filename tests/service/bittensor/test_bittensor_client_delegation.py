@@ -1,7 +1,7 @@
 """
-Tests for BittensorClient archive fallback logic.
+Tests for BittensorClient delegation logic.
 
-These tests verify the archive fallback logic in BittensorClient that determines whether to use
+These tests verify the delegation logic in BittensorClient._delegate() that determines whether to use
 the main client or the archive client based on block age and availability.
 """
 
@@ -48,7 +48,7 @@ def bittensor_client():
         uri="ws://main",
         archive_uri="ws://archive",
         archive_blocks_cutoff=300,
-        subclient_cls=MockBittensorClient
+        subclient_cls=MockBittensorClient,
     )
     return client
 
@@ -64,7 +64,7 @@ def archive_client(bittensor_client):
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_recent_block_main_succeeds(bittensor_client, main_client, archive_client, test_neuron):
+async def test_delegation_recent_block_uses_main_client(bittensor_client, main_client, archive_client, test_neuron):
     """
     Test that main client is used for recent blocks when it succeeds.
     """
@@ -86,7 +86,9 @@ async def test_archive_fallback_recent_block_main_succeeds(bittensor_client, mai
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_unknown_block_fallback(bittensor_client, main_client, archive_client, test_neuron):
+async def test_delegation_unknown_block_falls_back_to_archive(
+    bittensor_client, main_client, archive_client, test_neuron
+):
     """
     Test that archive client is used when main client raises UnknownBlock.
     """
@@ -113,7 +115,9 @@ async def test_archive_fallback_unknown_block_fallback(bittensor_client, main_cl
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_exact_cutoff_boundary(bittensor_client, main_client, archive_client, test_neuron):
+async def test_delegation_exact_cutoff_boundary_uses_main_client(
+    bittensor_client, main_client, archive_client, test_neuron
+):
     """
     Test behavior when block is exactly at the cutoff boundary (should use main).
     """
@@ -134,7 +138,9 @@ async def test_archive_fallback_exact_cutoff_boundary(bittensor_client, main_cli
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_one_past_cutoff_boundary(bittensor_client, main_client, archive_client, test_neuron):
+async def test_delegation_past_cutoff_boundary_uses_archive_client(
+    bittensor_client, main_client, archive_client, test_neuron
+):
     """
     Test behavior when block is one past the cutoff boundary (should use archive).
     """
@@ -159,7 +165,7 @@ async def test_archive_fallback_one_past_cutoff_boundary(bittensor_client, main_
 
 
 @pytest.mark.asyncio
-async def test_archive_fallback_custom_cutoff(bittensor_client, main_client, archive_client, test_neuron):
+async def test_delegation_with_custom_cutoff(bittensor_client, main_client, archive_client, test_neuron):
     """
     Test that custom archive_blocks_cutoff value is respected.
     """
@@ -184,3 +190,21 @@ async def test_archive_fallback_custom_cutoff(bittensor_client, main_client, arc
     assert main_client.calls["get_latest_block"] == [()]
     assert main_client.calls["get_neurons"] == []
     assert archive_client.calls["get_neurons"] == [(1, old_block)]
+
+
+@pytest.mark.asyncio
+async def test_delegation_without_block_uses_main_client(bittensor_client, main_client, archive_client):
+    """
+    Test that operations without block parameter always use main client.
+    """
+    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+
+    async with bittensor_client:
+        async with main_client.mock_behavior(
+            get_latest_block=[latest_block],
+        ):
+            result = await bittensor_client.get_latest_block()
+
+    assert result == latest_block
+    assert main_client.calls["get_latest_block"] == [()]
+    assert archive_client.calls["get_latest_block"] == []
