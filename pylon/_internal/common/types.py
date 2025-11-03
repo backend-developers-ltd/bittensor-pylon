@@ -1,0 +1,31 @@
+from typing import NewType
+
+# When adding new type, remember to also include it in extend-immutable-calls in pyproject.toml so that ruff does not
+# raise B008 on new type wrapping the function's default value.
+
+Hotkey = NewType("Hotkey", str)
+Coldkey = NewType("Coldkey", str)
+Weight = NewType("Weight", float)
+BlockHash = NewType("BlockHash", str)
+BlockNumber = NewType("BlockNumber", int)
+RevealRound = NewType("RevealRound", int)
+PublicKey = NewType("PublicKey", str)
+PrivateKey = NewType("PrivateKey", str)
+NeuronUid = NewType("NeuronUid", int)
+Port = NewType("Port", int)
+Stake = NewType("Stake", float)
+Rank = NewType("Rank", float)
+Emission = NewType("Emission", float)
+Incentive = NewType("Incentive", float)
+Consensus = NewType("Consensus", float)
+Trust = NewType("Trust", float)
+ValidatorTrust = NewType("ValidatorTrust", float)
+Dividends = NewType("Dividends", float)
+Timestamp = NewType("Timestamp", int)
+PruningScore = NewType("PruningScore", int)
+MaxWeightsLimit = NewType("MaxWeightsLimit", int)
+Tempo = NewType("Tempo", int)
+NetUid = NewType("NetUid", int)
+BittensorNetwork = NewType("BittensorNetwork", str)
+ArchiveBlocksCutoff = NewType("ArchiveBlocksCutoff", int)
+CommitRevealEnabled = NewType("CommitRevealEnabled", bool)

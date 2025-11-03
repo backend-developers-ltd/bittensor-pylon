@@ -7,7 +7,8 @@ from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.settings import settings
-from pylon.service.bittensor.models import Block, BlockHash, RevealRound, SubnetHyperparams
+from pylon._internal.common.types import BlockHash, BlockNumber, CommitRevealEnabled, RevealRound
+from pylon.service.bittensor.models import Block, SubnetHyperparams
 from pylon.service.tasks import ApplyWeights
 from tests.helpers import wait_for_background_tasks
 from tests.mock_bittensor_client import MockBittensorClient
@@ -28,10 +29,10 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
     # The background task calls get_latest_block twice (start and during apply)
     async with mock_bt_client.mock_behavior(
         get_latest_block=[
-            Block(number=1000, hash=BlockHash("0xabc123")),  # First call in run_job
-            Block(number=1001, hash=BlockHash("0xabc124")),  # Second call in run_job
+            Block(number=BlockNumber(1000), hash=BlockHash("0xabc123")),  # First call in run_job
+            Block(number=BlockNumber(1001), hash=BlockHash("0xabc124")),  # Second call in run_job
         ],
-        get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=True)],
+        get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=CommitRevealEnabled(True))],
         commit_weights=[RevealRound(1005)],
     ):
         response = await test_client.put(
@@ -67,10 +68,10 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
     # Set up behaviors that will persist for the background task
     async with mock_bt_client.mock_behavior(
         get_latest_block=[
-            Block(number=2000, hash=BlockHash("0xdef456")),  # First call in run_job
-            Block(number=2000, hash=BlockHash("0xdef456")),  # Second call in run_job
+            Block(number=BlockNumber(2000), hash=BlockHash("0xdef456")),  # First call in run_job
+            Block(number=BlockNumber(2000), hash=BlockHash("0xdef456")),  # Second call in run_job
         ],
-        get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=False)],
+        get_hyperparams=[SubnetHyperparams(commit_reveal_weights_enabled=CommitRevealEnabled(False))],
         set_weights=[None],
     ):
         response = await test_client.put(

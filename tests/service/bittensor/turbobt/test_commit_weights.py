@@ -6,12 +6,13 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
-from pylon.service.bittensor.models import Block, BlockHash, Hotkey, RevealRound
+from pylon._internal.common.types import BlockHash, BlockNumber, Hotkey, RevealRound
+from pylon.service.bittensor.models import Block
 
 
 @pytest.fixture
 def block_spec(block_spec):
-    test_block = Block(number=1000, hash=BlockHash("0xabc123"))
+    test_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
     block_spec.get.return_value = test_block
     return block_spec
 
@@ -73,16 +74,12 @@ def subnet_spec(subnet_spec):
 
 
 @pytest.mark.asyncio
-async def test_turbobt_client_commit_weights(turbobt_client, subnet_spec, caplog):
+async def test_turbobt_client_commit_weights(turbobt_client, subnet_spec):
     weights = {
         Hotkey("hotkey1"): 0.6,
         Hotkey("hotkey2"): 0.3,
-        Hotkey("hotkey3"): 0.1,
+        Hotkey("unknown_hotkey_for_which_no_weights_shall_be_set"): 0.1,
     }
     result = await turbobt_client.commit_weights(netuid=1, weights=weights)
     assert result == RevealRound(1234)
     subnet_spec.weights.commit.assert_called_once_with({1: 0.6, 2: 0.3})
-    assert (
-        "Some of the hotkeys passed for weight commitment are missing. "
-        "Weights will not be commited for the following hotkeys: ['hotkey3']." in caplog.text
-    )

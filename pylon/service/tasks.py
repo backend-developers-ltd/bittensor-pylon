@@ -3,8 +3,9 @@ import logging
 from typing import ClassVar, Self
 
 from pylon._internal.common.settings import settings
+from pylon._internal.common.types import Hotkey, Weight
 from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import Block, WeightsMapping
+from pylon.service.bittensor.models import Block
 from pylon.service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
@@ -17,13 +18,13 @@ class ApplyWeights:
         self._client: AbstractBittensorClient = client
 
     @classmethod
-    async def schedule(cls, client: AbstractBittensorClient, weights: dict[str, float]) -> Self:
+    async def schedule(cls, client: AbstractBittensorClient, weights: dict[Hotkey, Weight]) -> Self:
         apply_weights = cls(client)
         task = asyncio.create_task(apply_weights.run_job(weights), name=cls.JOB_NAME)
         task.add_done_callback(apply_weights._log_done)
         return apply_weights
 
-    async def run_job(self, weights: dict[str, float]) -> None:
+    async def run_job(self, weights: dict[Hotkey, Weight]) -> None:
         start_block = await self._client.get_latest_block()
 
         tempo = get_epoch_containing_block(start_block.number)
@@ -59,7 +60,7 @@ class ApplyWeights:
                 await asyncio.sleep(next_sleep_seconds)
                 next_sleep_seconds = min(next_sleep_seconds * 2, max_sleep_seconds)
 
-    async def _apply_weights(self, weights: WeightsMapping, latest_block: Block) -> None:
+    async def _apply_weights(self, weights: dict[Hotkey, Weight], latest_block: Block) -> None:
         hyperparams = await self._client.get_hyperparams(settings.bittensor_netuid, latest_block)
         if hyperparams is None:
             raise RuntimeError("Failed to fetch hyperparameters")

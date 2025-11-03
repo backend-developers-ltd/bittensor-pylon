@@ -4,6 +4,7 @@ from pylon._internal.client.mock import AsyncMockClient, RaiseRequestError, Rais
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import SetWeightsRequest
 from pylon._internal.common.responses import PylonResponseStatus, SetWeightsResponse
+from pylon._internal.common.types import Hotkey, Weight
 
 
 @pytest.mark.asyncio
@@ -16,7 +17,7 @@ async def test_mock_async_pylon_client():
             WorkNormally(normal_response),
         ]
     )
-    pylon_request = SetWeightsRequest(weights={"h1": 1, "h2": 0.5})
+    pylon_request = SetWeightsRequest(weights={Hotkey("h1"): Weight(1), Hotkey("h2"): Weight(0.5)})
     with pytest.raises(PylonRequestException, match="Test request error!"):
         await client.request(pylon_request)
     with pytest.raises(PylonResponseException, match="Test http status error!"):
@@ -27,4 +28,4 @@ async def test_mock_async_pylon_client():
     response = await client.request(pylon_request)
     assert response == normal_response
     # Check "requests" made.
-    assert client.requests_made == [SetWeightsRequest(weights={"h1": 1, "h2": 0.5})] * 4
+    assert client.requests_made == [SetWeightsRequest(weights={Hotkey("h1"): Weight(1), Hotkey("h2"): Weight(0.5)})] * 4

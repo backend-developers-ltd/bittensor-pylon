@@ -1,15 +1,16 @@
 from pydantic import BaseModel
 
 from pylon._internal.common.settings import settings
+from pylon._internal.common.types import BlockNumber, NetUid, Tempo
 
 
 class Epoch(BaseModel):
-    start: int
-    end: int
+    start: BlockNumber
+    end: BlockNumber
 
 
 def get_epoch_containing_block(
-    block: int, netuid: int = settings.bittensor_netuid, tempo: int = settings.tempo
+    block: BlockNumber, netuid: NetUid = settings.bittensor_netuid, tempo: Tempo = settings.tempo
 ) -> Epoch:
     """
     Reimplementing the logic from subtensor's Rust function:
@@ -31,7 +32,7 @@ def get_epoch_containing_block(
     else:
         prev_epoch = next_epoch - interval
 
-    return Epoch(start=prev_epoch, end=next_epoch)
+    return Epoch(start=BlockNumber(prev_epoch), end=BlockNumber(next_epoch))
 
 
 class CommitWindow:
@@ -44,7 +45,7 @@ class CommitWindow:
 
     def __init__(
         self,
-        current_block: int,
+        current_block: BlockNumber,
     ):
         self.current_block = current_block
         self.interval = settings.tempo

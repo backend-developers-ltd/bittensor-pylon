@@ -1,11 +1,12 @@
 import pytest
 
-from pylon.service.bittensor.models import Block, BlockHash, CertificateAlgorithm, Hotkey, NeuronCertificate, PublicKey
+from pylon._internal.common.types import BlockHash, BlockNumber, Hotkey, PublicKey
+from pylon.service.bittensor.models import Block, CertificateAlgorithm, NeuronCertificate
 
 
 @pytest.fixture
 def test_block():
-    return Block(number=1000, hash=BlockHash("0xabc123"))
+    return Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
 
 @pytest.fixture

@@ -1,12 +1,14 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from pylon._internal.common.types import ArchiveBlocksCutoff, BittensorNetwork, NetUid, Tempo
+
 
 class Settings(BaseSettings):
     # bittensor
-    bittensor_netuid: int
-    bittensor_network: str = "finney"
-    bittensor_archive_network: str = "archive"
-    bittensor_archive_blocks_cutoff: int = 300
+    bittensor_netuid: NetUid
+    bittensor_network: BittensorNetwork = BittensorNetwork("finney")
+    bittensor_archive_network: BittensorNetwork = BittensorNetwork("archive")
+    bittensor_archive_blocks_cutoff: ArchiveBlocksCutoff = ArchiveBlocksCutoff(300)
     bittensor_wallet_name: str
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str
@@ -22,7 +24,7 @@ class Settings(BaseSettings):
     pylon_db_dir: str = "/tmp/pylon"
 
     # subnet epoch length
-    tempo: int = 360
+    tempo: Tempo = Tempo(360)
 
     # commit-reveal cycle
     commit_cycle_length: int = 3  # Number of tempos to wait between weight commitments

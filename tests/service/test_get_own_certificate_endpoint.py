@@ -6,7 +6,8 @@ import pytest
 from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND
 from litestar.testing import AsyncTestClient
 
-from pylon.service.bittensor.models import Block, BlockHash, CertificateAlgorithm, NeuronCertificate, PublicKey
+from pylon._internal.common.types import BlockHash, BlockNumber, PublicKey
+from pylon.service.bittensor.models import Block, CertificateAlgorithm, NeuronCertificate
 from tests.mock_bittensor_client import MockBittensorClient
 
 
@@ -19,7 +20,7 @@ async def test_get_own_certificate_success(test_client: AsyncTestClient, mock_bt
         algorithm=CertificateAlgorithm.ED25519,
         public_key=PublicKey("0xabcdef1234567890"),
     )
-    latest_block = Block(number=1000, hash=BlockHash("0xabc123"))
+    latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
     async with mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],
@@ -39,7 +40,7 @@ async def test_get_own_certificate_not_found(test_client: AsyncTestClient, mock_
     """
     Test getting own certificate when it doesn't exist.
     """
-    latest_block = Block(number=1000, hash=BlockHash("0xabc123"))
+    latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
     async with mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],

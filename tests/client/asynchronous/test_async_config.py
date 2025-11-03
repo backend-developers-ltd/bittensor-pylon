@@ -7,6 +7,7 @@ from pylon._internal.client.config import DEFAULT_RETRIES, AsyncPylonClientConfi
 from pylon._internal.common.exceptions import PylonRequestException
 from pylon._internal.common.requests import SetWeightsRequest
 from pylon._internal.common.responses import PylonResponseStatus
+from pylon._internal.common.types import Hotkey, Weight
 
 
 @pytest.mark.parametrize(
@@ -34,7 +35,7 @@ async def test_async_config_retries_success(service_mock, test_url, attempts):
     async with AsyncPylonClient(
         AsyncPylonClientConfig(address=test_url, retry=DEFAULT_RETRIES.copy(stop=stop_after_attempt(attempts)))
     ) as async_client:
-        response = await async_client.request(SetWeightsRequest(weights={"h2": 0.1}))
+        response = await async_client.request(SetWeightsRequest(weights={Hotkey("h2"): Weight(0.1)}))
     assert response.status == PylonResponseStatus.SUCCESS
     assert route.call_count == attempts
 
@@ -51,5 +52,5 @@ async def test_async_config_retries_error(service_mock, test_url):
         )
     ) as async_client:
         with pytest.raises(PylonRequestException):
-            await async_client.request(SetWeightsRequest(weights={"h2": 0.1}))
+            await async_client.request(SetWeightsRequest(weights={Hotkey("h2"): Weight(0.1)}))
     assert route.call_count == 2

@@ -70,6 +70,8 @@ def bittensor_spec(block_spec, subnet_spec):
 
 @pytest_asyncio.fixture
 async def turbobt_client(monkeypatch, bittensor_spec):
+    from pylon._internal.common.types import BittensorNetwork
+
     monkeypatch.setattr("pylon.service.bittensor.client.Bittensor", bittensor_spec)
-    async with TurboBtClient(wallet=Wallet(), uri="ws://testserver") as client:
+    async with TurboBtClient(wallet=Wallet(), uri=BittensorNetwork("ws://testserver")) as client:
         yield client

@@ -6,12 +6,13 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
-from pylon.service.bittensor.models import Block, BlockHash, Hotkey
+from pylon._internal.common.types import BlockHash, BlockNumber, Hotkey, Weight
+from pylon.service.bittensor.models import Block
 
 
 @pytest.fixture
 def block_spec(block_spec):
-    test_block = Block(number=1000, hash=BlockHash("0xabc123"))
+    test_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
     block_spec.get.return_value = test_block
     return block_spec
 
@@ -74,9 +75,10 @@ def subnet_spec(subnet_spec):
 @pytest.mark.asyncio
 async def test_turbobt_client_set_weights(turbobt_client, subnet_spec):
     weights = {
-        Hotkey("hotkey1"): 0.6,
-        Hotkey("hotkey2"): 0.4,
+        Hotkey("hotkey1"): Weight(0.6),
+        Hotkey("hotkey2"): Weight(0.2),
+        Hotkey("unknown_hotkey_for_which_no_weights_shall_be_set"): Weight(0.2),
     }
     result = await turbobt_client.set_weights(netuid=1, weights=weights)
     assert result is None
-    subnet_spec.weights.set.assert_called_once_with({1: 0.6, 2: 0.4})
+    subnet_spec.weights.set.assert_called_once_with({1: 0.6, 2: 0.2})

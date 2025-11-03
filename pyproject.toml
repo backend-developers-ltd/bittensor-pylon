@@ -61,6 +61,35 @@ ignore = [
 
 "__init__.py" = ["I", "F401"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "pylon._internal.common.types.ArchiveBlocksCutoff",
+    "pylon._internal.common.types.BittensorNetwork",
+    "pylon._internal.common.types.BlockHash",
+    "pylon._internal.common.types.BlockNumber",
+    "pylon._internal.common.types.Coldkey",
+    "pylon._internal.common.types.Consensus",
+    "pylon._internal.common.types.Dividends",
+    "pylon._internal.common.types.Emission",
+    "pylon._internal.common.types.Hotkey",
+    "pylon._internal.common.types.Incentive",
+    "pylon._internal.common.types.MaxWeightsLimit",
+    "pylon._internal.common.types.NetUid",
+    "pylon._internal.common.types.NeuronUid",
+    "pylon._internal.common.types.Port",
+    "pylon._internal.common.types.PrivateKey",
+    "pylon._internal.common.types.PruningScore",
+    "pylon._internal.common.types.PublicKey",
+    "pylon._internal.common.types.Rank",
+    "pylon._internal.common.types.RevealRound",
+    "pylon._internal.common.types.Stake",
+    "pylon._internal.common.types.Tempo",
+    "pylon._internal.common.types.Timestamp",
+    "pylon._internal.common.types.Trust",
+    "pylon._internal.common.types.ValidatorTrust",
+    "pylon._internal.common.types.Weight",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

@@ -4,7 +4,8 @@ from pydantic import BaseModel, field_validator
 
 from pylon._internal.common.apiver import ApiVersion
 from pylon._internal.common.responses import PylonResponse, SetWeightsResponse
-from pylon.service.bittensor.models import CertificateAlgorithm, WeightsMapping
+from pylon._internal.common.types import Hotkey, Weight
+from pylon.service.bittensor.models import CertificateAlgorithm
 
 
 class PylonRequest(BaseModel):
@@ -31,7 +32,7 @@ class SetWeightsRequest(PylonRequest):
     version = ApiVersion.V1
     response_cls = SetWeightsResponse
 
-    weights: WeightsMapping
+    weights: dict[Hotkey, Weight]
 
     @field_validator("weights")
     @classmethod

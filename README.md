@@ -78,12 +78,13 @@ Use the Pylon client to connect with the running service:
 ```python
 import asyncio
 
-from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, Hotkey, Weight
 
 async def main():
     config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
     async with AsyncPylonClient(config) as client:
-        await client.request(SetWeightsRequest(weights={"h1": 0.1}))
+        # Wrapping values with Hotkey and Weight is recommended but not necessary if type checker isn't used.
+        await client.request(SetWeightsRequest(weights={Hotkey("h1"): Weight(0.1)}))
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -93,13 +94,13 @@ If you need to manage the Pylon service programmatically, you can use the `Pylon
 It's a context manager that starts the Pylon service and stops it when the `async with` block is exited. Only suitable for ad-hoc use cases like scripts, short-lived tasks or testing.
 
 ```python
-from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, PylonDockerManager
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, SetWeightsRequest, PylonDockerManager, Hotkey, Weight
 
 async def main():
     async with PylonDockerManager(port=8000):
         config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
         async with AsyncPylonClient(config) as client:
-            await client.request(SetWeightsRequest(weights={"h1": 0.1}))
+            await client.request(SetWeightsRequest(weights={Hotkey("h1"): Weight(0.1)}))
                 ...
 ```
 

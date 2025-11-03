@@ -11,30 +11,50 @@ import pytest
 from bittensor_wallet import Wallet
 from turbobt.substrate.exceptions import UnknownBlock
 
+from pylon._internal.common.types import (
+    ArchiveBlocksCutoff,
+    BittensorNetwork,
+    BlockHash,
+    BlockNumber,
+    Coldkey,
+    Consensus,
+    Dividends,
+    Emission,
+    Hotkey,
+    Incentive,
+    NeuronUid,
+    Port,
+    PruningScore,
+    Rank,
+    Stake,
+    Timestamp,
+    Trust,
+    ValidatorTrust,
+)
 from pylon.service.bittensor.client import BittensorClient
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, BlockHash, Coldkey, Hotkey, Neuron
+from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, Neuron
 from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.fixture
 def test_neuron():
     return Neuron(
-        uid=1,
+        uid=NeuronUid(1),
         coldkey=Coldkey("coldkey_1"),
         hotkey=Hotkey("test_hotkey"),
         active=True,
-        axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=8080, protocol=AxonProtocol.TCP),
-        stake=100.0,
-        rank=0.5,
-        emission=10.0,
-        incentive=0.8,
-        consensus=0.9,
-        trust=0.7,
-        validator_trust=0.6,
-        dividends=0.4,
-        last_update=1000,
+        axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
+        stake=Stake(100.0),
+        rank=Rank(0.5),
+        emission=Emission(10.0),
+        incentive=Incentive(0.8),
+        consensus=Consensus(0.9),
+        trust=Trust(0.7),
+        validator_trust=ValidatorTrust(0.6),
+        dividends=Dividends(0.4),
+        last_update=Timestamp(1000),
         validator_permit=True,
-        pruning_score=50,
+        pruning_score=PruningScore(50),
     )
 
 
@@ -45,9 +65,9 @@ def bittensor_client():
     # Create BittensorClient
     client = BittensorClient(
         wallet=wallet,
-        uri="ws://main",
-        archive_uri="ws://archive",
-        archive_blocks_cutoff=300,
+        uri=BittensorNetwork("ws://main"),
+        archive_uri=BittensorNetwork("ws://archive"),
+        archive_blocks_cutoff=ArchiveBlocksCutoff(300),
         subclient_cls=MockBittensorClient,
     )
     return client
@@ -68,8 +88,8 @@ async def test_delegation_recent_block_uses_main_client(bittensor_client, main_c
     """
     Test that main client is used for recent blocks when it succeeds.
     """
-    recent_block = Block(number=450, hash=BlockHash("0xrecent"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    recent_block = Block(number=BlockNumber(450), hash=BlockHash("0xrecent"))
+    latest_block = Block(number=BlockNumber(500), hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
     async with bittensor_client:
@@ -92,8 +112,8 @@ async def test_delegation_unknown_block_falls_back_to_archive(
     """
     Test that archive client is used when main client raises UnknownBlock.
     """
-    recent_block = Block(number=450, hash=BlockHash("0xrecent"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    recent_block = Block(number=BlockNumber(450), hash=BlockHash("0xrecent"))
+    latest_block = Block(number=BlockNumber(500), hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
     async with bittensor_client:
@@ -121,8 +141,8 @@ async def test_delegation_exact_cutoff_boundary_uses_main_client(
     """
     Test behavior when block is exactly at the cutoff boundary (should use main).
     """
-    boundary_block = Block(number=200, hash=BlockHash("0xboundary"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    boundary_block = Block(number=BlockNumber(200), hash=BlockHash("0xboundary"))
+    latest_block = Block(number=BlockNumber(500), hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
     async with bittensor_client:
@@ -144,8 +164,8 @@ async def test_delegation_past_cutoff_boundary_uses_archive_client(
     """
     Test behavior when block is one past the cutoff boundary (should use archive).
     """
-    past_cutoff_block = Block(number=199, hash=BlockHash("0xpast"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    past_cutoff_block = Block(number=BlockNumber(199), hash=BlockHash("0xpast"))
+    latest_block = Block(number=BlockNumber(500), hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
     async with bittensor_client:
@@ -169,10 +189,10 @@ async def test_delegation_with_custom_cutoff(bittensor_client, main_client, arch
     """
     Test that custom archive_blocks_cutoff value is respected.
     """
-    bittensor_client._archive_blocks_cutoff = 100
+    bittensor_client._archive_blocks_cutoff = ArchiveBlocksCutoff(100)
 
-    old_block = Block(number=350, hash=BlockHash("0xold"))
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    old_block = Block(number=BlockNumber(350), hash=BlockHash("0xold"))
+    latest_block = Block(number=BlockNumber(500), hash=BlockHash("0xlatest"))
     expected_neurons = [test_neuron]
 
     async with bittensor_client:
@@ -197,7 +217,7 @@ async def test_delegation_without_block_uses_main_client(bittensor_client, main_
     """
     Test that operations without block parameter always use main client.
     """
-    latest_block = Block(number=500, hash=BlockHash("0xlatest"))
+    latest_block = Block(number=BlockNumber(500), hash=BlockHash("0xlatest"))
 
     async with bittensor_client:
         async with main_client.mock_behavior(

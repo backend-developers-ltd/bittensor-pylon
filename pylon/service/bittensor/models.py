@@ -1,23 +1,30 @@
 from enum import IntEnum
 from ipaddress import IPv4Address, IPv6Address
-from typing import NewType, TypeAlias
 
 from pydantic import BaseModel
 
-# Type aliases - these are not new types as they are used in pylon client as annotations of a user interface,
-# so we don't want to get the type checker errors on providing plain str, float etc.
-
-Hotkey: TypeAlias = str
-Weight: TypeAlias = float
-WeightsMapping: TypeAlias = dict[Hotkey, Weight]
-
-# New types
-
-Coldkey = NewType("Coldkey", str)
-BlockHash = NewType("BlockHash", str)
-RevealRound = NewType("RevealRound", int)
-PublicKey = NewType("PublicKey", str)
-PrivateKey = NewType("PrivateKey", str)
+from pylon._internal.common.types import (
+    BlockHash,
+    BlockNumber,
+    Coldkey,
+    CommitRevealEnabled,
+    Consensus,
+    Dividends,
+    Emission,
+    Hotkey,
+    Incentive,
+    MaxWeightsLimit,
+    NeuronUid,
+    Port,
+    PrivateKey,
+    PruningScore,
+    PublicKey,
+    Rank,
+    Stake,
+    Timestamp,
+    Trust,
+    ValidatorTrust,
+)
 
 
 class UnknownIntEnumMixin:
@@ -41,7 +48,7 @@ class BittensorModel(BaseModel):
 
 
 class Block(BittensorModel):
-    number: int
+    number: BlockNumber
     hash: BlockHash
 
 
@@ -53,27 +60,27 @@ class AxonProtocol(UnknownIntEnumMixin, IntEnum):
 
 class AxonInfo(BittensorModel):
     ip: IPv4Address | IPv6Address
-    port: int
+    port: Port
     protocol: AxonProtocol
 
 
 class Neuron(BittensorModel):
-    uid: int
+    uid: NeuronUid
     coldkey: Coldkey
     hotkey: Hotkey
     active: bool
     axon_info: AxonInfo
-    stake: float
-    rank: float
-    emission: float
-    incentive: float
-    consensus: float
-    trust: float
-    validator_trust: float
-    dividends: float
-    last_update: int
+    stake: Stake
+    rank: Rank
+    emission: Emission
+    incentive: Incentive
+    consensus: Consensus
+    trust: Trust
+    validator_trust: ValidatorTrust
+    dividends: Dividends
+    last_update: Timestamp
     validator_permit: bool
-    pruning_score: int
+    pruning_score: PruningScore
 
 
 class Metagraph(BittensorModel):
@@ -82,8 +89,8 @@ class Metagraph(BittensorModel):
 
 
 class SubnetHyperparams(BittensorModel):
-    max_weights_limit: int | None = None
-    commit_reveal_weights_enabled: bool | None = None
+    max_weights_limit: MaxWeightsLimit | None = None
+    commit_reveal_weights_enabled: CommitRevealEnabled | None = None
     # Add more parameters as needed.
 
 
