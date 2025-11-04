@@ -6,7 +6,9 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
+from pylon._internal.common.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
 from pylon._internal.common.types import (
+    AlphaStake,
     BlockHash,
     BlockNumber,
     Coldkey,
@@ -21,12 +23,14 @@ from pylon._internal.common.types import (
     PruningScore,
     Rank,
     Stake,
+    Tao,
+    TaoStake,
     Timestamp,
+    TotalStake,
     Trust,
     ValidatorPermit,
     ValidatorTrust,
 )
-from pylon._internal.common.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
 
 
 @pytest.fixture
@@ -121,7 +125,7 @@ async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec, test_bloc
             axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
             stake=Stake(100.0),
             rank=Rank(0.5),
-            emission=Emission(10.0),
+            emission=Emission(Tao(10.0)),
             incentive=Incentive(0.8),
             consensus=Consensus(0.9),
             trust=Trust(0.7),
@@ -130,7 +134,7 @@ async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec, test_bloc
             last_update=Timestamp(1000),
             validator_permit=ValidatorPermit(True),
             pruning_score=PruningScore(50),
-            stakes=Stakes(alpha=50.0, tao=30.0, total=55.4),
+            stakes=Stakes(alpha=AlphaStake(Tao(50.0)), tao=TaoStake(Tao(30.0)), total=TotalStake(Tao(55.4))),
         ),
         Neuron(
             uid=NeuronUid(2),
@@ -140,7 +144,7 @@ async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec, test_bloc
             axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.2"), port=Port(8081), protocol=AxonProtocol.UDP),
             stake=Stake(200.0),
             rank=Rank(0.6),
-            emission=Emission(20.0),
+            emission=Emission(Tao(20.0)),
             incentive=Incentive(0.7),
             consensus=Consensus(0.8),
             trust=Trust(0.9),
@@ -149,6 +153,6 @@ async def test_turbobt_client_get_neurons(turbobt_client, subnet_spec, test_bloc
             last_update=Timestamp(2000),
             validator_permit=ValidatorPermit(False),
             pruning_score=PruningScore(60),
-            stakes=Stakes(alpha=100.0, tao=60.0, total=110.8),
+            stakes=Stakes(alpha=AlphaStake(Tao(100.0)), tao=TaoStake(Tao(60.0)), total=TotalStake(Tao(110.8))),
         ),
     ]

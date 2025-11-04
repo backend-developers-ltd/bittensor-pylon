@@ -13,7 +13,6 @@ from typing import Any, TypeAlias
 
 from bittensor_wallet import Wallet
 
-from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
 from pylon._internal.common.models import (
     Block,
     CertificateAlgorithm,
@@ -24,6 +23,7 @@ from pylon._internal.common.models import (
     SubnetHyperparams,
     SubnetState,
 )
+from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
 from pylon.service.bittensor.client import AbstractBittensorClient
 
 Behavior: TypeAlias = Callable | Exception | Any
@@ -204,7 +204,7 @@ class MockBittensorClient(AbstractBittensorClient):
         self.calls["set_weights"].append((netuid, weights))
         return await self._execute_behavior("set_weights", netuid, weights)
 
-    async def _get_subnet_state(self, netuid: NetUid, block: Block | None = None) -> SubnetState:
+    async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
         """
         Get subnet state.
         """

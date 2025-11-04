@@ -11,7 +11,9 @@ import pytest
 from bittensor_wallet import Wallet
 from turbobt.substrate.exceptions import UnknownBlock
 
+from pylon._internal.common.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
 from pylon._internal.common.types import (
+    AlphaStake,
     ArchiveBlocksCutoff,
     BittensorNetwork,
     BlockHash,
@@ -28,13 +30,15 @@ from pylon._internal.common.types import (
     PruningScore,
     Rank,
     Stake,
+    Tao,
+    TaoStake,
     Timestamp,
+    TotalStake,
     Trust,
     ValidatorPermit,
     ValidatorTrust,
 )
 from pylon.service.bittensor.client import BittensorClient
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, Neuron
 from tests.mock_bittensor_client import MockBittensorClient
 
 
@@ -48,7 +52,7 @@ def test_neuron():
         axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
         stake=Stake(100.0),
         rank=Rank(0.5),
-        emission=Emission(10.0),
+        emission=Emission(Tao(10.0)),
         incentive=Incentive(0.8),
         consensus=Consensus(0.9),
         trust=Trust(0.7),
@@ -57,6 +61,7 @@ def test_neuron():
         last_update=Timestamp(1000),
         validator_permit=ValidatorPermit(True),
         pruning_score=PruningScore(50),
+        stakes=Stakes(alpha=AlphaStake(Tao(75.0)), tao=TaoStake(Tao(25.0)), total=TotalStake(Tao(100.0))),
     )
 
 

@@ -5,7 +5,7 @@ from pydantic import BaseModel, field_validator
 from pylon._internal.common.apiver import ApiVersion
 from pylon._internal.common.models import CertificateAlgorithm
 from pylon._internal.common.responses import GetMetagraphResponse, PylonResponse, SetWeightsResponse
-from pylon._internal.common.types import Hotkey, Weight
+from pylon._internal.common.types import BlockNumber, Hotkey, Weight
 
 
 class PylonRequest(BaseModel):
@@ -56,7 +56,7 @@ class GetMetagraphRequest(PylonRequest):
     version = ApiVersion.V1
     response_cls = GetMetagraphResponse
 
-    block_number: int | None = None
+    block_number: BlockNumber | None = None
 
 
 class GenerateCertificateKeypairRequest(PylonRequest):
