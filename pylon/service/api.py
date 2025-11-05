@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 
 @get(Endpoint.NEURONS)
 async def get_neurons(bt_client: AbstractBittensorClient, block_number: BlockNumber) -> SubnetNeurons:
+    """
+    Get a metagraph for a block.
+
+    Raises:
+        NotFoundException: If block does not exist in subtensor.
+    """
     # TODO: TurboBT struggles with fetching old blocks, for tb try to ask for block 4671121
     block = await bt_client.get_block(block_number)
     if block is None:

@@ -44,6 +44,9 @@ class AbstractCommunicator(Generic[RawRequest, RawResponse], ABC):
     async def _request(self, request: RawRequest) -> RawResponse:
         """
         Makes a raw response out of a raw request by communicating with Pylon.
+
+        Raises:
+            PylonRequestError: In case the request fails (no response is received from the server).
         """
 
     @abstractmethod
@@ -56,15 +59,22 @@ class AbstractCommunicator(Generic[RawRequest, RawResponse], ABC):
     async def _translate_response(self, pylon_request: PylonRequest, response: RawResponse) -> PylonResponse:
         """
         Translates the outcome of the _request method (raw response object) into a PylonResponse instance.
+
+        Raises:
+            PylonResponseError: In case the response is an error response, this exception may be raised.
         """
 
     async def request(self, request: PylonRequest) -> PylonResponse:
         """
         Entrypoint to the Pylon API.
 
-        Makes a request to the Pylon API based on a passed PylonRequest. Retries on failures based on a retry
-        config.
+        Makes a request to the Pylon API based on a passed PylonRequest.
+        Retries on failures based on a retry config.
         Returns a response translated into a PylonResponse instance.
+
+        Raises:
+            PylonRequestException: If pylon client fails to communicate with the Pylon server after all retry attempts.
+            PylonResponseException: If pylon client receives error response from the Pylon server.
         """
         raw_request = await self._translate_request(request)
         raw_response: RawResponse | None = None

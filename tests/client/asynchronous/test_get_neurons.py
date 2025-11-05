@@ -5,7 +5,7 @@ from httpx import ConnectTimeout, Response, codes
 from pydantic import ValidationError
 
 from pylon._internal.common.currency import Currency, Token
-from pylon._internal.client.exceptions import PylonRequestException, PylonResponseException
+from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,

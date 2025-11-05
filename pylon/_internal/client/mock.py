@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pylon._internal.client.abstract import AbstractAsyncPylonClient
 from pylon._internal.client.communicators.mock import MockCommunicator
 from pylon._internal.client.config import AsyncPylonClientConfig
-from pylon._internal.client.exceptions import PylonRequestException, PylonResponseException
+from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import PylonRequest
 from pylon._internal.common.responses import PylonResponse
 

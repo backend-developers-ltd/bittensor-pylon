@@ -4,7 +4,7 @@ from tenacity import stop_after_attempt
 
 from pylon._internal.client.asynchronous import AsyncPylonClient
 from pylon._internal.client.config import DEFAULT_RETRIES, AsyncPylonClientConfig
-from pylon._internal.client.exceptions import PylonRequestException
+from pylon._internal.common.exceptions import PylonRequestException
 from pylon._internal.common.requests import SetWeightsRequest
 from pylon._internal.common.responses import SetWeightsResponse
 from pylon._internal.common.types import Hotkey, Weight

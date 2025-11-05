@@ -6,8 +6,8 @@ from httpx import AsyncClient, HTTPStatusError, Request, RequestError, Response
 
 from pylon._internal.client.communicators.abstract import AbstractCommunicator
 from pylon._internal.client.config import AsyncPylonClientConfig
-from pylon._internal.client.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.endpoints import Endpoint
+from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import GetLatestNeuronsRequest, GetNeuronsRequest, PylonRequest, SetWeightsRequest
 from pylon._internal.common.responses import PylonResponse
 
