@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
 
 from pydantic import BaseModel
@@ -7,13 +7,13 @@ from pylon._internal.common.types import (
     BlockHash,
     BlockNumber,
     Coldkey,
-    CommitRevealEnabled,
     Consensus,
     Dividends,
     Emission,
     Hotkey,
     Incentive,
     MaxWeightsLimit,
+    NeuronActive,
     NeuronUid,
     Port,
     PrivateKey,
@@ -23,6 +23,7 @@ from pylon._internal.common.types import (
     Stake,
     Timestamp,
     Trust,
+    ValidatorPermit,
     ValidatorTrust,
 )
 
@@ -38,6 +39,13 @@ class UnknownIntEnumMixin:
         member._name_ = f"UNKNOWN_{value}"
         member._value_ = value
         return member
+
+
+class CommitReveal(StrEnum):
+    DISABLED = "disabled"
+    V2 = "v2"
+    V3 = "v3"
+    V4 = "v4"
 
 
 # Pydantic models
@@ -68,7 +76,7 @@ class Neuron(BittensorModel):
     uid: NeuronUid
     coldkey: Coldkey
     hotkey: Hotkey
-    active: bool
+    active: NeuronActive
     axon_info: AxonInfo
     stake: Stake
     rank: Rank
@@ -79,7 +87,7 @@ class Neuron(BittensorModel):
     validator_trust: ValidatorTrust
     dividends: Dividends
     last_update: Timestamp
-    validator_permit: bool
+    validator_permit: ValidatorPermit
     pruning_score: PruningScore
 
 
@@ -90,7 +98,7 @@ class Metagraph(BittensorModel):
 
 class SubnetHyperparams(BittensorModel):
     max_weights_limit: MaxWeightsLimit | None = None
-    commit_reveal_weights_enabled: CommitRevealEnabled | None = None
+    commit_reveal_weights_enabled: CommitReveal | None = None
     # Add more parameters as needed.
 
 

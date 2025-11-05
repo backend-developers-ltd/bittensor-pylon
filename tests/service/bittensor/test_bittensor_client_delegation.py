@@ -22,6 +22,7 @@ from pylon._internal.common.types import (
     Emission,
     Hotkey,
     Incentive,
+    NeuronActive,
     NeuronUid,
     Port,
     PruningScore,
@@ -29,6 +30,7 @@ from pylon._internal.common.types import (
     Stake,
     Timestamp,
     Trust,
+    ValidatorPermit,
     ValidatorTrust,
 )
 from pylon.service.bittensor.client import BittensorClient
@@ -42,7 +44,7 @@ def test_neuron():
         uid=NeuronUid(1),
         coldkey=Coldkey("coldkey_1"),
         hotkey=Hotkey("test_hotkey"),
-        active=True,
+        active=NeuronActive(True),
         axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
         stake=Stake(100.0),
         rank=Rank(0.5),
@@ -53,7 +55,7 @@ def test_neuron():
         validator_trust=ValidatorTrust(0.6),
         dividends=Dividends(0.4),
         last_update=Timestamp(1000),
-        validator_permit=True,
+        validator_permit=ValidatorPermit(True),
         pruning_score=PruningScore(50),
     )
 

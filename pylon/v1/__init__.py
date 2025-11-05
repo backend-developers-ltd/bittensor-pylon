@@ -31,6 +31,8 @@ from pylon._internal.common.types import (
     NetUid,
     BittensorNetwork,
     ArchiveBlocksCutoff,
-    CommitRevealEnabled,
+    NeuronActive,
+    ValidatorPermit,
 )
+from pylon.service.bittensor.models import CommitReveal
 from pylon._internal.docker_manager import PylonDockerManager

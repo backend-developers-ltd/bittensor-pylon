@@ -1,7 +1,7 @@
 import pytest
 
-from pylon._internal.common.types import BlockHash, BlockNumber, CommitRevealEnabled, MaxWeightsLimit
-from pylon.service.bittensor.models import Block, SubnetHyperparams
+from pylon._internal.common.types import BlockHash, BlockNumber, MaxWeightsLimit
+from pylon.service.bittensor.models import Block, CommitReveal, SubnetHyperparams
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ async def test_turbobt_client_get_hyperparams(turbobt_client, subnet_spec, test_
     result = await turbobt_client.get_hyperparams(netuid=1, block=test_block)
     assert result == SubnetHyperparams(
         max_weights_limit=MaxWeightsLimit(100),
-        commit_reveal_weights_enabled=CommitRevealEnabled(True),
+        commit_reveal_weights_enabled=CommitReveal.V4,
     )
 
 

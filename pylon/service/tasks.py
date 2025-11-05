@@ -5,7 +5,7 @@ from typing import ClassVar, Self
 from pylon._internal.common.settings import settings
 from pylon._internal.common.types import Hotkey, Weight
 from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import Block
+from pylon.service.bittensor.models import Block, CommitReveal
 from pylon.service.utils import get_epoch_containing_block
 
 logger = logging.getLogger(__name__)
@@ -64,13 +64,9 @@ class ApplyWeights:
         hyperparams = await self._client.get_hyperparams(settings.bittensor_netuid, latest_block)
         if hyperparams is None:
             raise RuntimeError("Failed to fetch hyperparameters")
-        commit_reveal_enabled = bool(hyperparams.commit_reveal_weights_enabled)
-        # alternatively
-        # commit_reveal_enabled = await self._client.subtensor.state.getStorage(
-        #     "SubtensorModule.CommitRevealWeightsEnabled", settings.bittensor_netuid
-        # )
-        if commit_reveal_enabled:
-            logger.info("Commit weights (reveal enabled)")
+        commit_reveal_enabled = hyperparams.commit_reveal_weights_enabled
+        if commit_reveal_enabled and commit_reveal_enabled != CommitReveal.DISABLED:
+            logger.info(f"Commit weights (reveal enabled: {commit_reveal_enabled})")
             await self._client.commit_weights(settings.bittensor_netuid, weights)
         else:
             logger.info("Set weights (reveal disabled)")

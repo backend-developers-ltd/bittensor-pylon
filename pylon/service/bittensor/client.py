@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from bittensor_wallet import Wallet
 from turbobt.client import Bittensor
@@ -17,8 +17,12 @@ from turbobt.subnet import (
 from turbobt.subnet import (
     NeuronCertificateKeypair as TurboBtNeuronCertificateKeypair,
 )
+from turbobt.subnet import (
+    SubnetHyperparams as TurboBtSubnetHyperparams,
+)
 from turbobt.substrate.exceptions import UnknownBlock
 
+from pylon._internal.common.constants import LATEST_BLOCK_MARK
 from pylon._internal.common.types import (
     ArchiveBlocksCutoff,
     BittensorNetwork,
@@ -31,6 +35,7 @@ from pylon._internal.common.types import (
     Hotkey,
     Incentive,
     NetUid,
+    NeuronActive,
     NeuronUid,
     Port,
     PrivateKey,
@@ -41,6 +46,7 @@ from pylon._internal.common.types import (
     Stake,
     Timestamp,
     Trust,
+    ValidatorPermit,
     ValidatorTrust,
     Weight,
 )
@@ -49,6 +55,7 @@ from pylon.service.bittensor.models import (
     AxonProtocol,
     Block,
     CertificateAlgorithm,
+    CommitReveal,
     Metagraph,
     Neuron,
     NeuronCertificate,
@@ -189,7 +196,7 @@ class TurboBtClient(AbstractBittensorClient):
 
     async def get_latest_block(self) -> Block:
         logger.debug(f"Fetching the latest block from {self.uri}")
-        block = await self.get_block(BlockNumber(-1))
+        block = await self.get_block(BlockNumber(LATEST_BLOCK_MARK))
         assert block is not None, "Latest block should always exist"
         return block
 
@@ -199,7 +206,7 @@ class TurboBtClient(AbstractBittensorClient):
             uid=NeuronUid(neuron.uid),
             coldkey=Coldkey(neuron.coldkey),
             hotkey=Hotkey(neuron.hotkey),
-            active=neuron.active,
+            active=NeuronActive(neuron.active),
             axon_info=AxonInfo(
                 ip=neuron.axon_info.ip,
                 port=Port(neuron.axon_info.port),
@@ -214,7 +221,7 @@ class TurboBtClient(AbstractBittensorClient):
             validator_trust=ValidatorTrust(neuron.validator_trust),
             dividends=Dividends(neuron.dividends),
             last_update=Timestamp(neuron.last_update),
-            validator_permit=neuron.validator_permit,
+            validator_permit=ValidatorPermit(neuron.validator_permit),
             pruning_score=PruningScore(neuron.pruning_score),
         )
 
@@ -226,6 +233,15 @@ class TurboBtClient(AbstractBittensorClient):
         neurons = await self._raw_client.subnet(netuid).list_neurons(block_hash=block.hash)
         return [await self._translate_neuron(neuron) for neuron in neurons]
 
+    @staticmethod
+    async def _translate_hyperparams(params: TurboBtSubnetHyperparams) -> SubnetHyperparams:
+        translated_params: dict[str, Any] = dict(params)
+        if (commit_reveal := translated_params.get("commit_reveal_weights_enabled")) is not None:
+            translated_params["commit_reveal_weights_enabled"] = (
+                CommitReveal.V4 if commit_reveal else CommitReveal.DISABLED
+            )
+        return SubnetHyperparams(**translated_params)
+
     async def get_hyperparams(self, netuid: NetUid, block: Block) -> SubnetHyperparams | None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -234,7 +250,7 @@ class TurboBtClient(AbstractBittensorClient):
         params = await self._raw_client.subnet(netuid).get_hyperparameters(block_hash=block.hash)
         if not params:
             return None
-        return SubnetHyperparams(**params)  # type: ignore
+        return await self._translate_hyperparams(params)
 
     @staticmethod
     async def _translate_certificate(certificate: TurboBtNeuronCertificate) -> NeuronCertificate:
