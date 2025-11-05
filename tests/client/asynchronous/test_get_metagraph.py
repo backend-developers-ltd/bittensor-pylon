@@ -24,6 +24,7 @@ from pylon._internal.common.types import (
     Emission,
     Hotkey,
     Incentive,
+    NeuronActive,
     NeuronUid,
     Port,
     PruningScore,
@@ -34,6 +35,7 @@ from pylon._internal.common.types import (
     Timestamp,
     TotalStake,
     Trust,
+    ValidatorPermit,
     ValidatorTrust,
 )
 
@@ -91,7 +93,7 @@ def expected_metagraph_response(metagraph_json):
         uid=NeuronUid(0),
         coldkey=Coldkey("5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"),
         hotkey=Hotkey("5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"),
-        active=True,
+        active=NeuronActive(True),
         axon_info=AxonInfo(ip=IPv4Address("192.168.1.1"), port=Port(8091), protocol=AxonProtocol.HTTP),
         stake=Stake(100.5),
         rank=Rank(0.95),
@@ -102,7 +104,7 @@ def expected_metagraph_response(metagraph_json):
         validator_trust=ValidatorTrust(0.92),
         dividends=Dividends(5.5),
         last_update=Timestamp(500),
-        validator_permit=True,
+        validator_permit=ValidatorPermit(True),
         pruning_score=PruningScore(1000),
         stakes=Stakes(alpha=AlphaStake(Tao(75.0)), tao=TaoStake(Tao(45.0)), total=TotalStake(Tao(83.1))),
     )
@@ -110,7 +112,7 @@ def expected_metagraph_response(metagraph_json):
         uid=NeuronUid(1),
         coldkey=Coldkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"),
         hotkey=Hotkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"),
-        active=True,
+        active=NeuronActive(True),
         axon_info=AxonInfo(ip=IPv4Address("192.168.1.2"), port=Port(8092), protocol=AxonProtocol.TCP),
         stake=Stake(200.75),
         rank=Rank(0.88),
@@ -121,7 +123,7 @@ def expected_metagraph_response(metagraph_json):
         validator_trust=ValidatorTrust(0.87),
         dividends=Dividends(6.2),
         last_update=Timestamp(501),
-        validator_permit=False,
+        validator_permit=ValidatorPermit(False),
         pruning_score=PruningScore(950),
         stakes=Stakes(alpha=AlphaStake(Tao(150.0)), tao=TaoStake(Tao(90.0)), total=TotalStake(Tao(166.2))),
     )
