@@ -1,16 +1,11 @@
 import typing
-from ipaddress import IPv4Address
 
 from pydantic import BaseModel, field_validator
 
 from pylon._internal.common.apiver import ApiVersion
 from pylon._internal.common.responses import PylonResponse, SetWeightsResponse
-
-Hotkey = str
-
-CertificateAlgorithm: typing.TypeAlias = int
-PrivateKey: typing.TypeAlias = str
-PublicKey: typing.TypeAlias = str
+from pylon._internal.common.types import Hotkey, Weight
+from pylon.service.bittensor.models import CertificateAlgorithm
 
 
 class PylonRequest(BaseModel):
@@ -37,7 +32,7 @@ class SetWeightsRequest(PylonRequest):
     version = ApiVersion.V1
     response_cls = SetWeightsResponse
 
-    weights: dict[str, float]
+    weights: dict[Hotkey, Weight]
 
     @field_validator("weights")
     @classmethod
@@ -54,66 +49,12 @@ class SetWeightsRequest(PylonRequest):
         return v
 
 
-class GenerateCertificateKeypairRequest(BaseModel):
-    algorithm: CertificateAlgorithm = 1  # EdDSA using ed25519 curve
+class GenerateCertificateKeypairRequest(PylonRequest):
+    algorithm: CertificateAlgorithm = CertificateAlgorithm.ED25519
 
+    @field_validator("algorithm", mode="before")
     @classmethod
-    @field_validator("algorithm")
     def validate_algorithm(cls, v):
-        if not isinstance(v, int) and v != 1:
+        if v != CertificateAlgorithm.ED25519:
             raise ValueError("Currently, only algorithm equals 1 is supported which is EdDSA using Ed25519 curve")
         return v
-
-
-class Epoch(BaseModel):
-    start: int
-    end: int
-
-
-class AxonInfo(BaseModel):
-    ip: IPv4Address
-    port: int
-    protocol: int
-
-
-class Neuron(BaseModel):
-    uid: int
-    coldkey: str
-    hotkey: Hotkey
-    active: bool
-    axon_info: AxonInfo
-    stake: float
-    rank: float
-    emission: float
-    incentive: float
-    consensus: float
-    trust: float
-    validator_trust: float
-    dividends: float
-    last_update: int
-    validator_permit: bool
-    pruning_score: int
-
-
-class Metagraph(BaseModel):
-    block: int
-    block_hash: str
-    neurons: dict[Hotkey, Neuron]
-
-    def get_neuron(self, hotkey: Hotkey) -> Neuron | None:
-        return self.neurons.get(hotkey, None)
-
-    def get_neurons(self) -> list[Neuron]:
-        return list(self.neurons.values())
-
-    def get_active_neurons(self) -> list[Neuron]:
-        return [neuron for neuron in self.neurons.values() if neuron.active]
-
-
-class Certificate(BaseModel):
-    algorithm: CertificateAlgorithm = 1  # EdDSA using ed25519 curve
-    public_key: PublicKey
-
-
-class CertificateKeypair(Certificate):
-    private_key: PrivateKey

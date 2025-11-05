@@ -5,4 +5,34 @@ from pylon._internal.client.mock import Behavior, MockCommunicator, RaiseRequest
 from pylon._internal.common.exceptions import BasePylonException, PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import PylonRequest, SetWeightsRequest
 from pylon._internal.common.responses import PylonResponse, PylonResponseStatus, SetWeightsResponse
+from pylon._internal.common.types import (
+    Hotkey,
+    Coldkey,
+    Weight,
+    BlockHash,
+    BlockNumber,
+    RevealRound,
+    PublicKey,
+    PrivateKey,
+    NeuronUid,
+    Port,
+    Stake,
+    Rank,
+    Emission,
+    Incentive,
+    Consensus,
+    Trust,
+    ValidatorTrust,
+    Dividends,
+    Timestamp,
+    PruningScore,
+    MaxWeightsLimit,
+    Tempo,
+    NetUid,
+    BittensorNetwork,
+    ArchiveBlocksCutoff,
+    NeuronActive,
+    ValidatorPermit,
+)
+from pylon.service.bittensor.models import CommitReveal
 from pylon._internal.docker_manager import PylonDockerManager

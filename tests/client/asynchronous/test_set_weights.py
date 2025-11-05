@@ -6,6 +6,7 @@ from httpx import ConnectTimeout, Response, codes
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import SetWeightsRequest
 from pylon._internal.common.responses import PylonResponseStatus, SetWeightsResponse
+from pylon._internal.common.types import Hotkey, Weight
 
 
 @pytest.mark.asyncio
@@ -21,7 +22,7 @@ async def test_async_client_set_weights_success(async_client, service_mock):
         )
     )
     async with async_client:
-        response = await async_client.request(SetWeightsRequest(weights={"h1": 0.2}))
+        response = await async_client.request(SetWeightsRequest(weights={Hotkey("h1"): Weight(0.2)}))
     assert response == SetWeightsResponse(status=PylonResponseStatus.SUCCESS)
     assert json.loads(route.calls.last.request.content) == {"weights": {"h1": 0.2}}
 
@@ -42,7 +43,7 @@ async def test_async_client_set_weights_retries_success(async_client, service_mo
         ]
     )
     async with async_client:
-        response = await async_client.request(SetWeightsRequest(weights={"h2": 0.1}))
+        response = await async_client.request(SetWeightsRequest(weights={Hotkey("h2"): Weight(0.1)}))
     assert response == SetWeightsResponse(status=PylonResponseStatus.SUCCESS)
 
 
@@ -54,7 +55,7 @@ async def test_async_client_set_weights_request_error(async_client, service_mock
     )
     async with async_client:
         with pytest.raises(PylonRequestException, match="An error occurred while making a request to Pylon API."):
-            await async_client.request(SetWeightsRequest(weights={"h2": 0.1}))
+            await async_client.request(SetWeightsRequest(weights={Hotkey("h2"): Weight(0.1)}))
 
 
 @pytest.mark.asyncio
@@ -62,4 +63,4 @@ async def test_async_client_set_weights_response_error(async_client, service_moc
     service_mock.put("/api/v1/subnet/weights").mock(return_value=Response(status_code=codes.INTERNAL_SERVER_ERROR))
     async with async_client:
         with pytest.raises(PylonResponseException, match="Invalid response from Pylon API."):
-            await async_client.request(SetWeightsRequest(weights={"h2": 0.1}))
+            await async_client.request(SetWeightsRequest(weights={Hotkey("h2"): Weight(0.1)}))
