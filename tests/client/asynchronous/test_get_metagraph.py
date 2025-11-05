@@ -89,50 +89,42 @@ def metagraph_json():
 
 @pytest.fixture
 def expected_metagraph_response(metagraph_json):
-    neuron1 = Neuron(
-        uid=NeuronUid(0),
-        coldkey=Coldkey("5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"),
-        hotkey=Hotkey("5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"),
-        active=NeuronActive(True),
-        axon_info=AxonInfo(ip=IPv4Address("192.168.1.1"), port=Port(8091), protocol=AxonProtocol.HTTP),
-        stake=Stake(100.5),
-        rank=Rank(0.95),
-        emission=Emission(Tao(10.5)),
-        incentive=Incentive(0.85),
-        consensus=Consensus(0.9),
-        trust=Trust(0.88),
-        validator_trust=ValidatorTrust(0.92),
-        dividends=Dividends(5.5),
-        last_update=Timestamp(500),
-        validator_permit=ValidatorPermit(True),
-        pruning_score=PruningScore(1000),
-        stakes=Stakes(alpha=AlphaStake(Tao(75.0)), tao=TaoStake(Tao(45.0)), total=TotalStake(Tao(83.1))),
-    )
-    neuron2 = Neuron(
-        uid=NeuronUid(1),
-        coldkey=Coldkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"),
-        hotkey=Hotkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"),
-        active=NeuronActive(True),
-        axon_info=AxonInfo(ip=IPv4Address("192.168.1.2"), port=Port(8092), protocol=AxonProtocol.TCP),
-        stake=Stake(200.75),
-        rank=Rank(0.88),
-        emission=Emission(Tao(12.3)),
-        incentive=Incentive(0.78),
-        consensus=Consensus(0.85),
-        trust=Trust(0.82),
-        validator_trust=ValidatorTrust(0.87),
-        dividends=Dividends(6.2),
-        last_update=Timestamp(501),
-        validator_permit=ValidatorPermit(False),
-        pruning_score=PruningScore(950),
-        stakes=Stakes(alpha=AlphaStake(Tao(150.0)), tao=TaoStake(Tao(90.0)), total=TotalStake(Tao(166.2))),
-    )
+    block_data = metagraph_json["block"]
+    neurons_data = metagraph_json["neurons"]
+
+    neurons = {}
+    for hotkey, neuron_data in neurons_data.items():
+        neurons[Hotkey(hotkey)] = Neuron(
+            uid=NeuronUid(neuron_data["uid"]),
+            coldkey=Coldkey(neuron_data["coldkey"]),
+            hotkey=Hotkey(neuron_data["hotkey"]),
+            active=NeuronActive(neuron_data["active"]),
+            axon_info=AxonInfo(
+                ip=IPv4Address(neuron_data["axon_info"]["ip"]),
+                port=Port(neuron_data["axon_info"]["port"]),
+                protocol=AxonProtocol(neuron_data["axon_info"]["protocol"]),
+            ),
+            stake=Stake(neuron_data["stake"]),
+            rank=Rank(neuron_data["rank"]),
+            emission=Emission(Tao(neuron_data["emission"])),
+            incentive=Incentive(neuron_data["incentive"]),
+            consensus=Consensus(neuron_data["consensus"]),
+            trust=Trust(neuron_data["trust"]),
+            validator_trust=ValidatorTrust(neuron_data["validator_trust"]),
+            dividends=Dividends(neuron_data["dividends"]),
+            last_update=Timestamp(neuron_data["last_update"]),
+            validator_permit=ValidatorPermit(neuron_data["validator_permit"]),
+            pruning_score=PruningScore(neuron_data["pruning_score"]),
+            stakes=Stakes(
+                alpha=AlphaStake(Tao(neuron_data["stakes"]["alpha"])),
+                tao=TaoStake(Tao(neuron_data["stakes"]["tao"])),
+                total=TotalStake(Tao(neuron_data["stakes"]["total"])),
+            ),
+        )
+
     return GetMetagraphResponse(
-        block=Block(number=BlockNumber(1000), hash=BlockHash("0xabc123")),
-        neurons={
-            neuron1.hotkey: neuron1,
-            neuron2.hotkey: neuron2,
-        },
+        block=Block(number=BlockNumber(block_data["number"]), hash=BlockHash(block_data["hash"])),
+        neurons=neurons,
     )
 
 

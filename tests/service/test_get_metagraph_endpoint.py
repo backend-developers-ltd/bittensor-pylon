@@ -45,107 +45,105 @@ from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.fixture
-def block():
-    return Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
+def metagraph_json():
+    return {
+        "block": {"number": 1000, "hash": "0xabc123"},
+        "neurons": {
+            "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": {
+                "uid": 0,
+                "coldkey": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
+                "hotkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+                "active": True,
+                "axon_info": {"ip": "192.168.1.1", "port": 8091, "protocol": 4},
+                "stake": 100.5,
+                "rank": 0.95,
+                "emission": 10.5,
+                "incentive": 0.85,
+                "consensus": 0.9,
+                "trust": 0.88,
+                "validator_trust": 0.92,
+                "dividends": 5.5,
+                "last_update": 500,
+                "validator_permit": True,
+                "pruning_score": 1000,
+                "stakes": {"alpha": 75.0, "tao": 45.0, "total": 83.1},
+            },
+            "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": {
+                "uid": 1,
+                "coldkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+                "hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+                "active": True,
+                "axon_info": {"ip": "192.168.1.2", "port": 8092, "protocol": 0},
+                "stake": 200.75,
+                "rank": 0.88,
+                "emission": 12.3,
+                "incentive": 0.78,
+                "consensus": 0.85,
+                "trust": 0.82,
+                "validator_trust": 0.87,
+                "dividends": 6.2,
+                "last_update": 501,
+                "validator_permit": False,
+                "pruning_score": 950,
+                "stakes": {"alpha": 150.0, "tao": 90.0, "total": 166.2},
+            },
+        },
+    }
 
 
 @pytest.fixture
-def metagraph(block):
-    neuron1 = Neuron(
-        uid=NeuronUid(0),
-        coldkey=Coldkey("5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM"),
-        hotkey=Hotkey("5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"),
-        active=NeuronActive(True),
-        axon_info=AxonInfo(ip=IPv4Address("192.168.1.1"), port=Port(8091), protocol=AxonProtocol.HTTP),
-        stake=Stake(100.5),
-        rank=Rank(0.95),
-        emission=Emission(Tao(10.5)),
-        incentive=Incentive(0.85),
-        consensus=Consensus(0.9),
-        trust=Trust(0.88),
-        validator_trust=ValidatorTrust(0.92),
-        dividends=Dividends(5.5),
-        last_update=Timestamp(500),
-        validator_permit=ValidatorPermit(True),
-        pruning_score=PruningScore(1000),
-        stakes=Stakes(alpha=AlphaStake(Tao(75.0)), tao=TaoStake(Tao(45.0)), total=TotalStake(Tao(83.1))),
-    )
-    neuron2 = Neuron(
-        uid=NeuronUid(1),
-        coldkey=Coldkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"),
-        hotkey=Hotkey("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"),
-        active=NeuronActive(True),
-        axon_info=AxonInfo(ip=IPv4Address("192.168.1.2"), port=Port(8092), protocol=AxonProtocol.TCP),
-        stake=Stake(200.75),
-        rank=Rank(0.88),
-        emission=Emission(Tao(12.3)),
-        incentive=Incentive(0.78),
-        consensus=Consensus(0.85),
-        trust=Trust(0.82),
-        validator_trust=ValidatorTrust(0.87),
-        dividends=Dividends(6.2),
-        last_update=Timestamp(501),
-        validator_permit=ValidatorPermit(False),
-        pruning_score=PruningScore(950),
-        stakes=Stakes(alpha=AlphaStake(Tao(150.0)), tao=TaoStake(Tao(90.0)), total=TotalStake(Tao(166.2))),
-    )
+def block(metagraph_json):
+    block_data = metagraph_json["block"]
+    return Block(number=BlockNumber(block_data["number"]), hash=BlockHash(block_data["hash"]))
+
+
+@pytest.fixture
+def metagraph(metagraph_json, block):
+    neurons_data = metagraph_json["neurons"]
+
+    neurons = {}
+    for hotkey, neuron_data in neurons_data.items():
+        neurons[Hotkey(hotkey)] = Neuron(
+            uid=NeuronUid(neuron_data["uid"]),
+            coldkey=Coldkey(neuron_data["coldkey"]),
+            hotkey=Hotkey(neuron_data["hotkey"]),
+            active=NeuronActive(neuron_data["active"]),
+            axon_info=AxonInfo(
+                ip=IPv4Address(neuron_data["axon_info"]["ip"]),
+                port=Port(neuron_data["axon_info"]["port"]),
+                protocol=AxonProtocol(neuron_data["axon_info"]["protocol"]),
+            ),
+            stake=Stake(neuron_data["stake"]),
+            rank=Rank(neuron_data["rank"]),
+            emission=Emission(Tao(neuron_data["emission"])),
+            incentive=Incentive(neuron_data["incentive"]),
+            consensus=Consensus(neuron_data["consensus"]),
+            trust=Trust(neuron_data["trust"]),
+            validator_trust=ValidatorTrust(neuron_data["validator_trust"]),
+            dividends=Dividends(neuron_data["dividends"]),
+            last_update=Timestamp(neuron_data["last_update"]),
+            validator_permit=ValidatorPermit(neuron_data["validator_permit"]),
+            pruning_score=PruningScore(neuron_data["pruning_score"]),
+            stakes=Stakes(
+                alpha=AlphaStake(Tao(neuron_data["stakes"]["alpha"])),
+                tao=TaoStake(Tao(neuron_data["stakes"]["tao"])),
+                total=TotalStake(Tao(neuron_data["stakes"]["total"])),
+            ),
+        )
+
     return Metagraph(
         block=block,
-        neurons={
-            neuron1.hotkey: neuron1,
-            neuron2.hotkey: neuron2,
-        },
+        neurons=neurons,
     )
-
-
-METAGRAPH_JSON = {
-    "block": {"number": 1000, "hash": "0xabc123"},
-    "neurons": {
-        "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": {
-            "uid": 0,
-            "coldkey": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
-            "hotkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
-            "active": True,
-            "axon_info": {"ip": "192.168.1.1", "port": 8091, "protocol": 4},
-            "stake": 100.5,
-            "rank": 0.95,
-            "emission": 10.5,
-            "incentive": 0.85,
-            "consensus": 0.9,
-            "trust": 0.88,
-            "validator_trust": 0.92,
-            "dividends": 5.5,
-            "last_update": 500,
-            "validator_permit": True,
-            "pruning_score": 1000,
-            "stakes": {"alpha": 75.0, "tao": 45.0, "total": 83.1},
-        },
-        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": {
-            "uid": 1,
-            "coldkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-            "hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-            "active": True,
-            "axon_info": {"ip": "192.168.1.2", "port": 8092, "protocol": 0},
-            "stake": 200.75,
-            "rank": 0.88,
-            "emission": 12.3,
-            "incentive": 0.78,
-            "consensus": 0.85,
-            "trust": 0.82,
-            "validator_trust": 0.87,
-            "dividends": 6.2,
-            "last_update": 501,
-            "validator_permit": False,
-            "pruning_score": 950,
-            "stakes": {"alpha": 150.0, "tao": 90.0, "total": 166.2},
-        },
-    },
-}
 
 
 @pytest.mark.asyncio
 async def test_get_metagraph_without_block_number(
-    test_client: AsyncTestClient, mock_bt_client: MockBittensorClient, metagraph: Metagraph, block: Block
+    test_client: AsyncTestClient,
+    mock_bt_client: MockBittensorClient,
+    metagraph: Metagraph,
+    block: Block,
+    metagraph_json: dict,
 ):
     async with mock_bt_client.mock_behavior(
         get_latest_block=[block],
@@ -154,7 +152,7 @@ async def test_get_metagraph_without_block_number(
         response = await test_client.get("/api/v1/metagraph")
 
         assert response.status_code == HTTP_200_OK, response.content
-        assert response.json() == METAGRAPH_JSON
+        assert response.json() == metagraph_json
 
     assert mock_bt_client.calls["get_block"] == []
     assert mock_bt_client.calls["get_latest_block"] == [()]
@@ -167,6 +165,7 @@ async def test_get_metagraph_with_block_number(
     mock_bt_client: MockBittensorClient,
     block: Block,
     metagraph: Metagraph,
+    metagraph_json: dict,
 ):
     block_number = block.number
 
@@ -177,7 +176,7 @@ async def test_get_metagraph_with_block_number(
         response = await test_client.get("/api/v1/metagraph", params={"block_number": block_number})
 
         assert response.status_code == HTTP_200_OK, response.content
-        assert response.json() == METAGRAPH_JSON
+        assert response.json() == metagraph_json
 
     assert mock_bt_client.calls["get_block"] == [(block_number,)]
     assert mock_bt_client.calls["get_metagraph"] == [(settings.bittensor_netuid, block)]

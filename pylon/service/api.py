@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 @get(Endpoint.METAGRAPH)
-async def get_metagraph(bt_client: AbstractBittensorClient, block_number: int | None = None) -> Metagraph:
+async def get_metagraph(bt_client: AbstractBittensorClient, block_number: BlockNumber | None = None) -> Metagraph:
     # TODO: TurboBT struggles with fetching old blocks, for tb try to ask for block 4671121
     if block_number is not None:
-        block = await bt_client.get_block(BlockNumber(block_number))
+        block = await bt_client.get_block(block_number)
         if block is None:
             raise ValueError(f"Block {block_number} not found")
     else:
