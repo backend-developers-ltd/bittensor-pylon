@@ -208,7 +208,7 @@ The service endpoints are tested using `MockBittensorClient` (`tests/mock_bitten
 5. **Background Task Synchronization**: Use `wait_for_background_tasks()` helper instead of `asyncio.sleep()`
    ```python
    # ✅ CORRECT - wait for specific tasks
-   await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+   await wait_for_background_tasks(ApplyWeights.tasks_running)
 
    # ✅ CORRECT - wait for all background tasks
    await wait_for_background_tasks(None)

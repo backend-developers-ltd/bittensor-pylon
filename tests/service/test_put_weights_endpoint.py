@@ -1,6 +1,7 @@
 """
 Tests for the PUT /subnet/weights endpoint.
 """
+import asyncio
 
 import pytest
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
@@ -47,7 +48,7 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
         }
 
         # Wait for the background task to complete
-        await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+        await wait_for_background_tasks(ApplyWeights.tasks_running)
 
     # Verify the commit_weights was called with correct arguments
     assert mock_bt_client.calls["commit_weights"] == [
@@ -86,7 +87,7 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
         }
 
         # Wait for the background task to complete
-        await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+        await wait_for_background_tasks(ApplyWeights.tasks_running)
 
     # Verify set_weights was called with correct arguments
     assert mock_bt_client.calls["set_weights"] == [

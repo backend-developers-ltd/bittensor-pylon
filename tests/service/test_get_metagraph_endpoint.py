@@ -5,7 +5,7 @@ Tests for the GET /metagraph endpoint.
 from ipaddress import IPv4Address
 
 import pytest
-from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.models import (
@@ -214,7 +214,21 @@ async def test_get_metagraph_invalid_block_number_type(test_client: AsyncTestCli
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.content
     assert response.json() == {
-        "status_code": 400,
+        "status_code": HTTP_400_BAD_REQUEST,
         "detail": f"Validation failed for GET /api/v1/metagraph?block_number={invalid_block_number}",
         "extra": [{"message": "Expected `int | null`, got `str`", "key": "block_number", "source": "query"}],
     }
+
+
+@pytest.mark.asyncio
+async def test_get_metagraph_block_not_found(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+    async with mock_bt_client.mock_behavior(get_block=[None]):
+        response = await test_client.get("/api/v1/metagraph", params={"block_number": 123})
+
+        assert response.status_code == HTTP_404_NOT_FOUND, response.content
+        assert response.json() == {
+            "status_code": HTTP_404_NOT_FOUND,
+            "detail": "Block 123 not found.",
+        }
+
+    assert mock_bt_client.calls["get_block"] == [(123,)]

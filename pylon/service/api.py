@@ -1,6 +1,7 @@
 import logging
 
 from litestar import Response, get, post, put, status_codes
+from litestar.exceptions import NotFoundException
 
 from pylon._internal.common.endpoints import Endpoint
 from pylon._internal.common.models import Hotkey, Metagraph
@@ -22,7 +23,7 @@ async def get_metagraph(bt_client: AbstractBittensorClient, block_number: BlockN
     if block_number is not None:
         block = await bt_client.get_block(block_number)
         if block is None:
-            raise ValueError(f"Block {block_number} not found")
+            raise NotFoundException(detail=f"Block {block_number} not found.")
     else:
         block = await bt_client.get_latest_block()
     return await bt_client.get_metagraph(settings.bittensor_netuid, block=block)

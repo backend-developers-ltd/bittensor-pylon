@@ -6,6 +6,7 @@ to return specific values or raise exceptions, enabling comprehensive testing of
 without requiring actual blockchain interactions.
 """
 
+import asyncio
 from collections import defaultdict
 from collections.abc import Callable
 from contextlib import asynccontextmanager
@@ -57,6 +58,7 @@ class MockBittensorClient(AbstractBittensorClient):
     def __init__(self, wallet: Wallet | None = None, uri: BittensorNetwork = BittensorNetwork("mock://test")):
         super().__init__(wallet=wallet or Wallet(), uri=uri)
         self._behaviors: dict[MethodName, list[Behavior]] = defaultdict(list)
+        self._behavior_lock = asyncio.Lock()
         self._is_open = False
 
         # Track method calls for assertion in tests
@@ -121,13 +123,14 @@ class MockBittensorClient(AbstractBittensorClient):
             Exception: If the behavior is configured to raise an exception
             NotImplementedError: If no behavior is configured for the method
         """
-        if not self._behaviors[method_name]:
-            raise NotImplementedError(
-                f"No mock behavior configured for {method_name}. Use mock_behavior() context manager to configure it."
-            )
+        async with self._behavior_lock:
+            if not self._behaviors[method_name]:
+                raise NotImplementedError(
+                    f"No mock behavior configured for {method_name}. Use mock_behavior() context manager to configure it."
+                )
 
-        # Get the next behavior from the queue
-        behavior = self._behaviors[method_name].pop(0)
+            # Get the next behavior from the queue
+            behavior = self._behaviors[method_name].pop(0)
 
         if isinstance(behavior, Exception):
             raise behavior

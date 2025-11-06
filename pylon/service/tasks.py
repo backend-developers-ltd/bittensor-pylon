@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class ApplyWeights:
     JOB_NAME: ClassVar[str] = "apply_weights"
+    tasks_running = set()
 
     def __init__(self, client: AbstractBittensorClient):
         self._client: AbstractBittensorClient = client
@@ -21,6 +22,7 @@ class ApplyWeights:
     async def schedule(cls, client: AbstractBittensorClient, weights: dict[Hotkey, Weight]) -> Self:
         apply_weights = cls(client)
         task = asyncio.create_task(apply_weights.run_job(weights), name=cls.JOB_NAME)
+        cls.tasks_running.add(task)
         task.add_done_callback(apply_weights._log_done)
         return apply_weights
 
@@ -74,6 +76,7 @@ class ApplyWeights:
 
     def _log_done(self, job: asyncio.Task[None]) -> None:
         logger.info(f"Task finished {job}")
+        self.tasks_running.discard(job)
         try:
             job.result()
         except Exception as exc:  # noqa: BLE001
