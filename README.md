@@ -78,21 +78,24 @@ Use the Pylon client to connect with the running service:
 ```python
 import asyncio
 
-from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, BlockNumber, SetWeightsRequest, GetMetagraphRequest, Hotkey, Weight
+from pylon.v1 import AsyncPylonClient, AsyncPylonClientConfig, BlockNumber, SetWeightsRequest, GetNeuronsRequest,
+    Hotkey, Weight
+
 
 async def main():
     config = AsyncPylonClientConfig(address="http://127.0.0.1:8000")
     async with AsyncPylonClient(config) as client:
         # Get the current metagraph
-        metagraph = await client.request(GetMetagraphRequest())
+        metagraph = await client.request(GetNeuronsRequest())
         print(f"Block: {metagraph.block.number}, Neurons: {len(metagraph.neurons)}")
 
         # Get metagraph for a specific block
-        metagraph = await client.request(GetMetagraphRequest(block_number=BlockNumber(1000)))
+        metagraph = await client.request(GetNeuronsRequest(block_number=BlockNumber(1000)))
 
         # Set weights
         # Wrapping values with Hotkey and Weight is recommended but not necessary if type checker isn't used.
         await client.request(SetWeightsRequest(weights={Hotkey("h1"): Weight(0.1)}))
+
 
 if __name__ == "__main__":
     asyncio.run(main())

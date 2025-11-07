@@ -110,7 +110,7 @@ class Neuron(BittensorModel):
     stakes: Stakes
 
 
-class Metagraph(BittensorModel):
+class SubnetNeurons(BittensorModel):
     block: Block
     neurons: dict[Hotkey, Neuron]
 

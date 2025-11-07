@@ -6,14 +6,7 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
-from pylon._internal.common.models import (
-    AxonInfo,
-    AxonProtocol,
-    Block,
-    Metagraph,
-    Neuron,
-    Stakes,
-)
+from pylon._internal.common.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
 from pylon._internal.common.types import (
     AlphaStake,
     BlockHash,
@@ -38,6 +31,11 @@ from pylon._internal.common.types import (
     ValidatorPermit,
     ValidatorTrust,
 )
+
+
+@pytest.fixture
+def test_block():
+    return Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
 
 @pytest.fixture
@@ -115,61 +113,46 @@ def subnet_spec(subnet_spec):
     return subnet_spec
 
 
-@pytest.fixture
-def block():
-    return Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
-
-
-@pytest.fixture
-def metagraph(block):
-    return Metagraph(
-        block=block,
-        neurons={
-            Hotkey("hotkey1"): Neuron(
-                uid=NeuronUid(1),
-                coldkey=Coldkey("coldkey1"),
-                hotkey=Hotkey("hotkey1"),
-                active=NeuronActive(True),
-                axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
-                stake=Stake(100.0),
-                rank=Rank(0.5),
-                emission=Emission(Tao(10.0)),
-                incentive=Incentive(0.8),
-                consensus=Consensus(0.9),
-                trust=Trust(0.7),
-                validator_trust=ValidatorTrust(0.6),
-                dividends=Dividends(0.4),
-                last_update=Timestamp(1000),
-                validator_permit=ValidatorPermit(True),
-                pruning_score=PruningScore(50),
-                stakes=Stakes(alpha=AlphaStake(Tao(50.0)), tao=TaoStake(Tao(30.0)), total=TotalStake(Tao(55.4))),
-            ),
-            Hotkey("hotkey2"): Neuron(
-                uid=NeuronUid(2),
-                coldkey=Coldkey("coldkey2"),
-                hotkey=Hotkey("hotkey2"),
-                active=NeuronActive(False),
-                axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.2"), port=Port(8081), protocol=AxonProtocol.UDP),
-                stake=Stake(200.0),
-                rank=Rank(0.6),
-                emission=Emission(Tao(20.0)),
-                incentive=Incentive(0.7),
-                consensus=Consensus(0.8),
-                trust=Trust(0.9),
-                validator_trust=ValidatorTrust(0.5),
-                dividends=Dividends(0.3),
-                last_update=Timestamp(2000),
-                validator_permit=ValidatorPermit(False),
-                pruning_score=PruningScore(60),
-                stakes=Stakes(alpha=AlphaStake(Tao(100.0)), tao=TaoStake(Tao(60.0)), total=TotalStake(Tao(110.8))),
-            ),
-        },
-    )
-
-
 @pytest.mark.asyncio
-async def test_turbobt_client_get_metagraph(turbobt_client, block, metagraph):
-    """
-    Test that get_metagraph returns a Metagraph with neurons indexed by hotkey.
-    """
-    assert await turbobt_client.get_metagraph(netuid=1, block=block) == metagraph
+async def test_turbobt_client_get_neurons_list(turbobt_client, subnet_spec, test_block):
+    result = await turbobt_client.get_neurons_list(netuid=1, block=test_block)
+    assert result == [
+        Neuron(
+            uid=NeuronUid(1),
+            coldkey=Coldkey("coldkey1"),
+            hotkey=Hotkey("hotkey1"),
+            active=NeuronActive(True),
+            axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
+            stake=Stake(100.0),
+            rank=Rank(0.5),
+            emission=Emission(Tao(10.0)),
+            incentive=Incentive(0.8),
+            consensus=Consensus(0.9),
+            trust=Trust(0.7),
+            validator_trust=ValidatorTrust(0.6),
+            dividends=Dividends(0.4),
+            last_update=Timestamp(1000),
+            validator_permit=ValidatorPermit(True),
+            pruning_score=PruningScore(50),
+            stakes=Stakes(alpha=AlphaStake(Tao(50.0)), tao=TaoStake(Tao(30.0)), total=TotalStake(Tao(55.4))),
+        ),
+        Neuron(
+            uid=NeuronUid(2),
+            coldkey=Coldkey("coldkey2"),
+            hotkey=Hotkey("hotkey2"),
+            active=NeuronActive(False),
+            axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.2"), port=Port(8081), protocol=AxonProtocol.UDP),
+            stake=Stake(200.0),
+            rank=Rank(0.6),
+            emission=Emission(Tao(20.0)),
+            incentive=Incentive(0.7),
+            consensus=Consensus(0.8),
+            trust=Trust(0.9),
+            validator_trust=ValidatorTrust(0.5),
+            dividends=Dividends(0.3),
+            last_update=Timestamp(2000),
+            validator_permit=ValidatorPermit(False),
+            pruning_score=PruningScore(60),
+            stakes=Stakes(alpha=AlphaStake(Tao(100.0)), tao=TaoStake(Tao(60.0)), total=TotalStake(Tao(110.8))),
+        ),
+    ]

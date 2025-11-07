@@ -36,7 +36,7 @@ from pylon._internal.common.types import (
     TotalStake,
     Trust,
     ValidatorPermit,
-    ValidatorTrust,
+    ValidatorTrust, NetUid,
 )
 from pylon.service.bittensor.client import BittensorClient
 from tests.mock_bittensor_client import MockBittensorClient
@@ -104,7 +104,7 @@ async def test_delegation_recent_block_uses_main_client(bittensor_client, main_c
             get_latest_block=[latest_block],
             get_neurons=[expected_neurons],
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=recent_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=recent_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
@@ -133,7 +133,7 @@ async def test_delegation_unknown_block_falls_back_to_archive(
                 get_neurons=[expected_neurons],
             ),
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=recent_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=recent_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
@@ -157,7 +157,7 @@ async def test_delegation_exact_cutoff_boundary_uses_main_client(
             get_latest_block=[latest_block],
             get_neurons=[expected_neurons],
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=boundary_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=boundary_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_neurons"] == [(1, boundary_block)]
@@ -184,7 +184,7 @@ async def test_delegation_past_cutoff_boundary_uses_archive_client(
                 get_neurons=[expected_neurons],
             ),
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=past_cutoff_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=past_cutoff_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_neurons"] == []
@@ -211,7 +211,7 @@ async def test_delegation_with_custom_cutoff(bittensor_client, main_client, arch
                 get_neurons=[expected_neurons],
             ),
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=old_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=old_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]

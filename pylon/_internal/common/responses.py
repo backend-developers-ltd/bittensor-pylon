@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from pylon._internal.common.models import Metagraph
+from pylon._internal.common.models import SubnetNeurons
 
 
 class PylonResponse(BaseModel):
@@ -24,9 +24,9 @@ class SetWeightsResponse(PylonResponse):
     pass
 
 
-class GetMetagraphResponse(PylonResponse, Metagraph):
+class GetNeuronsResponse(PylonResponse, SubnetNeurons):
     """
-    Response class that is returned for the GetMetagraphRequest.
+    Response class that is returned for the GetNeuronsRequest.
     """
 
     pass

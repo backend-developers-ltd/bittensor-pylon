@@ -1,20 +1,16 @@
-"""
-Tests for the GET /metagraph endpoint.
-"""
-
 from ipaddress import IPv4Address
 
 import pytest
-from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND
 from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
     Block,
-    Metagraph,
     Neuron,
     Stakes,
+    SubnetNeurons,
 )
 from pylon._internal.common.settings import settings
 from pylon._internal.common.types import (
@@ -45,7 +41,7 @@ from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.fixture
-def metagraph_json():
+def neurons_json():
     return {
         "block": {"number": 1000, "hash": "0xabc123"},
         "neurons": {
@@ -92,14 +88,14 @@ def metagraph_json():
 
 
 @pytest.fixture
-def block(metagraph_json):
-    block_data = metagraph_json["block"]
+def block(neurons_json):
+    block_data = neurons_json["block"]
     return Block(number=BlockNumber(block_data["number"]), hash=BlockHash(block_data["hash"]))
 
 
 @pytest.fixture
-def metagraph(metagraph_json, block):
-    neurons_data = metagraph_json["neurons"]
+def neurons(neurons_json, block):
+    neurons_data = neurons_json["neurons"]
 
     neurons = {}
     for hotkey, neuron_data in neurons_data.items():
@@ -131,67 +127,45 @@ def metagraph(metagraph_json, block):
             ),
         )
 
-    return Metagraph(
+    return SubnetNeurons(
         block=block,
         neurons=neurons,
     )
 
 
 @pytest.mark.asyncio
-async def test_get_metagraph_without_block_number(
-    test_client: AsyncTestClient,
-    mock_bt_client: MockBittensorClient,
-    metagraph: Metagraph,
-    block: Block,
-    metagraph_json: dict,
-):
-    async with mock_bt_client.mock_behavior(
-        get_latest_block=[block],
-        get_metagraph=[metagraph],
-    ):
-        response = await test_client.get("/api/v1/metagraph")
-
-        assert response.status_code == HTTP_200_OK, response.content
-        assert response.json() == metagraph_json
-
-    assert mock_bt_client.calls["get_block"] == []
-    assert mock_bt_client.calls["get_latest_block"] == [()]
-    assert mock_bt_client.calls["get_metagraph"] == [(settings.bittensor_netuid, block)]
-
-
-@pytest.mark.asyncio
-async def test_get_metagraph_with_block_number(
+async def test_get_neurons_with_block_number(
     test_client: AsyncTestClient,
     mock_bt_client: MockBittensorClient,
     block: Block,
-    metagraph: Metagraph,
-    metagraph_json: dict,
+    neurons: SubnetNeurons,
+    neurons_json: dict,
 ):
     block_number = block.number
 
     async with mock_bt_client.mock_behavior(
         get_block=[block],
-        get_metagraph=[metagraph],
+        get_neurons=[neurons],
     ):
-        response = await test_client.get("/api/v1/metagraph", params={"block_number": block_number})
+        response = await test_client.get(f"/api/v1/neurons/{block_number}")
 
         assert response.status_code == HTTP_200_OK, response.content
-        assert response.json() == metagraph_json
+        assert response.json() == neurons_json
 
     assert mock_bt_client.calls["get_block"] == [(block_number,)]
-    assert mock_bt_client.calls["get_metagraph"] == [(settings.bittensor_netuid, block)]
+    assert mock_bt_client.calls["get_neurons"] == [(settings.bittensor_netuid, block)]
 
 
 @pytest.mark.asyncio
-async def test_get_metagraph_empty_neurons(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_neurons_empty_neurons(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
     block = Block(number=BlockNumber(100), hash=BlockHash("0x123abc"))
-    metagraph = Metagraph(block=block, neurons={})
+    neurons = SubnetNeurons(block=block, neurons={})
 
     async with mock_bt_client.mock_behavior(
-        get_latest_block=[block],
-        get_metagraph=[metagraph],
+        get_block=[block],
+        get_neurons=[neurons],
     ):
-        response = await test_client.get("/api/v1/metagraph")
+        response = await test_client.get("/api/v1/neurons/100")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == {
@@ -209,21 +183,20 @@ async def test_get_metagraph_empty_neurons(test_client: AsyncTestClient, mock_bt
         pytest.param("true", id="boolean_string"),
     ],
 )
-async def test_get_metagraph_invalid_block_number_type(test_client: AsyncTestClient, invalid_block_number: str):
-    response = await test_client.get("/api/v1/metagraph", params={"block_number": invalid_block_number})
+async def test_get_neurons_invalid_block_number_type(test_client: AsyncTestClient, invalid_block_number: str):
+    response = await test_client.get(f"/api/v1/neurons/{invalid_block_number}")
 
-    assert response.status_code == HTTP_400_BAD_REQUEST, response.content
+    assert response.status_code == HTTP_404_NOT_FOUND, response.content
     assert response.json() == {
-        "status_code": HTTP_400_BAD_REQUEST,
-        "detail": f"Validation failed for GET /api/v1/metagraph?block_number={invalid_block_number}",
-        "extra": [{"message": "Expected `int | null`, got `str`", "key": "block_number", "source": "query"}],
+        "status_code": HTTP_404_NOT_FOUND,
+        "detail": "Not Found",
     }
 
 
 @pytest.mark.asyncio
-async def test_get_metagraph_block_not_found(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_neurons_block_not_found(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
     async with mock_bt_client.mock_behavior(get_block=[None]):
-        response = await test_client.get("/api/v1/metagraph", params={"block_number": 123})
+        response = await test_client.get("/api/v1/neurons/123")
 
         assert response.status_code == HTTP_404_NOT_FOUND, response.content
         assert response.json() == {

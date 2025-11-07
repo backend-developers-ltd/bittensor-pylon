@@ -12,8 +12,8 @@ from pylon._internal.common.models import (
     Neuron,
     Stakes,
 )
-from pylon._internal.common.requests import GetMetagraphRequest
-from pylon._internal.common.responses import GetMetagraphResponse
+from pylon._internal.common.requests import GetNeuronsRequest
+from pylon._internal.common.responses import GetNeuronsResponse
 from pylon._internal.common.types import (
     AlphaStake,
     BlockHash,
@@ -41,7 +41,7 @@ from pylon._internal.common.types import (
 
 
 @pytest.fixture
-def metagraph_json():
+def neurons_json():
     return {
         "block": {"number": 1000, "hash": "0xabc123"},
         "neurons": {
@@ -88,9 +88,9 @@ def metagraph_json():
 
 
 @pytest.fixture
-def expected_metagraph_response(metagraph_json):
-    block_data = metagraph_json["block"]
-    neurons_data = metagraph_json["neurons"]
+def expected_neurons_response(neurons_json):
+    block_data = neurons_json["block"]
+    neurons_data = neurons_json["neurons"]
 
     neurons = {}
     for hotkey, neuron_data in neurons_data.items():
@@ -122,94 +122,77 @@ def expected_metagraph_response(metagraph_json):
             ),
         )
 
-    return GetMetagraphResponse(
+    return GetNeuronsResponse(
         block=Block(number=BlockNumber(block_data["number"]), hash=BlockHash(block_data["hash"])),
         neurons=neurons,
     )
 
 
 @pytest.mark.asyncio
-async def test_async_client_get_metagraph_success_without_block_number(
-    async_client, service_mock, metagraph_json, expected_metagraph_response
-):
-    route = service_mock.get("/api/v1/metagraph")
-    route.mock(return_value=Response(status_code=codes.OK, json=metagraph_json))
+async def test_async_client_get_neurons_success(async_client, service_mock, neurons_json, expected_neurons_response):
+    route = service_mock.get("/api/v1/neurons/1000")
+    route.mock(return_value=Response(status_code=codes.OK, json=neurons_json))
 
     async with async_client:
-        response = await async_client.request(GetMetagraphRequest())
+        response = await async_client.request(GetNeuronsRequest(block_number=BlockNumber(1000)))
 
-    assert response == expected_metagraph_response
-    assert route.calls.last.request.url.params.get("block_number") is None
+    assert response == expected_neurons_response
 
 
 @pytest.mark.asyncio
-async def test_async_client_get_metagraph_success_with_block_number(
-    async_client, service_mock, metagraph_json, expected_metagraph_response
-):
-    route = service_mock.get("/api/v1/metagraph")
-    route.mock(return_value=Response(status_code=codes.OK, json=metagraph_json))
-
-    async with async_client:
-        response = await async_client.request(GetMetagraphRequest(block_number=BlockNumber(1000)))
-
-    assert response == expected_metagraph_response
-    assert route.calls.last.request.url.params["block_number"] == "1000"
-
-
-@pytest.mark.asyncio
-async def test_async_client_get_metagraph_empty_neurons(async_client, service_mock):
-    metagraph_json = {
+async def test_async_client_get_neurons_empty_neurons(async_client, service_mock):
+    neurons_json = {
         "block": {"number": 100, "hash": "0x123abc"},
         "neurons": {},
     }
-    route = service_mock.get("/api/v1/metagraph")
-    route.mock(return_value=Response(status_code=codes.OK, json=metagraph_json))
+    route = service_mock.get("/api/v1/neurons/100")
+    route.mock(return_value=Response(status_code=codes.OK, json=neurons_json))
 
     async with async_client:
-        response = await async_client.request(GetMetagraphRequest())
+        response = await async_client.request(GetNeuronsRequest(block_number=BlockNumber(100)))
 
-    assert response == GetMetagraphResponse(
+    assert response == GetNeuronsResponse(
         block=Block(number=BlockNumber(100), hash=BlockHash("0x123abc")),
         neurons={},
     )
 
 
 @pytest.mark.asyncio
-async def test_async_client_get_metagraph_retries_success(async_client, service_mock, metagraph_json):
-    service_mock.get("/api/v1/metagraph").mock(
+async def test_async_client_get_neurons_retries_success(async_client, service_mock, neurons_json):
+    service_mock.get("/api/v1/neurons/1000").mock(
         side_effect=[
             ConnectTimeout("Connection timed out"),
             ConnectTimeout("Connection timed out"),
-            Response(status_code=codes.OK, json=metagraph_json),
+            Response(status_code=codes.OK, json=neurons_json),
         ]
     )
 
     async with async_client:
-        response = await async_client.request(GetMetagraphRequest())
+        response = await async_client.request(GetNeuronsRequest(block_number=BlockNumber(1000)))
 
     assert response.block.number == 1000
     assert len(response.neurons) == 2
 
 
 @pytest.mark.asyncio
-async def test_async_client_get_metagraph_request_error(async_client, service_mock):
+async def test_async_client_get_neurons_request_error(async_client, service_mock):
     assert async_client.config.retry.stop.max_attempt_number <= 3
-    service_mock.get("/api/v1/metagraph").mock(
+    service_mock.get("/api/v1/neurons/1000").mock(
         side_effect=ConnectTimeout("Connection timed out"),
     )
 
     async with async_client:
         with pytest.raises(PylonRequestException, match="An error occurred while making a request to Pylon API."):
-            await async_client.request(GetMetagraphRequest())
+            await async_client.request(GetNeuronsRequest(block_number=BlockNumber(1000)))
 
 
 @pytest.mark.asyncio
-async def test_async_client_get_metagraph_response_error(async_client, service_mock):
-    service_mock.get("/api/v1/metagraph").mock(return_value=Response(status_code=codes.INTERNAL_SERVER_ERROR))
+async def test_async_client_get_neurons_response_error(async_client, service_mock):
+    service_mock.get("/api/v1/neurons/1000").mock(return_value=Response(status_code=codes.INTERNAL_SERVER_ERROR))
 
     async with async_client:
         with pytest.raises(PylonResponseException, match="Invalid response from Pylon API."):
-            await async_client.request(GetMetagraphRequest())
+            await async_client.request(GetNeuronsRequest(block_number=BlockNumber(1000)))
 
 
 @pytest.mark.parametrize(
@@ -249,12 +232,12 @@ async def test_async_client_get_metagraph_response_error(async_client, service_m
         ),
     ],
 )
-def test_get_metagraph_request_validation_error(invalid_block_number, expected_errors):
+def test_get_neurons_request_validation_error(invalid_block_number, expected_errors):
     """
-    Test that GetMetagraphRequest validates block_number type correctly.
+    Test that GetNeuronsRequest validates block_number type correctly.
     """
     with pytest.raises(ValidationError) as exc_info:
-        GetMetagraphRequest(block_number=invalid_block_number)  # type: ignore
+        GetNeuronsRequest(block_number=invalid_block_number)  # type: ignore
 
     errors = exc_info.value.errors(include_url=False, include_context=False, include_input=False)
     assert errors == expected_errors

@@ -11,10 +11,10 @@ from pylon._internal.common.models import (
     AxonInfo,
     Stakes,
     Neuron,
-    Metagraph,
+    SubnetNeurons,
 )
-from pylon._internal.common.requests import GetMetagraphRequest, PylonRequest, SetWeightsRequest
-from pylon._internal.common.responses import GetMetagraphResponse, PylonResponse, SetWeightsResponse
+from pylon._internal.common.requests import GetNeuronsRequest, PylonRequest, SetWeightsRequest
+from pylon._internal.common.responses import GetNeuronsResponse, PylonResponse, SetWeightsResponse
 from pylon._internal.common.types import (
     Hotkey,
     Coldkey,

@@ -17,11 +17,11 @@ from bittensor_wallet import Wallet
 from pylon._internal.common.models import (
     Block,
     CertificateAlgorithm,
-    Metagraph,
     Neuron,
     NeuronCertificate,
     NeuronCertificateKeypair,
     SubnetHyperparams,
+    SubnetNeurons,
     SubnetState,
 )
 from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
@@ -154,7 +154,7 @@ class MockBittensorClient(AbstractBittensorClient):
         self.calls["get_latest_block"].append(())
         return await self._execute_behavior("get_latest_block")
 
-    async def get_neurons(self, netuid: NetUid, block: Block) -> list[Neuron]:
+    async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
         """
         Get neurons for a subnet.
         """
@@ -214,12 +214,12 @@ class MockBittensorClient(AbstractBittensorClient):
         self.calls["_get_subnet_state"].append((netuid, block))
         return await self._execute_behavior("_get_subnet_state", netuid, block)
 
-    async def get_metagraph(self, netuid: NetUid, block: Block) -> Metagraph:
+    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
         """
         Get metagraph for a subnet.
         """
-        self.calls["get_metagraph"].append((netuid, block))
-        return await self._execute_behavior("get_metagraph", netuid, block)
+        self.calls["get_neurons"].append((netuid, block))
+        return await self._execute_behavior("get_neurons", netuid, block)
 
     async def reset_call_tracking(self) -> None:
         """

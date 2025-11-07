@@ -4,7 +4,7 @@ from pydantic import BaseModel, field_validator
 
 from pylon._internal.common.apiver import ApiVersion
 from pylon._internal.common.models import CertificateAlgorithm
-from pylon._internal.common.responses import GetMetagraphResponse, PylonResponse, SetWeightsResponse
+from pylon._internal.common.responses import GetNeuronsResponse, PylonResponse, SetWeightsResponse
 from pylon._internal.common.types import BlockNumber, Hotkey, Weight
 
 
@@ -48,15 +48,24 @@ class SetWeightsRequest(PylonRequest):
         return v
 
 
-class GetMetagraphRequest(PylonRequest):
+class GetNeuronsRequest(PylonRequest):
     """
-    Class used to fetch the metagraph by the Pylon client.
+    Class used to fetch the neurons by the Pylon client.
     """
 
     version = ApiVersion.V1
-    response_cls = GetMetagraphResponse
+    response_cls = GetNeuronsResponse
 
-    block_number: BlockNumber | None = None
+    block_number: BlockNumber
+
+
+class GetLatestNeuronsRequest(PylonRequest):
+    """
+    Class used to fetch the latest neurons by the Pylon client.
+    """
+
+    version = ApiVersion.V1
+    response_cls = GetNeuronsResponse
 
 
 class GenerateCertificateKeypairRequest(PylonRequest):

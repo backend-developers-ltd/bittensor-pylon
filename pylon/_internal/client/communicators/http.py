@@ -8,7 +8,7 @@ from pylon._internal.client.communicators.abstract import AbstractCommunicator
 from pylon._internal.client.config import AsyncPylonClientConfig
 from pylon._internal.common.endpoints import Endpoint
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
-from pylon._internal.common.requests import GetMetagraphRequest, PylonRequest, SetWeightsRequest
+from pylon._internal.common.requests import GetLatestNeuronsRequest, GetNeuronsRequest, PylonRequest, SetWeightsRequest
 from pylon._internal.common.responses import PylonResponse
 
 logger = logging.getLogger(__name__)
@@ -47,11 +47,15 @@ class AsyncHttpCommunicator(AbstractCommunicator[Request, Response]):
         )
 
     @_translate_request.register
-    async def _(self, request: GetMetagraphRequest) -> Request:
+    async def _(self, request: GetNeuronsRequest) -> Request:
         return self._raw_client.build_request(
-            method=HTTPMethod.GET,
-            url=Endpoint.METAGRAPH.for_version(request.version),
-            params=request.model_dump(exclude_none=True),
+            method=HTTPMethod.GET, url=Endpoint.NEURONS.for_version(request.version, block_number=request.block_number)
+        )
+
+    @_translate_request.register
+    async def _(self, request: GetLatestNeuronsRequest) -> Request:
+        return self._raw_client.build_request(
+            method=HTTPMethod.GET, url=Endpoint.LATEST_NEURONS.for_version(request.version)
         )
 
     async def _translate_response(self, pylon_request: PylonRequest, response: Response) -> PylonResponse:
