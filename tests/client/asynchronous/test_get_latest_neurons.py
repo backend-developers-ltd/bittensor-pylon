@@ -3,6 +3,7 @@ from ipaddress import IPv4Address
 import pytest
 from httpx import ConnectTimeout, Response, codes
 
+from pylon._internal.common.currency import Currency, Token
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.models import (
     AxonInfo,
@@ -29,7 +30,6 @@ from pylon._internal.common.types import (
     PruningScore,
     Rank,
     Stake,
-    Tao,
     TaoStake,
     Timestamp,
     TotalStake,
@@ -105,7 +105,7 @@ def expected_neurons_response(neurons_json):
             ),
             stake=Stake(neuron_data["stake"]),
             rank=Rank(neuron_data["rank"]),
-            emission=Emission(Tao(neuron_data["emission"])),
+            emission=Emission(Currency[Token.ALPHA](neuron_data["emission"])),
             incentive=Incentive(neuron_data["incentive"]),
             consensus=Consensus(neuron_data["consensus"]),
             trust=Trust(neuron_data["trust"]),
@@ -115,9 +115,9 @@ def expected_neurons_response(neurons_json):
             validator_permit=ValidatorPermit(neuron_data["validator_permit"]),
             pruning_score=PruningScore(neuron_data["pruning_score"]),
             stakes=Stakes(
-                alpha=AlphaStake(Tao(neuron_data["stakes"]["alpha"])),
-                tao=TaoStake(Tao(neuron_data["stakes"]["tao"])),
-                total=TotalStake(Tao(neuron_data["stakes"]["total"])),
+                alpha=AlphaStake(Currency[Token.ALPHA](neuron_data["stakes"]["alpha"])),
+                tao=TaoStake(Currency[Token.TAO](neuron_data["stakes"]["tao"])),
+                total=TotalStake(Currency[Token.ALPHA](neuron_data["stakes"]["total"])),
             ),
         )
 

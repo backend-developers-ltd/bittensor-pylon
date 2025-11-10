@@ -4,6 +4,7 @@ import pytest
 from litestar.status_codes import HTTP_200_OK
 from litestar.testing import AsyncTestClient
 
+from pylon._internal.common.currency import Currency, Token
 from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
@@ -29,7 +30,6 @@ from pylon._internal.common.types import (
     PruningScore,
     Rank,
     Stake,
-    Tao,
     TaoStake,
     Timestamp,
     TotalStake,
@@ -111,7 +111,7 @@ def neurons(neurons_json, block):
             ),
             stake=Stake(neuron_data["stake"]),
             rank=Rank(neuron_data["rank"]),
-            emission=Emission(Tao(neuron_data["emission"])),
+            emission=Emission(Currency[Token.ALPHA](neuron_data["emission"])),
             incentive=Incentive(neuron_data["incentive"]),
             consensus=Consensus(neuron_data["consensus"]),
             trust=Trust(neuron_data["trust"]),
@@ -121,9 +121,9 @@ def neurons(neurons_json, block):
             validator_permit=ValidatorPermit(neuron_data["validator_permit"]),
             pruning_score=PruningScore(neuron_data["pruning_score"]),
             stakes=Stakes(
-                alpha=AlphaStake(Tao(neuron_data["stakes"]["alpha"])),
-                tao=TaoStake(Tao(neuron_data["stakes"]["tao"])),
-                total=TotalStake(Tao(neuron_data["stakes"]["total"])),
+                alpha=AlphaStake(Currency[Token.ALPHA](neuron_data["stakes"]["alpha"])),
+                tao=TaoStake(Currency[Token.TAO](neuron_data["stakes"]["tao"])),
+                total=TotalStake(Currency[Token.ALPHA](neuron_data["stakes"]["total"])),
             ),
         )
 

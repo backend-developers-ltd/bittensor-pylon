@@ -6,6 +6,7 @@ from turbobt.neuron import AxonInfo as TurboBtAxonInfo
 from turbobt.neuron import AxonProtocolEnum as TurboBtAxonProtocolEnum
 from turbobt.neuron import Neuron as TurboBtNeuron
 
+from pylon._internal.common.currency import Currency, Token
 from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
@@ -30,7 +31,6 @@ from pylon._internal.common.types import (
     PruningScore,
     Rank,
     Stake,
-    Tao,
     TaoStake,
     Timestamp,
     TotalStake,
@@ -133,7 +133,7 @@ def neurons(block):
                 axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
                 stake=Stake(100.0),
                 rank=Rank(0.5),
-                emission=Emission(Tao(10.0)),
+                emission=Emission(Currency[Token.ALPHA](10.0)),
                 incentive=Incentive(0.8),
                 consensus=Consensus(0.9),
                 trust=Trust(0.7),
@@ -142,7 +142,11 @@ def neurons(block):
                 last_update=Timestamp(1000),
                 validator_permit=ValidatorPermit(True),
                 pruning_score=PruningScore(50),
-                stakes=Stakes(alpha=AlphaStake(Tao(50.0)), tao=TaoStake(Tao(30.0)), total=TotalStake(Tao(55.4))),
+                stakes=Stakes(
+                    alpha=AlphaStake(Currency[Token.ALPHA](50.0)),
+                    tao=TaoStake(Currency[Token.TAO](30.0)),
+                    total=TotalStake(Currency[Token.ALPHA](55.4)),
+                ),
             ),
             Hotkey("hotkey2"): Neuron(
                 uid=NeuronUid(2),
@@ -152,7 +156,7 @@ def neurons(block):
                 axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.2"), port=Port(8081), protocol=AxonProtocol.UDP),
                 stake=Stake(200.0),
                 rank=Rank(0.6),
-                emission=Emission(Tao(20.0)),
+                emission=Emission(Currency[Token.ALPHA](20.0)),
                 incentive=Incentive(0.7),
                 consensus=Consensus(0.8),
                 trust=Trust(0.9),
@@ -161,7 +165,11 @@ def neurons(block):
                 last_update=Timestamp(2000),
                 validator_permit=ValidatorPermit(False),
                 pruning_score=PruningScore(60),
-                stakes=Stakes(alpha=AlphaStake(Tao(100.0)), tao=TaoStake(Tao(60.0)), total=TotalStake(Tao(110.8))),
+                stakes=Stakes(
+                    alpha=AlphaStake(Currency[Token.ALPHA](100.0)),
+                    tao=TaoStake(Currency[Token.TAO](60.0)),
+                    total=TotalStake(Currency[Token.ALPHA](110.8)),
+                ),
             ),
         },
     )

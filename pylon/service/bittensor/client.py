@@ -23,6 +23,7 @@ from turbobt.subnet import (
 from turbobt.substrate.exceptions import UnknownBlock
 
 from pylon._internal.common.constants import LATEST_BLOCK_MARK
+from pylon._internal.common.currency import Currency, Token
 from pylon._internal.common.models import (
     AxonInfo,
     AxonProtocol,
@@ -58,7 +59,6 @@ from pylon._internal.common.types import (
     Rank,
     RevealRound,
     Stake,
-    Tao,
     Timestamp,
     Trust,
     ValidatorPermit,
@@ -223,7 +223,7 @@ class TurboBtClient(AbstractBittensorClient):
             ),
             stake=Stake(neuron.stake),
             rank=Rank(neuron.rank),
-            emission=Emission(Tao(neuron.emission)),
+            emission=Emission(Currency[Token.ALPHA](neuron.emission)),
             incentive=Incentive(neuron.incentive),
             consensus=Consensus(neuron.consensus),
             trust=Trust(neuron.trust),

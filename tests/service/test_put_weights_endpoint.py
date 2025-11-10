@@ -2,7 +2,6 @@
 Tests for the PUT /subnet/weights endpoint.
 """
 
-
 import pytest
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import AsyncTestClient

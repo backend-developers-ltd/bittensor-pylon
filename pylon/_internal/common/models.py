@@ -3,7 +3,7 @@ from ipaddress import IPv4Address, IPv6Address
 
 from pydantic import BaseModel
 
-from pylon._internal.common.constants import TAO
+from pylon._internal.common.currency import Currency, Token
 from pylon._internal.common.types import (
     AlphaStake,
     AlphaStakeRao,
@@ -27,7 +27,6 @@ from pylon._internal.common.types import (
     Rank,
     Stake,
     SubnetActive,
-    Tao,
     TaoStake,
     TaoStakeRao,
     Timestamp,
@@ -158,9 +157,9 @@ class SubnetState(BittensorModel):
     def hotkeys_stakes(self) -> dict[Hotkey, Stakes]:
         return {
             hotkey: Stakes(
-                alpha=AlphaStake(Tao(alpha / TAO)),
-                tao=TaoStake(Tao(tao / TAO)),
-                total=TotalStake(Tao(total / TAO)),
+                alpha=AlphaStake(Currency[Token.ALPHA].from_rao(alpha)),
+                tao=TaoStake(Currency[Token.TAO].from_rao(tao)),
+                total=TotalStake(Currency[Token.ALPHA].from_rao(total)),
             )
             for hotkey, alpha, tao, total in zip(self.hotkeys, self.alpha_stake, self.tao_stake, self.total_stake)
         }
