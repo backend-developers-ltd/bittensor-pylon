@@ -158,6 +158,13 @@ class MockBittensorClient(AbstractBittensorClient):
         """
         Get neurons for a subnet.
         """
+        self.calls["get_neurons_list"].append((netuid, block))
+        return await self._execute_behavior("get_neurons_list", netuid, block)
+
+    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
+        """
+        Get metagraph for a subnet.
+        """
         self.calls["get_neurons"].append((netuid, block))
         return await self._execute_behavior("get_neurons", netuid, block)
 
@@ -211,15 +218,8 @@ class MockBittensorClient(AbstractBittensorClient):
         """
         Get subnet state.
         """
-        self.calls["_get_subnet_state"].append((netuid, block))
-        return await self._execute_behavior("_get_subnet_state", netuid, block)
-
-    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
-        """
-        Get metagraph for a subnet.
-        """
-        self.calls["get_neurons"].append((netuid, block))
-        return await self._execute_behavior("get_neurons", netuid, block)
+        self.calls["get_subnet_state"].append((netuid, block))
+        return await self._execute_behavior("get_subnet_state", netuid, block)
 
     async def reset_call_tracking(self) -> None:
         """

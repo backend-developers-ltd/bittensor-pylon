@@ -107,14 +107,14 @@ async def test_delegation_recent_block_uses_main_client(bittensor_client, main_c
     async with bittensor_client:
         async with main_client.mock_behavior(
             get_latest_block=[latest_block],
-            get_neurons=[expected_neurons],
+            get_neurons_list=[expected_neurons],
         ):
             result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=recent_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["get_neurons"] == [(1, recent_block)]
-    assert archive_client.calls["get_neurons"] == []
+    assert main_client.calls["get_neurons_list"] == [(1, recent_block)]
+    assert archive_client.calls["get_neurons_list"] == []
 
 
 @pytest.mark.asyncio
@@ -132,18 +132,18 @@ async def test_delegation_unknown_block_falls_back_to_archive(
         async with (
             main_client.mock_behavior(
                 get_latest_block=[latest_block],
-                get_neurons=[UnknownBlock()],
+                get_neurons_list=[UnknownBlock()],
             ),
             archive_client.mock_behavior(
-                get_neurons=[expected_neurons],
+                get_neurons_list=[expected_neurons],
             ),
         ):
             result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=recent_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["get_neurons"] == [(1, recent_block)]
-    assert archive_client.calls["get_neurons"] == [(1, recent_block)]
+    assert main_client.calls["get_neurons_list"] == [(1, recent_block)]
+    assert archive_client.calls["get_neurons_list"] == [(1, recent_block)]
 
 
 @pytest.mark.asyncio
@@ -160,13 +160,13 @@ async def test_delegation_exact_cutoff_boundary_uses_main_client(
     async with bittensor_client:
         async with main_client.mock_behavior(
             get_latest_block=[latest_block],
-            get_neurons=[expected_neurons],
+            get_neurons_list=[expected_neurons],
         ):
             result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=boundary_block)
 
     assert result == expected_neurons
-    assert main_client.calls["get_neurons"] == [(1, boundary_block)]
-    assert archive_client.calls["get_neurons"] == []
+    assert main_client.calls["get_neurons_list"] == [(1, boundary_block)]
+    assert archive_client.calls["get_neurons_list"] == []
 
 
 @pytest.mark.asyncio
@@ -186,14 +186,14 @@ async def test_delegation_past_cutoff_boundary_uses_archive_client(
                 get_latest_block=[latest_block],
             ),
             archive_client.mock_behavior(
-                get_neurons=[expected_neurons],
+                get_neurons_list=[expected_neurons],
             ),
         ):
             result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=past_cutoff_block)
 
     assert result == expected_neurons
-    assert main_client.calls["get_neurons"] == []
-    assert archive_client.calls["get_neurons"] == [(1, past_cutoff_block)]
+    assert main_client.calls["get_neurons_list"] == []
+    assert archive_client.calls["get_neurons_list"] == [(1, past_cutoff_block)]
 
 
 @pytest.mark.asyncio
@@ -213,15 +213,15 @@ async def test_delegation_with_custom_cutoff(bittensor_client, main_client, arch
                 get_latest_block=[latest_block],
             ),
             archive_client.mock_behavior(
-                get_neurons=[expected_neurons],
+                get_neurons_list=[expected_neurons],
             ),
         ):
             result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=old_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["get_neurons"] == []
-    assert archive_client.calls["get_neurons"] == [(1, old_block)]
+    assert main_client.calls["get_neurons_list"] == []
+    assert archive_client.calls["get_neurons_list"] == [(1, old_block)]
 
 
 @pytest.mark.asyncio

@@ -13,7 +13,7 @@ from pylon._internal.common.models import (
     Neuron,
     SubnetNeurons,
 )
-from pylon._internal.common.requests import GetNeuronsRequest, PylonRequest, SetWeightsRequest
+from pylon._internal.common.requests import GetLatestNeuronsRequest, GetNeuronsRequest, PylonRequest, SetWeightsRequest
 from pylon._internal.common.responses import GetNeuronsResponse, PylonResponse, SetWeightsResponse
 from pylon._internal.common.types import (
     Hotkey,

@@ -36,7 +36,7 @@ class Currency(Generic[TokenType], float):
 class CurrencyRao(Generic[TokenType], int):
     """
     Simple class representing Bittensor tokens expressed as RAO.
-    To convert to a full token, use "from_tao" method on Currency class.
+    To convert to a full token, use "from_rao" method on Currency class.
     """
 
     @classmethod
