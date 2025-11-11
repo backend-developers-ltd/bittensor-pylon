@@ -1,8 +1,8 @@
 import pytest
 from turbobt.block import Block as TurboBtBlock
 
+from pylon._internal.common.models import Block
 from pylon._internal.common.types import BlockHash, BlockNumber
-from pylon.service.bittensor.models import Block
 
 
 @pytest.mark.asyncio

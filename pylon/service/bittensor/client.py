@@ -23,6 +23,21 @@ from turbobt.subnet import (
 from turbobt.substrate.exceptions import UnknownBlock
 
 from pylon._internal.common.constants import LATEST_BLOCK_MARK
+from pylon._internal.common.currency import Currency, Token
+from pylon._internal.common.models import (
+    AxonInfo,
+    AxonProtocol,
+    Block,
+    CertificateAlgorithm,
+    CommitReveal,
+    Neuron,
+    NeuronCertificate,
+    NeuronCertificateKeypair,
+    Stakes,
+    SubnetHyperparams,
+    SubnetNeurons,
+    SubnetState,
+)
 from pylon._internal.common.types import (
     ArchiveBlocksCutoff,
     BittensorNetwork,
@@ -49,18 +64,6 @@ from pylon._internal.common.types import (
     ValidatorPermit,
     ValidatorTrust,
     Weight,
-)
-from pylon.service.bittensor.models import (
-    AxonInfo,
-    AxonProtocol,
-    Block,
-    CertificateAlgorithm,
-    CommitReveal,
-    Metagraph,
-    Neuron,
-    NeuronCertificate,
-    NeuronCertificateKeypair,
-    SubnetHyperparams,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,7 +110,7 @@ class AbstractBittensorClient(ABC):
         """
 
     @abstractmethod
-    async def get_neurons(self, netuid: NetUid, block: Block) -> list[Neuron]:
+    async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
         """
         Fetches all neurons at the given block.
         """
@@ -142,6 +145,12 @@ class AbstractBittensorClient(ABC):
         """
 
     @abstractmethod
+    async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
+        """
+        Fetches subnet's state at the given block.
+        """
+
+    @abstractmethod
     async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
         """
         Commits weights. Returns round number when weights have to be revealed.
@@ -154,7 +163,7 @@ class AbstractBittensorClient(ABC):
         """
 
     @abstractmethod
-    async def get_metagraph(self, netuid: NetUid, block: Block) -> Metagraph:
+    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
         """
         Fetches metagraph for a subnet at the given block.
         """
@@ -201,7 +210,7 @@ class TurboBtClient(AbstractBittensorClient):
         return block
 
     @staticmethod
-    async def _translate_neuron(neuron: TurboBtNeuron) -> Neuron:
+    async def _translate_neuron(neuron: TurboBtNeuron, stakes: Stakes) -> Neuron:
         return Neuron(
             uid=NeuronUid(neuron.uid),
             coldkey=Coldkey(neuron.coldkey),
@@ -214,7 +223,7 @@ class TurboBtClient(AbstractBittensorClient):
             ),
             stake=Stake(neuron.stake),
             rank=Rank(neuron.rank),
-            emission=Emission(neuron.emission),
+            emission=Emission(Currency[Token.ALPHA](neuron.emission)),
             incentive=Incentive(neuron.incentive),
             consensus=Consensus(neuron.consensus),
             trust=Trust(neuron.trust),
@@ -223,15 +232,23 @@ class TurboBtClient(AbstractBittensorClient):
             last_update=Timestamp(neuron.last_update),
             validator_permit=ValidatorPermit(neuron.validator_permit),
             pruning_score=PruningScore(neuron.pruning_score),
+            stakes=stakes,
         )
 
-    async def get_neurons(self, netuid: NetUid, block: Block) -> list[Neuron]:
+    async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
         )
         logger.debug(f"Fetching neurons from subnet {netuid} at block {block.number}, {self.uri}")
         neurons = await self._raw_client.subnet(netuid).list_neurons(block_hash=block.hash)
-        return [await self._translate_neuron(neuron) for neuron in neurons]
+        # We need stakes fetched from subnet's state.
+        state = await self.get_subnet_state(netuid, block)
+        stakes = state.hotkeys_stakes
+        return [await self._translate_neuron(neuron, stakes[Hotkey(neuron.hotkey)]) for neuron in neurons]
+
+    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
+        neurons = await self.get_neurons_list(netuid, block)
+        return SubnetNeurons(block=block, neurons={neuron.hotkey: neuron for neuron in neurons})
 
     @staticmethod
     async def _translate_hyperparams(params: TurboBtSubnetHyperparams) -> SubnetHyperparams:
@@ -309,11 +326,24 @@ class TurboBtClient(AbstractBittensorClient):
             keypair = await self._translate_certificate_keypair(keypair)
         return keypair
 
+    async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
+        logger.debug(f"Fetching subnet {netuid} state at block {block.number}, {self.uri}")
+        state = await self._raw_client.subnet(netuid).get_state(block.hash)
+        return SubnetState(**state)  # type: ignore
+
     async def _translate_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> dict[int, float]:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
         translated_weights = {}
         missing = []
         latest_block = await self.get_latest_block()
-        hotkey_to_uid = {n.hotkey: n.uid for n in await self.get_neurons(netuid, latest_block)}
+        # We don't use self.get_neurons to avoid unnecessary call for subnet state, translation etc.
+        neurons = await self._raw_client.subnet(netuid).list_neurons(block_hash=latest_block.hash)
+        hotkey_to_uid = {n.hotkey: n.uid for n in neurons}
         for hotkey, weight in weights.items():
             if hotkey in hotkey_to_uid:
                 translated_weights[hotkey_to_uid[hotkey]] = weight
@@ -342,10 +372,6 @@ class TurboBtClient(AbstractBittensorClient):
         )
         logger.debug(f"Setting weights on subnet {netuid} at {self.uri}")
         await self._raw_client.subnet(netuid).weights.set(await self._translate_weights(netuid, weights))
-
-    async def get_metagraph(self, netuid: NetUid, block: Block) -> Metagraph:
-        neurons = await self.get_neurons(netuid, block)
-        return Metagraph(block=block, neurons={neuron.hotkey: neuron for neuron in neurons})
 
 
 SubClient = TypeVar("SubClient", bound=AbstractBittensorClient)
@@ -389,8 +415,8 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
     async def get_latest_block(self) -> Block:
         return await self._delegate(self.subclient_cls.get_latest_block)
 
-    async def get_neurons(self, netuid: NetUid, block: Block) -> list[Neuron]:
-        return await self._delegate(self.subclient_cls.get_neurons, netuid=netuid, block=block)
+    async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
+        return await self._delegate(self.subclient_cls.get_neurons_list, netuid=netuid, block=block)
 
     async def get_hyperparams(self, netuid: NetUid, block: Block) -> SubnetHyperparams | None:
         return await self._delegate(self.subclient_cls.get_hyperparams, netuid=netuid, block=block)
@@ -414,8 +440,11 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
     async def set_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> None:
         return await self._delegate(self.subclient_cls.set_weights, netuid=netuid, weights=weights)
 
-    async def get_metagraph(self, netuid: NetUid, block: Block) -> Metagraph:
-        return await self._delegate(self.subclient_cls.get_metagraph, netuid=netuid, block=block)
+    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
+        return await self._delegate(self.subclient_cls.get_neurons, netuid=netuid, block=block)
+
+    async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
+        return await self._delegate(self.subclient_cls.get_subnet_state, netuid=netuid, block=block)
 
     async def _delegate(
         self, operation: Callable[..., Awaitable[DelegateReturn]], *args, block: Block | None = None, **kwargs

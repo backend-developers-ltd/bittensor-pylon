@@ -11,7 +11,10 @@ import pytest
 from bittensor_wallet import Wallet
 from turbobt.substrate.exceptions import UnknownBlock
 
+from pylon._internal.common.currency import Currency, Token
+from pylon._internal.common.models import AxonInfo, AxonProtocol, Block, Neuron, Stakes
 from pylon._internal.common.types import (
+    AlphaStake,
     ArchiveBlocksCutoff,
     BittensorNetwork,
     BlockHash,
@@ -22,19 +25,21 @@ from pylon._internal.common.types import (
     Emission,
     Hotkey,
     Incentive,
+    NetUid,
     NeuronActive,
     NeuronUid,
     Port,
     PruningScore,
     Rank,
     Stake,
+    TaoStake,
     Timestamp,
+    TotalStake,
     Trust,
     ValidatorPermit,
     ValidatorTrust,
 )
 from pylon.service.bittensor.client import BittensorClient
-from pylon.service.bittensor.models import AxonInfo, AxonProtocol, Block, Neuron
 from tests.mock_bittensor_client import MockBittensorClient
 
 
@@ -48,7 +53,7 @@ def test_neuron():
         axon_info=AxonInfo(ip=ipaddress.IPv4Address("192.168.1.1"), port=Port(8080), protocol=AxonProtocol.TCP),
         stake=Stake(100.0),
         rank=Rank(0.5),
-        emission=Emission(10.0),
+        emission=Emission(Currency[Token.ALPHA](10.0)),
         incentive=Incentive(0.8),
         consensus=Consensus(0.9),
         trust=Trust(0.7),
@@ -57,6 +62,11 @@ def test_neuron():
         last_update=Timestamp(1000),
         validator_permit=ValidatorPermit(True),
         pruning_score=PruningScore(50),
+        stakes=Stakes(
+            alpha=AlphaStake(Currency[Token.ALPHA](75.0)),
+            tao=TaoStake(Currency[Token.TAO](25.0)),
+            total=TotalStake(Currency[Token.ALPHA](100.0)),
+        ),
     )
 
 
@@ -97,14 +107,14 @@ async def test_delegation_recent_block_uses_main_client(bittensor_client, main_c
     async with bittensor_client:
         async with main_client.mock_behavior(
             get_latest_block=[latest_block],
-            get_neurons=[expected_neurons],
+            get_neurons_list=[expected_neurons],
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=recent_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=recent_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["get_neurons"] == [(1, recent_block)]
-    assert archive_client.calls["get_neurons"] == []
+    assert main_client.calls["get_neurons_list"] == [(1, recent_block)]
+    assert archive_client.calls["get_neurons_list"] == []
 
 
 @pytest.mark.asyncio
@@ -122,18 +132,18 @@ async def test_delegation_unknown_block_falls_back_to_archive(
         async with (
             main_client.mock_behavior(
                 get_latest_block=[latest_block],
-                get_neurons=[UnknownBlock()],
+                get_neurons_list=[UnknownBlock()],
             ),
             archive_client.mock_behavior(
-                get_neurons=[expected_neurons],
+                get_neurons_list=[expected_neurons],
             ),
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=recent_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=recent_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["get_neurons"] == [(1, recent_block)]
-    assert archive_client.calls["get_neurons"] == [(1, recent_block)]
+    assert main_client.calls["get_neurons_list"] == [(1, recent_block)]
+    assert archive_client.calls["get_neurons_list"] == [(1, recent_block)]
 
 
 @pytest.mark.asyncio
@@ -150,13 +160,13 @@ async def test_delegation_exact_cutoff_boundary_uses_main_client(
     async with bittensor_client:
         async with main_client.mock_behavior(
             get_latest_block=[latest_block],
-            get_neurons=[expected_neurons],
+            get_neurons_list=[expected_neurons],
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=boundary_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=boundary_block)
 
     assert result == expected_neurons
-    assert main_client.calls["get_neurons"] == [(1, boundary_block)]
-    assert archive_client.calls["get_neurons"] == []
+    assert main_client.calls["get_neurons_list"] == [(1, boundary_block)]
+    assert archive_client.calls["get_neurons_list"] == []
 
 
 @pytest.mark.asyncio
@@ -176,14 +186,14 @@ async def test_delegation_past_cutoff_boundary_uses_archive_client(
                 get_latest_block=[latest_block],
             ),
             archive_client.mock_behavior(
-                get_neurons=[expected_neurons],
+                get_neurons_list=[expected_neurons],
             ),
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=past_cutoff_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=past_cutoff_block)
 
     assert result == expected_neurons
-    assert main_client.calls["get_neurons"] == []
-    assert archive_client.calls["get_neurons"] == [(1, past_cutoff_block)]
+    assert main_client.calls["get_neurons_list"] == []
+    assert archive_client.calls["get_neurons_list"] == [(1, past_cutoff_block)]
 
 
 @pytest.mark.asyncio
@@ -203,15 +213,15 @@ async def test_delegation_with_custom_cutoff(bittensor_client, main_client, arch
                 get_latest_block=[latest_block],
             ),
             archive_client.mock_behavior(
-                get_neurons=[expected_neurons],
+                get_neurons_list=[expected_neurons],
             ),
         ):
-            result = await bittensor_client.get_neurons(netuid=1, block=old_block)
+            result = await bittensor_client.get_neurons_list(netuid=NetUid(1), block=old_block)
 
     assert result == expected_neurons
     assert main_client.calls["get_latest_block"] == [()]
-    assert main_client.calls["get_neurons"] == []
-    assert archive_client.calls["get_neurons"] == [(1, old_block)]
+    assert main_client.calls["get_neurons_list"] == []
+    assert archive_client.calls["get_neurons_list"] == [(1, old_block)]
 
 
 @pytest.mark.asyncio

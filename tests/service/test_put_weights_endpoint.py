@@ -6,9 +6,9 @@ import pytest
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import AsyncTestClient
 
+from pylon._internal.common.models import Block, CommitReveal, SubnetHyperparams
 from pylon._internal.common.settings import settings
 from pylon._internal.common.types import BlockHash, BlockNumber, RevealRound
-from pylon.service.bittensor.models import Block, CommitReveal, SubnetHyperparams
 from pylon.service.tasks import ApplyWeights
 from tests.helpers import wait_for_background_tasks
 from tests.mock_bittensor_client import MockBittensorClient
@@ -47,7 +47,7 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
         }
 
         # Wait for the background task to complete
-        await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+        await wait_for_background_tasks(ApplyWeights.tasks_running)
 
     # Verify the commit_weights was called with correct arguments
     assert mock_bt_client.calls["commit_weights"] == [
@@ -86,7 +86,7 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
         }
 
         # Wait for the background task to complete
-        await wait_for_background_tasks([ApplyWeights.JOB_NAME])
+        await wait_for_background_tasks(ApplyWeights.tasks_running)
 
     # Verify set_weights was called with correct arguments
     assert mock_bt_client.calls["set_weights"] == [

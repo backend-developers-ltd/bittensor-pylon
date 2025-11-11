@@ -6,6 +6,7 @@ to return specific values or raise exceptions, enabling comprehensive testing of
 without requiring actual blockchain interactions.
 """
 
+import asyncio
 from collections import defaultdict
 from collections.abc import Callable
 from contextlib import asynccontextmanager
@@ -13,17 +14,18 @@ from typing import Any, TypeAlias
 
 from bittensor_wallet import Wallet
 
-from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
-from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import (
+from pylon._internal.common.models import (
     Block,
     CertificateAlgorithm,
-    Metagraph,
     Neuron,
     NeuronCertificate,
     NeuronCertificateKeypair,
     SubnetHyperparams,
+    SubnetNeurons,
+    SubnetState,
 )
+from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
+from pylon.service.bittensor.client import AbstractBittensorClient
 
 Behavior: TypeAlias = Callable | Exception | Any
 MethodName: TypeAlias = str
@@ -56,6 +58,7 @@ class MockBittensorClient(AbstractBittensorClient):
     def __init__(self, wallet: Wallet | None = None, uri: BittensorNetwork = BittensorNetwork("mock://test")):
         super().__init__(wallet=wallet or Wallet(), uri=uri)
         self._behaviors: dict[MethodName, list[Behavior]] = defaultdict(list)
+        self._behavior_lock = asyncio.Lock()
         self._is_open = False
 
         # Track method calls for assertion in tests
@@ -120,13 +123,14 @@ class MockBittensorClient(AbstractBittensorClient):
             Exception: If the behavior is configured to raise an exception
             NotImplementedError: If no behavior is configured for the method
         """
-        if not self._behaviors[method_name]:
-            raise NotImplementedError(
-                f"No mock behavior configured for {method_name}. Use mock_behavior() context manager to configure it."
-            )
+        async with self._behavior_lock:
+            if not self._behaviors[method_name]:
+                raise NotImplementedError(
+                    f"No mock behavior configured for {method_name}. Use mock_behavior() context manager to configure it."
+                )
 
-        # Get the next behavior from the queue
-        behavior = self._behaviors[method_name].pop(0)
+            # Get the next behavior from the queue
+            behavior = self._behaviors[method_name].pop(0)
 
         if isinstance(behavior, Exception):
             raise behavior
@@ -150,9 +154,16 @@ class MockBittensorClient(AbstractBittensorClient):
         self.calls["get_latest_block"].append(())
         return await self._execute_behavior("get_latest_block")
 
-    async def get_neurons(self, netuid: NetUid, block: Block) -> list[Neuron]:
+    async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
         """
         Get neurons for a subnet.
+        """
+        self.calls["get_neurons_list"].append((netuid, block))
+        return await self._execute_behavior("get_neurons_list", netuid, block)
+
+    async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
+        """
+        Get metagraph for a subnet.
         """
         self.calls["get_neurons"].append((netuid, block))
         return await self._execute_behavior("get_neurons", netuid, block)
@@ -203,12 +214,12 @@ class MockBittensorClient(AbstractBittensorClient):
         self.calls["set_weights"].append((netuid, weights))
         return await self._execute_behavior("set_weights", netuid, weights)
 
-    async def get_metagraph(self, netuid: NetUid, block: Block) -> Metagraph:
+    async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
         """
-        Get metagraph for a subnet.
+        Get subnet state.
         """
-        self.calls["get_metagraph"].append((netuid, block))
-        return await self._execute_behavior("get_metagraph", netuid, block)
+        self.calls["get_subnet_state"].append((netuid, block))
+        return await self._execute_behavior("get_subnet_state", netuid, block)
 
     async def reset_call_tracking(self) -> None:
         """

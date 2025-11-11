@@ -3,13 +3,13 @@ import pytest
 from pylon._internal.client.mock import AsyncMockClient, RaiseRequestError, RaiseResponseError, WorkNormally
 from pylon._internal.common.exceptions import PylonRequestException, PylonResponseException
 from pylon._internal.common.requests import SetWeightsRequest
-from pylon._internal.common.responses import PylonResponseStatus, SetWeightsResponse
+from pylon._internal.common.responses import SetWeightsResponse
 from pylon._internal.common.types import Hotkey, Weight
 
 
 @pytest.mark.asyncio
 async def test_mock_async_pylon_client():
-    normal_response = SetWeightsResponse(status=PylonResponseStatus.SUCCESS)
+    normal_response = SetWeightsResponse()
     client = AsyncMockClient(
         behavior=[
             RaiseRequestError("Test request error!"),

@@ -1,7 +1,7 @@
 import pytest
 
+from pylon._internal.common.models import Block, CommitReveal, SubnetHyperparams
 from pylon._internal.common.types import BlockHash, BlockNumber, MaxWeightsLimit
-from pylon.service.bittensor.models import Block, CommitReveal, SubnetHyperparams
 
 
 @pytest.fixture

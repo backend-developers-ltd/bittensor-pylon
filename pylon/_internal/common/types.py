@@ -1,5 +1,7 @@
 from typing import NewType
 
+from pylon._internal.common.currency import Currency, CurrencyRao, Token
+
 # When adding new type, remember to also include it in extend-immutable-calls in pyproject.toml so that ruff does not
 # raise B008 on new type wrapping the function's default value.
 
@@ -15,7 +17,8 @@ NeuronUid = NewType("NeuronUid", int)
 Port = NewType("Port", int)
 Stake = NewType("Stake", float)
 Rank = NewType("Rank", float)
-Emission = NewType("Emission", float)
+Emission = NewType("Emission", Currency[Token.ALPHA])
+EmissionRao = NewType("EmissionRao", CurrencyRao[Token.ALPHA])
 Incentive = NewType("Incentive", float)
 Consensus = NewType("Consensus", float)
 Trust = NewType("Trust", float)
@@ -30,3 +33,10 @@ BittensorNetwork = NewType("BittensorNetwork", str)
 ArchiveBlocksCutoff = NewType("ArchiveBlocksCutoff", int)
 NeuronActive = NewType("NeuronActive", bool)
 ValidatorPermit = NewType("ValidatorPermit", bool)
+SubnetActive = NewType("SubnetActive", bool)
+AlphaStakeRao = NewType("AlphaStakeRao", CurrencyRao[Token.ALPHA])
+TaoStakeRao = NewType("TaoStakeRao", CurrencyRao[Token.TAO])
+TotalStakeRao = NewType("TotalStakeRao", CurrencyRao[Token.ALPHA])
+AlphaStake = NewType("AlphaStake", Currency[Token.ALPHA])
+TaoStake = NewType("TaoStake", Currency[Token.TAO])
+TotalStake = NewType("TotalStake", Currency[Token.ALPHA])

@@ -11,6 +11,7 @@ from pylon._internal.common.settings import settings
 from pylon.service import dependencies
 from pylon.service.bittensor.client import BittensorClient
 from pylon.service.routers import v1_router
+from pylon.service.schema import PylonSchemaPlugin
 from pylon.service.sentry_config import init_sentry
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ def create_app() -> Litestar:
         ),
         lifespan=[bittensor_client],
         dependencies={"bt_client": Provide(dependencies.bt_client, use_cache=True)},
+        plugins=[PylonSchemaPlugin()],
         debug=settings.debug,
     )
 

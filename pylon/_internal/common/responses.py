@@ -1,11 +1,6 @@
-from enum import StrEnum
-
 from pydantic import BaseModel
 
-
-class PylonResponseStatus(StrEnum):
-    SUCCESS = "success"
-    ERROR = "error"
+from pylon._internal.common.models import SubnetNeurons
 
 
 class PylonResponse(BaseModel):
@@ -18,8 +13,6 @@ class PylonResponse(BaseModel):
     the pylon client after performing a request.
     """
 
-    status: PylonResponseStatus
-
 
 class SetWeightsResponse(PylonResponse):
     """
@@ -27,5 +20,13 @@ class SetWeightsResponse(PylonResponse):
     """
 
     # TODO: Modify this model after set weights endpoint is made clean.
+
+    pass
+
+
+class GetNeuronsResponse(PylonResponse, SubnetNeurons):
+    """
+    Response class that is returned for the GetNeuronsRequest.
+    """
 
     pass

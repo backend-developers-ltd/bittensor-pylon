@@ -1,18 +1,35 @@
 import logging
 
 from litestar import Response, get, post, put, status_codes
+from litestar.exceptions import NotFoundException
 
 from pylon._internal.common.endpoints import Endpoint
+from pylon._internal.common.models import Hotkey, SubnetNeurons
 from pylon._internal.common.requests import (
     GenerateCertificateKeypairRequest,
     SetWeightsRequest,
 )
 from pylon._internal.common.settings import settings
+from pylon._internal.common.types import BlockNumber
 from pylon.service.bittensor.client import AbstractBittensorClient
-from pylon.service.bittensor.models import Hotkey
 from pylon.service.tasks import ApplyWeights
 
 logger = logging.getLogger(__name__)
+
+
+@get(Endpoint.NEURONS)
+async def get_neurons(bt_client: AbstractBittensorClient, block_number: BlockNumber) -> SubnetNeurons:
+    # TODO: TurboBT struggles with fetching old blocks, for tb try to ask for block 4671121
+    block = await bt_client.get_block(block_number)
+    if block is None:
+        raise NotFoundException(detail=f"Block {block_number} not found.")
+    return await bt_client.get_neurons(settings.bittensor_netuid, block=block)
+
+
+@get(Endpoint.LATEST_NEURONS)
+async def get_latest_neurons(bt_client: AbstractBittensorClient) -> SubnetNeurons:
+    block = await bt_client.get_latest_block()
+    return await bt_client.get_neurons(settings.bittensor_netuid, block=block)
 
 
 @put(Endpoint.SUBNET_WEIGHTS)
