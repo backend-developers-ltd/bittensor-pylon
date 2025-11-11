@@ -15,7 +15,7 @@ nox.options.reuse_existing_virtualenvs = True
 def test(session):
     """Run pytest with optional arguments forwarded from the command line."""
     session.run("uv", "sync", "--active", "--extra", "dev")
-    session.run("pytest", "-s", "-vv", ".", *session.posargs)
+    session.run("pytest", "-s", "-vv", ".", *session.posargs, env={"PYLON_ENV_FILE": "tests/.test-env"})
 
 
 @nox.session(name="format", python=PYTHON_VERSION)
