@@ -154,8 +154,10 @@ class ApplyWeights:
                 assert latest_block is not None
                 return latest_block
             except Exception as e:
-                logger.error(f"Error fetching latest block: {e}")
+                logger.error(f"Error fetching latest block: {e}", exc_info=e)
                 await asyncio.sleep(settings.weights_retry_delay_seconds)
+                logger.info("Closing the client to reset connection...")
+                await self._client.close()
                 continue
 
     async def run_job(self, weights: dict[str, float]) -> None:
