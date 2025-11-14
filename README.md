@@ -62,6 +62,64 @@ Example of the proper request using `curl`:
 curl -X PUT http://localhost:8000/api/v1/subnet/weights --data '{"weights": {"hk1": 0.8, "hk2": 0.5}}' -H "Authorization: Bearer abc"
 ```
 
+### Prometheus Metrics Endpoint
+
+The service exposes Prometheus metrics at the `/metrics` endpoint for monitoring and observability. This endpoint is
+protected with Bearer token authentication.
+
+**Configuration:**
+
+Set the `PYLON_METRICS_TOKEN` environment variable in your `.env` file:
+
+```bash
+PYLON_METRICS_TOKEN=your-secure-metrics-token
+```
+
+**Important:** If `PYLON_METRICS_TOKEN` is empty or not set, the `/metrics` endpoint will return `403 Forbidden` to
+prevent unauthorized access.
+
+**Accessing the metrics:**
+
+```bash
+curl http://localhost:8000/metrics -H "Authorization: Bearer your-secure-metrics-token"
+```
+
+**Available metrics:**
+
+The endpoint provides the following Prometheus metrics organized by category:
+
+**HTTP API Metrics:**
+- `pylon_requests_total` - Total number of HTTP requests
+- `pylon_request_duration_seconds` - HTTP request duration in seconds (histogram)
+- `pylon_requests_in_progress` - Number of HTTP requests currently being processed (gauge)
+
+All HTTP metrics include labels: `method`, `path`, `status_code`, `app_name`.
+
+**Bittensor Blockchain Metrics:**
+- `pylon_bittensor_operations_total` - Total number of blockchain operations (counter)
+  - Labels: `operation`, `status` (success/error), `client_type` (main/archive)
+  - Operations: `open`, `get_latest_block`, `get_certificates`, `get_neurons`, `get_hyperparams`, `commit_weights`, `set_weights`
+- `pylon_bittensor_operation_duration_seconds` - Duration of blockchain operations (histogram)
+  - Labels: `operation`, `client_type`
+  - Buckets: 0.1s, 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, 120s
+- `pylon_bittensor_errors_total` - Total number of errors in blockchain operations (counter)
+  - Labels: `operation`, `exception`, `client_type`
+- `pylon_bittensor_fallback_total` - Archive client fallback events (counter)
+  - Labels: `reason`, `operation`
+
+**Background Job Metrics:**
+- `pylon_apply_weights_duration_seconds` - Duration of apply weights job execution (histogram)
+  - Labels: `mode` (commit/set), `status` (success/error/timeout/tempo_expired)
+  - Buckets: 1s, 5s, 10s, 30s, 60s, 120s, 300s, 600s
+- `pylon_apply_weights_jobs_total` - Total number of apply weights jobs (counter)
+  - Labels: `mode`, `status`
+
+**Python Runtime Metrics:**
+
+Standard Python process metrics are also exposed: memory usage, CPU time, garbage collection stats, and file descriptors.
+
+**Note:** All counter and histogram metrics automatically include `*_created` gauge metrics showing the timestamp when each label combination was first seen. You can disable these by setting `PROMETHEUS_DISABLE_CREATED_SERIES=True` in your environment to reduce metrics output.
+
 ## Using the Python Client
 
 Install the client library:

@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str
 
+    # auth
+    auth_token: str = ""
+    pylon_metrics_token: str = ""
+
     # docker
     pylon_docker_image_name: str = "bittensor_pylon"
 

@@ -8,6 +8,12 @@ BITTENSOR_WALLET_PATH=~/.bittensor/wallets
 BITTENSOR_WALLET_NAME=test-wallet
 # Name of the wallet hotkey
 BITTENSOR_WALLET_HOTKEY_NAME=test-hotkey
+# Token that must be passed as an Authorization header for each request to succeed. Must not be empty, otherwise API
+# will refuse any request requiring authentication.
+AUTH_TOKEN=abc
+# Token for accessing /metrics endpoint. Must be passed as Bearer token in Authorization header.
+# If empty, /metrics endpoint will return 403 Forbidden.
+PYLON_METRICS_TOKEN=
 
 # Sentry Configuration
 # DSN address for pylon to use - leave empty to disable sentry integration.

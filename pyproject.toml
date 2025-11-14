@@ -11,7 +11,7 @@ dependencies = [
     "pydantic-settings",
     "pydantic",
     "turbobt>=0.3.0",
-    "litestar[standard]",
+    "litestar[standard,prometheus]",
     "cachetools",
     "docker",
     "requests",
