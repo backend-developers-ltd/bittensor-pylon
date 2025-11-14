@@ -10,22 +10,30 @@ env:
   DOCKER_REPO_NAME: "backenddevelopersltd/bittensor-pylon"
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup python env
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: '3.12'
+
+      - name: Run linting checks with nox
+        run: nox -s lint
+
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup python env
+        uses: ./.github/actions/setup-python-env
         with:
           python-version: '3.12'
-
-      - name: Install uv (fast Python package manager)
-        run: pip install uv
-
-      - name: Install nox
-        run: pip install nox
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev

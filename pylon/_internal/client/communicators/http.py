@@ -35,11 +35,12 @@ class AsyncHttpCommunicator(AbstractCommunicator[Request, Response]):
         self._raw_client = None
 
     @singledispatchmethod
-    async def _translate_request(self, request: PylonRequest) -> Request:
+    async def _translate_request(self, request: PylonRequest) -> Request:  # type: ignore
         raise NotImplementedError(f"Request of type {type(request).__name__} is not supported.")
 
     @_translate_request.register
     async def _(self, request: SetWeightsRequest) -> Request:
+        assert self._raw_client is not None
         return self._raw_client.build_request(
             method=HTTPMethod.PUT,
             url=Endpoint.SUBNET_WEIGHTS.for_version(request.version),
@@ -48,12 +49,14 @@ class AsyncHttpCommunicator(AbstractCommunicator[Request, Response]):
 
     @_translate_request.register
     async def _(self, request: GetNeuronsRequest) -> Request:
+        assert self._raw_client is not None
         return self._raw_client.build_request(
             method=HTTPMethod.GET, url=Endpoint.NEURONS.for_version(request.version, block_number=request.block_number)
         )
 
     @_translate_request.register
     async def _(self, request: GetLatestNeuronsRequest) -> Request:
+        assert self._raw_client is not None
         return self._raw_client.build_request(
             method=HTTPMethod.GET, url=Endpoint.LATEST_NEURONS.for_version(request.version)
         )

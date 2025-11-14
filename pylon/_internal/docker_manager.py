@@ -67,7 +67,12 @@ class PylonDockerManager:
                 self.container = None
 
     async def _wait_for_service(self, retries: int = 10, delay: float = 1.0) -> None:
-        """Waits for the Pylon service to be ready by polling the /health endpoint."""
+        """
+        Waits for the Pylon service to be ready by polling the /health endpoint.
+
+        Raises:
+            RuntimeError: In case Pylon service fails to start in time.
+        """
         await asyncio.sleep(delay)
         async with httpx.AsyncClient() as client:
             for i in range(retries):

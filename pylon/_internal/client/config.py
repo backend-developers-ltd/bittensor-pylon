@@ -13,6 +13,10 @@ DEFAULT_RETRIES = AsyncRetrying(
 class AsyncPylonClientConfig(BaseModel):
     """
     Configuration for the asynchronous Pylon clients.
+
+    Args:
+        address (required): The Pylon service address.
+        retry: Configuration of retrying in case of a failed request.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

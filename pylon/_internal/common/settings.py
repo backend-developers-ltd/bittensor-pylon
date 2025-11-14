@@ -13,9 +13,6 @@ class Settings(BaseSettings):
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str
 
-    # auth
-    auth_token: str = ""
-
     # docker
     pylon_docker_image_name: str = "bittensor_pylon"
 
@@ -34,10 +31,6 @@ class Settings(BaseSettings):
     # weights endpoint behaviour
     weights_retry_attempts: int = 200
     weights_retry_delay_seconds: int = 1
-
-    # metagraph cache
-    metagraph_cache_ttl: int = 600  # TODO: not 10 minutes
-    metagraph_cache_maxsize: int = 1000
 
     # sentry
     sentry_dsn: str = ""
