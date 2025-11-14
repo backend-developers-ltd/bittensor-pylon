@@ -55,8 +55,13 @@ class MockBittensorClient(AbstractBittensorClient):
             result2 = await mock_client.get_certificates(1)
     """
 
-    def __init__(self, wallet: Wallet | None = None, uri: BittensorNetwork = BittensorNetwork("mock://test")):
-        super().__init__(wallet=wallet or Wallet(), uri=uri)
+    def __init__(
+        self,
+        wallet: Wallet | None = None,
+        uri: BittensorNetwork = BittensorNetwork("mock://test"),
+        client_type: str = "unknown",
+    ):
+        super().__init__(wallet=wallet or Wallet(), uri=uri, client_type=client_type)
         self._behaviors: dict[MethodName, list[Behavior]] = defaultdict(list)
         self._behavior_lock = asyncio.Lock()
         self._is_open = False
