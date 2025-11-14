@@ -1,5 +1,7 @@
 import asyncio
+import os
 from collections.abc import Iterable
+from contextlib import contextmanager
 
 
 async def wait_for_background_tasks(tasks_to_wait: Iterable[asyncio.Task], timeout: float = 2.0) -> None:
@@ -22,3 +24,14 @@ async def wait_for_background_tasks(tasks_to_wait: Iterable[asyncio.Task], timeo
     if pending:
         pending_names = [task.get_name() for task in pending]
         raise TimeoutError(f"Background tasks did not complete within {timeout}s: {pending_names}")
+
+
+@contextmanager
+def override_env(**kwargs: str):
+    original_env = os.environ.copy()
+    os.environ.update(kwargs)
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(original_env)
