@@ -16,8 +16,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup nox
-        uses: ./.github/actions/setup-nox
+      - name: Setup python env
+        uses: ./.github/actions/setup-python-env
         with:
           python-version: '3.12'
 
@@ -30,8 +30,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup nox
-        uses: ./.github/actions/setup-nox
+      - name: Setup python env
+        uses: ./.github/actions/setup-python-env
         with:
           python-version: '3.12'
 
