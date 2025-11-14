@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 
 from bittensor_wallet import Wallet
 from turbobt.client import Bittensor
@@ -65,6 +65,7 @@ from pylon._internal.common.types import (
     ValidatorTrust,
     Weight,
 )
+from pylon.service.metrics import TrackedBittensorClient, bittensor_fallback_total
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +75,11 @@ class AbstractBittensorClient(ABC):
     Interface for Bittensor clients.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork):
+    def __init__(self, wallet: Wallet, uri: BittensorNetwork, *, client_type: str = "unknown"):
         self.wallet = wallet
         self.uri = uri
+        # Store client_type for metrics tracking (used by TrackedBittensorClient)
+        self._client_type: str = client_type
 
     async def __aenter__(self):
         await self.open()
@@ -174,8 +177,8 @@ class TurboBtClient(AbstractBittensorClient):
     Adapter for turbobt client.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork):
-        super().__init__(wallet, uri)
+    def __init__(self, wallet: Wallet, uri: BittensorNetwork, client_type: str = "main"):
+        super().__init__(wallet, uri, client_type=client_type)
         self._raw_client: Bittensor | None = None
 
     async def open(self) -> None:
@@ -398,8 +401,13 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         self.archive_uri = archive_uri
         self._archive_blocks_cutoff = archive_blocks_cutoff
         self.subclient_cls = subclient_cls
-        self._main_client: SubClient = self.subclient_cls(wallet, uri)
-        self._archive_client: SubClient = self.subclient_cls(wallet, archive_uri)
+
+        def build_tracked_client(client_uri: BittensorNetwork, label: str) -> SubClient:
+            client = self.subclient_cls(wallet, client_uri, client_type=label)
+            return cast(SubClient, TrackedBittensorClient(client))
+
+        self._main_client = build_tracked_client(uri, "main")
+        self._archive_client = build_tracked_client(archive_uri, "archive")
 
     async def open(self) -> None:
         await self._main_client.open()
@@ -456,17 +464,24 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         Archive client is used when the block is stale (older than archive_blocks_cutoff blocks).
         Operations on the main client are retried if UnknownBlock exception is raised.
         """
+        method_name = operation.__name__
+
         if block:
             kwargs["block"] = block
             latest_block = await self._main_client.get_latest_block()
             if latest_block.number - block.number > self._archive_blocks_cutoff:
                 logger.debug(f"Block is stale, falling back to the archive client: {self._archive_client.uri}")
-                return await operation(self._archive_client, *args, **kwargs)
+                bittensor_fallback_total.labels(reason="stale_block", operation=method_name).inc()
+                bound_method = getattr(self._archive_client, method_name)
+                return await bound_method(*args, **kwargs)
 
         try:
-            return await operation(self._main_client, *args, **kwargs)
+            bound_method = getattr(self._main_client, method_name)
+            return await bound_method(*args, **kwargs)
         except UnknownBlock:
             logger.warning(
                 f"Block unknown for the main client, falling back to the archive client: {self._archive_client.uri}"
             )
-            return await operation(self._archive_client, *args, **kwargs)
+            bittensor_fallback_total.labels(reason="unknown_block", operation=method_name).inc()
+            bound_method = getattr(self._archive_client, method_name)
+            return await bound_method(*args, **kwargs)
