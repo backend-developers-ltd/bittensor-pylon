@@ -10,39 +10,36 @@ This module defines all domain-specific metrics for monitoring:
 import functools
 import inspect
 import logging
-from collections.abc import Callable, Coroutine, Generator
-from contextlib import contextmanager
+from collections.abc import Callable, Coroutine
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from time import perf_counter
-from typing import TYPE_CHECKING, Any
+from typing import TypeVar
 
 from prometheus_client import Counter, Histogram
 
-from pylon._internal.common.types import Hotkey, NetUid, RevealRound, Weight
-
-if TYPE_CHECKING:
-    from pylon.service.bittensor.client import AbstractBittensorClient
-
 logger = logging.getLogger(__name__)
 
+R = TypeVar("R")  # For return types
 
-bittensor_operations_total = Counter(
-    "pylon_bittensor_operations_total",
-    "Total number of Bittensor blockchain operations",
-    ["operation", "status", "client_type"],
-)
+
+class MetricsConfigurationError(Exception):
+    """Raised when metrics label configuration is invalid."""
+
+    pass
+
 
 bittensor_operation_duration = Histogram(
     "pylon_bittensor_operation_duration_seconds",
     "Duration of Bittensor blockchain operations in seconds",
-    ["operation", "client_type"],
+    ["operation", "status", "client_type", "netuid"],
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
 )
 
 bittensor_errors_total = Counter(
     "pylon_bittensor_errors_total",
     "Total number of errors in Bittensor operations",
-    ["operation", "exception", "client_type"],
+    ["operation", "exception", "client_type", "netuid"],
 )
 
 bittensor_fallback_total = Counter(
@@ -65,84 +62,131 @@ apply_weights_jobs_total = Counter(
 )
 
 
-class TrackedBittensorClient:
+def track_operation(
+    duration_metric: Histogram,
+    error_metric: Counter,
+    operation_name: str | None = None, 
+    labels: dict[str, str] | None = None
+):
     """
-    Proxy for AbstractBittensorClient that auto-tracks all operations.
+    Operation tracking decorator.
+
+    Args:
+        operation_name: Custom operation name. If None, uses method name.
+        labels: Label extraction with EXPLICIT prefixes:
+            - "static:value" -> Static string "value"
+            - "param:name" -> Extract from method parameter "name"
+            - "attr:field" -> Extract from self.field attribute
+
+    Examples:
+        @track_operation()
+        async def get_latest_block(self):
+            # Only operation="get_latest_block"
+
+        @track_operation(labels={
+            "netuid": "param:netuid",           # FROM method parameter netuid
+            "client_type": "attr:_client_type", # FROM self._client_type
+            "operation_type": "static:query"    # STATIC string "query"
+        })
+        async def get_neurons(self, netuid: int):
+            # EXPLICIT: operation="get_neurons", netuid="12", client_type="main", operation_type="query"
     """
 
-    def __init__(self, client: "AbstractBittensorClient") -> None:
-        self._client = client
-        self._client_type: str = getattr(client, "_client_type", "unknown")
+    def decorator(func: Callable[..., Coroutine[None, None, R]]) -> Callable[..., Coroutine[None, None, R]]:
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs) -> R:
+            # Get method signature
+            sig = inspect.signature(func)
+            bound_args = sig.bind(*args, **kwargs)
+            bound_args.apply_defaults()
 
-    def _record_operation_metrics(self, operation: str, duration: float, exception_name: str | None = None) -> None:
-        status = "error" if exception_name else "success"
-        bittensor_operations_total.labels(
-            operation=operation,
-            status=status,
-            client_type=self._client_type,
-        ).inc()
-        if exception_name:
-            bittensor_errors_total.labels(
-                operation=operation,
-                exception=exception_name,
-                client_type=self._client_type,
-            ).inc()
-        bittensor_operation_duration.labels(
-            operation=operation,
-            client_type=self._client_type,
-        ).observe(duration)
+            # Extract self object
+            self_obj = args[0] if args else None
 
-    @contextmanager
-    def _operation_span(self, operation: str) -> Generator[None, None, None]:
-        start_time = perf_counter()
-        try:
-            yield
-        except Exception as exc:
-            self._record_operation_metrics(operation, perf_counter() - start_time, type(exc).__name__)
-            raise
-        self._record_operation_metrics(operation, perf_counter() - start_time)
+            # Determine operation name
+            op_name = operation_name or func.__name__
 
-    async def _track_async_operation(
-        self, operation: str, method: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any
-    ) -> Any:
-        with self._operation_span(operation):
-            return await method(*args, **kwargs)
+            # Extract labels
+            extracted_labels = _extract_labels(labels or {}, self_obj, bound_args.arguments)
 
-    def _track_sync_operation(self, operation: str, method: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-        with self._operation_span(operation):
-            return method(*args, **kwargs)
+            # Track the operation with specific metrics
+            async with _track_operation_context(op_name, extracted_labels, duration_metric, error_metric):
+                return await func(*args, **kwargs)
 
-    async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
-        _set_job_mode("commit")
-        return await self._track_async_operation("commit_weights", self._client.commit_weights, netuid, weights)
+        return wrapper
 
-    async def set_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> None:
-        _set_job_mode("set")
-        return await self._track_async_operation("set_weights", self._client.set_weights, netuid, weights)
+    return decorator
 
-    def __getattr__(self, name: str) -> Any:
-        """
-        Proxy all other methods transparently.
 
-        Async and sync callables are wrapped with tracking, other attributes pass through.
-        """
-        attr = getattr(self._client, name)
+def _extract_labels(
+    label_config: dict[str, str], self_obj: object | None, method_params: dict[str, object]
+) -> dict[str, str]:
+    """Extract labels with strict validation, raising exceptions on misconfiguration.
 
-        if inspect.iscoroutinefunction(attr):
+    Raises:
+        MetricsConfigurationError: When label configuration is invalid or references missing attributes/parameters.
+    """
+    extracted = {}
 
-            async def tracked_wrapper(*args: Any, **kwargs: Any) -> Any:
-                return await self._track_async_operation(name, attr, *args, **kwargs)
+    for label_name, source_spec in label_config.items():
+        if not isinstance(source_spec, str) or ":" not in source_spec:
+            raise MetricsConfigurationError(f"Label '{label_name}' must use explicit prefix format: 'type:value'")
 
-            return tracked_wrapper
+        prefix, source = source_spec.split(":", 1)
 
-        if callable(attr):
+        if prefix == "static":
+            # Static string value
+            value = source
 
-            def tracked_sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-                return self._track_sync_operation(name, attr, *args, **kwargs)
+        elif prefix == "param":
+            # Extract from method parameter
+            if source not in method_params:
+                raise MetricsConfigurationError(
+                    f"Parameter '{source}' not found in method signature for label '{label_name}'"
+                )
+            value = method_params[source]
 
-            return tracked_sync_wrapper
+        elif prefix == "attr":
+            # Extract from self attribute
+            if self_obj is None:
+                raise MetricsConfigurationError(
+                    f"Cannot extract attribute '{source}' for label '{label_name}' - no self object"
+                )
+            if not hasattr(self_obj, source):
+                raise MetricsConfigurationError(
+                    f"Attribute '{source}' not found on {type(self_obj).__name__} for label '{label_name}'"
+                )
+            value = getattr(self_obj, source)
 
-        return attr
+        else:
+            raise MetricsConfigurationError(
+                f"Unknown label prefix '{prefix}' for label '{label_name}'. Use: static, param, or attr"
+            )
+
+        extracted[label_name] = str(value) if value is not None else "unknown"
+
+    return extracted
+
+
+@asynccontextmanager
+async def _track_operation_context(operation: str, labels: dict[str, str], duration_metric: Histogram, error_metric: Counter):
+    """Track operation with histogram + error counter."""
+    start_time = perf_counter()
+    status = "success"
+
+    try:
+        yield
+    except Exception as exc:
+        status = "error"
+        exception_name = type(exc).__name__
+
+        # Record to error counter
+        error_metric.labels(operation=operation, exception=exception_name, **labels).inc()
+
+        raise
+    finally:
+        duration = perf_counter() - start_time
+        duration_metric.labels(operation=operation, status=status, **labels).observe(duration)
 
 
 class _JobContext:
@@ -183,7 +227,7 @@ def _set_job_status(status: str) -> None:
 
 def track_job(
     duration_metric: Histogram, counter_metric: Counter
-) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
+) -> Callable[[Callable[..., Coroutine[None, None, R]]], Callable[..., Coroutine[None, None, R]]]:
     """
     Decorator factory that records job-level metrics.
 
@@ -192,9 +236,9 @@ def track_job(
         counter_metric: Counter metric for tracking job counts
     """
 
-    def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
+    def decorator(func: Callable[..., Coroutine[None, None, R]]) -> Callable[..., Coroutine[None, None, R]]:
         @functools.wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        async def wrapper(*args, **kwargs) -> R:
             job = _JobContext(duration_metric, counter_metric)
             token = _current_job.set(job)
 

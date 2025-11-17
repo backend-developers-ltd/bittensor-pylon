@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, TypeVar
 
 from bittensor_wallet import Wallet
 from turbobt.client import Bittensor
@@ -65,7 +65,7 @@ from pylon._internal.common.types import (
     ValidatorTrust,
     Weight,
 )
-from pylon.service.metrics import TrackedBittensorClient, bittensor_fallback_total
+from pylon.service.metrics import bittensor_fallback_total, track_operation, bittensor_operation_duration, bittensor_errors_total
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +193,7 @@ class TurboBtClient(AbstractBittensorClient):
         await self._raw_client.__aexit__(None, None, None)
         self._raw_client = None
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "static:N/A"})
     async def get_block(self, number: BlockNumber) -> Block | None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -206,6 +207,7 @@ class TurboBtClient(AbstractBittensorClient):
             hash=BlockHash(block_obj.hash),
         )
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "static:N/A"})
     async def get_latest_block(self) -> Block:
         logger.debug(f"Fetching the latest block from {self.uri}")
         block = await self.get_block(BlockNumber(LATEST_BLOCK_MARK))
@@ -238,6 +240,7 @@ class TurboBtClient(AbstractBittensorClient):
             stakes=stakes,
         )
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -249,6 +252,7 @@ class TurboBtClient(AbstractBittensorClient):
         stakes = state.hotkeys_stakes
         return [await self._translate_neuron(neuron, stakes[Hotkey(neuron.hotkey)]) for neuron in neurons]
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
         neurons = await self.get_neurons_list(netuid, block)
         return SubnetNeurons(block=block, neurons={neuron.hotkey: neuron for neuron in neurons})
@@ -262,6 +266,7 @@ class TurboBtClient(AbstractBittensorClient):
             )
         return SubnetHyperparams(**translated_params)
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def get_hyperparams(self, netuid: NetUid, block: Block) -> SubnetHyperparams | None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -279,6 +284,7 @@ class TurboBtClient(AbstractBittensorClient):
             public_key=PublicKey(certificate["public_key"]),
         )
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def get_certificates(self, netuid: NetUid, block: Block) -> dict[Hotkey, NeuronCertificate]:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -292,6 +298,7 @@ class TurboBtClient(AbstractBittensorClient):
             for hotkey, certificate in certificates.items()
         }
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def get_certificate(
         self, netuid: NetUid, block: Block, hotkey: Hotkey | None = None
     ) -> NeuronCertificate | None:
@@ -315,6 +322,7 @@ class TurboBtClient(AbstractBittensorClient):
             private_key=PrivateKey(keypair["private_key"]),
         )
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def generate_certificate_keypair(
         self, netuid: NetUid, algorithm: CertificateAlgorithm
     ) -> NeuronCertificateKeypair | None:
@@ -329,6 +337,7 @@ class TurboBtClient(AbstractBittensorClient):
             keypair = await self._translate_certificate_keypair(keypair)
         return keypair
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -359,6 +368,7 @@ class TurboBtClient(AbstractBittensorClient):
             )
         return translated_weights
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -369,6 +379,7 @@ class TurboBtClient(AbstractBittensorClient):
         )
         return RevealRound(reveal_round)
 
+    @track_operation(bittensor_operation_duration, bittensor_errors_total, labels={"client_type": "attr:_client_type", "netuid": "param:netuid"})
     async def set_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -402,12 +413,8 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         self._archive_blocks_cutoff = archive_blocks_cutoff
         self.subclient_cls = subclient_cls
 
-        def build_tracked_client(client_uri: BittensorNetwork, label: str) -> SubClient:
-            client = self.subclient_cls(wallet, client_uri, client_type=label)
-            return cast(SubClient, TrackedBittensorClient(client))
-
-        self._main_client = build_tracked_client(uri, "main")
-        self._archive_client = build_tracked_client(archive_uri, "archive")
+        self._main_client = self.subclient_cls(wallet, uri, client_type="main")
+        self._archive_client = self.subclient_cls(wallet, archive_uri, client_type="archive")
 
     async def open(self) -> None:
         await self._main_client.open()
