@@ -42,11 +42,7 @@ class Settings(BaseSettings):
     open_access_token: str = ""
 
     # docker
-    pylon_docker_image_name: str = "bittensor_pylon"
-
-    # db
-    pylon_db_uri: str = "sqlite+aiosqlite:////app/db/pylon.db"
-    pylon_db_dir: str = "/tmp/pylon"
+    docker_image_name: str = "bittensor_pylon"
 
     # subnet epoch length
     tempo: Tempo = Tempo(360)

@@ -1,13 +1,26 @@
-# UID of bittensor subnet, eg. 12
-PYLON_BITTENSOR_NETUID=12
 # Bittensor network, eg. finney or ws://127.0.0.1:9944
 PYLON_BITTENSOR_NETWORK=finney
-# Directory in which the wallet is located (if using docker, it must point to the directory inside the container).
+# Directory in which the wallets are located (if using docker, it must point to the directory inside the container).
 PYLON_BITTENSOR_WALLET_PATH=~/.bittensor/wallets
+
+# LEGACY - to be removed
 # Name of your wallet located inside BITTENSOR_WALLET_PATH.
 PYLON_BITTENSOR_WALLET_NAME=test-wallet
 # Name of the wallet hotkey
 PYLON_BITTENSOR_WALLET_HOTKEY_NAME=test-hotkey
+
+# Identities configuration. Here, names of configured identities are listed (json list).
+PYLON_IDENTITIES=["sn12"]
+
+# Configuration for identity named sn12.
+# UID of bittensor subnet, eg. 12
+PYLON_ID_SN12_BITTENSOR_NETUID=12
+# Name of your wallet located inside BITTENSOR_WALLET_PATH, it will be used by this identity.
+PYLON_ID_SN12_BITTENSOR_WALLET_NAME=my_wallet
+# Name of the wallet hotkey that will be used by this identity.
+PYLON_ID_SN12_BITTENSOR_HOTKEY_NAME=my_hotkey
+# Token with which the user will authenticate to pylon to use this identity. Keep it secret.
+PYLON_ID_SN12_BITTENSOR_TOKEN=my_secure_token
 
 # Sentry Configuration
 # DSN address for pylon to use - leave empty to disable sentry integration.
