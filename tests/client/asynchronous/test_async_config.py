@@ -19,7 +19,7 @@ from pylon._internal.common.types import Hotkey, Weight
 )
 @pytest.mark.asyncio
 async def test_async_config_retries_success(service_mock, test_url, attempts):
-    route = service_mock.put("/api/v1/subnet/weights")
+    route = service_mock.put("/api/v1/weights")
     route.mock(
         side_effect=[
             *(ConnectTimeout("Connection timed out") for i in range(attempts - 1)),
@@ -42,7 +42,7 @@ async def test_async_config_retries_success(service_mock, test_url, attempts):
 
 @pytest.mark.asyncio
 async def test_async_config_retries_error(service_mock, test_url):
-    route = service_mock.put("/api/v1/subnet/weights")
+    route = service_mock.put("/api/v1/weights")
     route.mock(side_effect=ConnectTimeout("Connection timed out"))
     async with AsyncPylonClient(
         AsyncPylonClientConfig(

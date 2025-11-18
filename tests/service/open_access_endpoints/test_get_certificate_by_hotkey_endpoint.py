@@ -1,5 +1,5 @@
 """
-Tests for the GET /certificates/{hotkey} endpoint.
+Tests for the GET /subnet/{netuid}/certificates/{hotkey} endpoint.
 """
 
 import pytest
@@ -12,7 +12,9 @@ from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.mark.asyncio
-async def test_get_certificate_success(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_certificate_open_access_success(
+    test_client: AsyncTestClient, open_access_mock_bt_client: MockBittensorClient
+):
     """
     Test getting a specific certificate successfully.
     """
@@ -23,11 +25,11 @@ async def test_get_certificate_success(test_client: AsyncTestClient, mock_bt_cli
     )
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
-    async with mock_bt_client.mock_behavior(
+    async with open_access_mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],
         get_certificate=[certificate],
     ):
-        response = await test_client.get(f"/api/v1/certificates/{hotkey}")
+        response = await test_client.get(f"/api/v1/subnet/1/certificates/{hotkey}")
 
         assert response.status_code == HTTP_200_OK
         assert response.json() == {
@@ -37,18 +39,20 @@ async def test_get_certificate_success(test_client: AsyncTestClient, mock_bt_cli
 
 
 @pytest.mark.asyncio
-async def test_get_certificate_not_found(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_certificate_open_access_not_found(
+    test_client: AsyncTestClient, open_access_mock_bt_client: MockBittensorClient
+):
     """
     Test getting a certificate that doesn't exist.
     """
     hotkey = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
-    async with mock_bt_client.mock_behavior(
+    async with open_access_mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],
         get_certificate=[None],
     ):
-        response = await test_client.get(f"/api/v1/certificates/{hotkey}")
+        response = await test_client.get(f"/api/v1/subnet/1/certificates/{hotkey}")
 
         assert response.status_code == HTTP_404_NOT_FOUND
         assert response.json() == {

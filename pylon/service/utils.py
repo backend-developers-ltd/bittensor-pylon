@@ -9,9 +9,7 @@ class Epoch(BaseModel):
     end: BlockNumber
 
 
-def get_epoch_containing_block(
-    block: BlockNumber, netuid: NetUid = settings.bittensor_netuid, tempo: Tempo = settings.tempo
-) -> Epoch:
+def get_epoch_containing_block(block: BlockNumber, netuid: NetUid, tempo: Tempo = settings.tempo) -> Epoch:
     """
     Reimplementing the logic from subtensor's Rust function:
         pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block: u64) -> u64

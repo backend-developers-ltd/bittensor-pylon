@@ -1,5 +1,5 @@
 """
-Tests for the GET /certificates/self endpoint.
+Tests for the GET /subnet/{netuid}/identity/{identity_name}/certificates/self endpoint.
 """
 
 import pytest
@@ -12,7 +12,9 @@ from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.mark.asyncio
-async def test_get_own_certificate_success(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_own_certificate_identity_success(
+    test_client: AsyncTestClient, sn1_mock_bt_client: MockBittensorClient
+):
     """
     Test getting own certificate successfully.
     """
@@ -22,11 +24,11 @@ async def test_get_own_certificate_success(test_client: AsyncTestClient, mock_bt
     )
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
-    async with mock_bt_client.mock_behavior(
+    async with sn1_mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],
         get_certificate=[certificate],
     ):
-        response = await test_client.get("/api/v1/certificates/self")
+        response = await test_client.get("/api/v1/subnet/1/identity/sn1/certificates/self")
 
         assert response.status_code == HTTP_200_OK
         assert response.json() == {
@@ -36,17 +38,19 @@ async def test_get_own_certificate_success(test_client: AsyncTestClient, mock_bt
 
 
 @pytest.mark.asyncio
-async def test_get_own_certificate_not_found(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_own_certificate_identity_not_found(
+    test_client: AsyncTestClient, sn2_mock_bt_client: MockBittensorClient
+):
     """
     Test getting own certificate when it doesn't exist.
     """
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
-    async with mock_bt_client.mock_behavior(
+    async with sn2_mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],
         get_certificate=[None],
     ):
-        response = await test_client.get("/api/v1/certificates/self")
+        response = await test_client.get("/api/v1/subnet/2/identity/sn2/certificates/self")
 
         assert response.status_code == HTTP_404_NOT_FOUND
         assert response.json() == {

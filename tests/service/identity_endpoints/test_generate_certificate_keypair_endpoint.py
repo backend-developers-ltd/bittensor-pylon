@@ -1,5 +1,5 @@
 """
-Tests for the POST /certificates/self endpoint.
+Tests for the POST /subnet/{netuid}/identity/{identity_name}/certificates/self endpoint.
 """
 
 import pytest
@@ -16,7 +16,9 @@ from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.mark.asyncio
-async def test_generate_certificate_keypair_success(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_generate_certificate_keypair_identity_success(
+    test_client: AsyncTestClient, sn1_mock_bt_client: MockBittensorClient
+):
     """
     Test generating a certificate keypair successfully.
     """
@@ -26,11 +28,11 @@ async def test_generate_certificate_keypair_success(test_client: AsyncTestClient
         private_key=PrivateKey("0xprivate987654321"),
     )
 
-    async with mock_bt_client.mock_behavior(
+    async with sn1_mock_bt_client.mock_behavior(
         generate_certificate_keypair=[keypair],
     ):
         response = await test_client.post(
-            "/api/v1/certificates/self",
+            "/api/v1/subnet/1/identity/sn1/certificates/self",
             json={"algorithm": 1},
         )
 
@@ -43,8 +45,8 @@ async def test_generate_certificate_keypair_success(test_client: AsyncTestClient
 
 
 @pytest.mark.asyncio
-async def test_generate_certificate_keypair_default_algorithm(
-    test_client: AsyncTestClient, mock_bt_client: MockBittensorClient
+async def test_generate_certificate_keypair_identity_default_algorithm(
+    test_client: AsyncTestClient, sn2_mock_bt_client: MockBittensorClient
 ):
     """
     Test generating a certificate keypair with default algorithm.
@@ -55,11 +57,11 @@ async def test_generate_certificate_keypair_default_algorithm(
         private_key=PrivateKey("0xprivate_default"),
     )
 
-    async with mock_bt_client.mock_behavior(
+    async with sn2_mock_bt_client.mock_behavior(
         generate_certificate_keypair=[keypair],
     ):
         response = await test_client.post(
-            "/api/v1/certificates/self",
+            "/api/v1/subnet/2/identity/sn2/certificates/self",
             json={},
         )
 
@@ -69,15 +71,17 @@ async def test_generate_certificate_keypair_default_algorithm(
 
 
 @pytest.mark.asyncio
-async def test_generate_certificate_keypair_failure(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_generate_certificate_keypair_identity_failure(
+    test_client: AsyncTestClient, sn1_mock_bt_client: MockBittensorClient
+):
     """
     Test generating a certificate keypair when generation fails.
     """
-    async with mock_bt_client.mock_behavior(
+    async with sn1_mock_bt_client.mock_behavior(
         generate_certificate_keypair=[None],
     ):
         response = await test_client.post(
-            "/api/v1/certificates/self",
+            "/api/v1/subnet/1/identity/sn1/certificates/self",
             json={"algorithm": 1},
         )
 
@@ -96,19 +100,19 @@ async def test_generate_certificate_keypair_failure(test_client: AsyncTestClient
         pytest.param("invalid", id="invalid_type"),
     ],
 )
-async def test_generate_certificate_keypair_invalid_algorithm(test_client: AsyncTestClient, algorithm):
+async def test_generate_certificate_keypair_identity_invalid_algorithm(test_client: AsyncTestClient, algorithm):
     """
     Test generating a certificate keypair with invalid algorithm.
     """
     response = await test_client.post(
-        "/api/v1/certificates/self",
+        "/api/v1/subnet/1/identity/sn1/certificates/self",
         json={"algorithm": algorithm},
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json() == {
         "status_code": 400,
-        "detail": "Validation failed for POST /api/v1/certificates/self",
+        "detail": "Validation failed for POST /api/v1/subnet/1/identity/sn1/certificates/self",
         "extra": [
             {
                 "message": "Value error, Currently, only algorithm equals 1 is supported which is EdDSA using Ed25519 curve",
