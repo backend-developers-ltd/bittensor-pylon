@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - 'push-docker'
+      - '*-hotfix'
 
 env:
-  TAG_VERSION: "v1-latest"
+  DEFAULT_TAG_VERSION: "v1-latest"
   DOCKER_REPO_NAME: "backenddevelopersltd/bittensor-pylon"
 
 permissions:
@@ -27,6 +28,16 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_KEY }}
+
+      - name: Set TAG_VERSION based on branch
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          if [[ "$BRANCH_NAME" == *-hotfix ]]; then
+            TAG_VERSION="$BRANCH_NAME"
+          else
+            TAG_VERSION="${DEFAULT_TAG_VERSION}"
+          fi
+          echo "TAG_VERSION=$TAG_VERSION" >> "$GITHUB_ENV"
 
       - name: Build and push image
         uses: docker/build-push-action@v5

@@ -181,7 +181,8 @@ class ApplyWeights:
                     f"still got {initial_tempo.end - latest_block.number} blocks left to go."
                 )
                 try:
-                    await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
+                    apply_weights = self._apply_weights(weights, latest_block)
+                    await asyncio.wait_for(asyncio.shield(apply_weights), 120)
                     return
                 except Exception as exc:
                     logger.error(
