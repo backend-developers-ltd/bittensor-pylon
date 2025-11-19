@@ -31,11 +31,10 @@ class PylonDockerManager:
         try:
             self.container = await asyncio.to_thread(
                 self.docker_client.containers.run,
-                settings.pylon_docker_image_name,
+                settings.docker_image_name,
                 detach=True,
                 ports={"8000/tcp": self.port},
-                volumes={settings.pylon_db_dir: {"bind": "/app/db/", "mode": "rw"}},
-                environment=settings.model_dump(),
+                environment={f"PYLON_{key.upper()}": value for key, value in settings.model_dump().items()},
             )
             await self._wait_for_service()
             logger.info(f"Pylon container {self.container.short_id} started.")

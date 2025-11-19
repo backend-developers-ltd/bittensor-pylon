@@ -1,6 +1,30 @@
+import os
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from pylon._internal.common.types import ArchiveBlocksCutoff, BittensorNetwork, NetUid, Tempo
+from pylon._internal.common.types import (
+    ArchiveBlocksCutoff,
+    BittensorNetwork,
+    HotkeyName,
+    IdentityName,
+    NetUid,
+    PylonAuthToken,
+    Tempo,
+    WalletName,
+)
+
+ENV_FILE = os.environ.get("PYLON_ENV_FILE", ".env")
+
+
+class Identity(BaseSettings):
+    identity_name: IdentityName
+    wallet_name: WalletName
+    hotkey_name: HotkeyName
+    netuid: NetUid
+    token: PylonAuthToken
+
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
 
 class Settings(BaseSettings):
@@ -13,12 +37,12 @@ class Settings(BaseSettings):
     bittensor_wallet_hotkey_name: str
     bittensor_wallet_path: str
 
-    # docker
-    pylon_docker_image_name: str = "bittensor_pylon"
+    # Identities and access
+    identities: list[IdentityName] = Field(default_factory=list)
+    open_access_token: str = ""
 
-    # db
-    pylon_db_uri: str = "sqlite+aiosqlite:////app/db/pylon.db"
-    pylon_db_dir: str = "/tmp/pylon"
+    # docker
+    docker_image_name: str = "bittensor_pylon"
 
     # subnet epoch length
     tempo: Tempo = Tempo(360)
@@ -39,7 +63,15 @@ class Settings(BaseSettings):
     # debug
     debug: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8", env_prefix="PYLON_", extra="ignore")
+
+
+def get_identities(*names: IdentityName) -> dict[IdentityName, Identity]:
+    return {
+        name: Identity(_env_prefix=f"PYLON_ID_{name.upper()}_", identity_name=name)  # type: ignore
+        for name in names
+    }
 
 
 settings = Settings()  # type: ignore
+identities = get_identities(*settings.identities)

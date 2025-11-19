@@ -1,5 +1,0 @@
-This directory contains Alembic migration scripts for bittensor-pylon.
-
-- Use `alembic revision --autogenerate -m "message"` to create new migrations.
-- Use `alembic upgrade head` to apply migrations.
-- Alembic is configured for async SQLAlchemy and reads DB from /app/db/pylon.db 
