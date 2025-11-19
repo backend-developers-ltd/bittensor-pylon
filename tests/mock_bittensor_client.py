@@ -7,12 +7,11 @@ without requiring actual blockchain interactions.
 """
 
 import asyncio
+import inspect
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any, TypeAlias
-
-from bittensor_wallet import Wallet
+from typing import Any, TypeAlias, cast
 
 from pylon._internal.common.models import (
     Block,
@@ -25,7 +24,8 @@ from pylon._internal.common.models import (
     SubnetState,
 )
 from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
-from pylon.service.bittensor.client import AbstractBittensorClient
+from pylon.service.bittensor.client import AbstractBittensorClient, ClientType
+from tests.helpers import make_stub_wallet
 
 Behavior: TypeAlias = Callable | Exception | Any
 MethodName: TypeAlias = str
@@ -57,11 +57,11 @@ class MockBittensorClient(AbstractBittensorClient):
 
     def __init__(
         self,
-        wallet: Wallet | None = None,
+        wallet: Any | None = None,
         uri: BittensorNetwork = BittensorNetwork("mock://test"),
-        client_type: str = "unknown",
+        client_type: ClientType = ClientType.UNKNOWN,
     ):
-        super().__init__(wallet=wallet or Wallet(), uri=uri, client_type=client_type)
+        super().__init__(wallet=wallet or make_stub_wallet(), uri=uri, client_type=client_type)
         self._behaviors: dict[MethodName, list[Behavior]] = defaultdict(list)
         self._behavior_lock = asyncio.Lock()
         self._is_open = False
@@ -141,7 +141,12 @@ class MockBittensorClient(AbstractBittensorClient):
             raise behavior
 
         if callable(behavior):
-            return behavior(*args, **kwargs)
+            result = behavior(*args, **kwargs)
+            # If the result is awaitable (coroutine), await it
+            if hasattr(result, "__await__"):
+                return await result
+
+            return result
 
         return behavior
 
