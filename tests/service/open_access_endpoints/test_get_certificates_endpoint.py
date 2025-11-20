@@ -1,5 +1,5 @@
 """
-Tests for the GET /certificates endpoint.
+Tests for the GET /subnet/{netuid}/certificates endpoint.
 """
 
 import pytest
@@ -45,18 +45,21 @@ from tests.mock_bittensor_client import MockBittensorClient
         ),
     ],
 )
-async def test_get_certificates(
-    test_client: AsyncTestClient, mock_bt_client: MockBittensorClient, certificates_input: dict, expected_response: dict
+async def test_get_certificates_open_access(
+    test_client: AsyncTestClient,
+    open_access_mock_bt_client: MockBittensorClient,
+    certificates_input: dict,
+    expected_response: dict,
 ):
     """
     Test getting certificates from the subnet.
     """
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
-    async with mock_bt_client.mock_behavior(
+    async with open_access_mock_bt_client.mock_behavior(
         get_latest_block=[latest_block],
         get_certificates=[certificates_input],
     ):
-        response = await test_client.get("/api/v1/certificates")
+        response = await test_client.get("/api/v1/subnet/1/certificates")
 
         assert response.status_code == HTTP_200_OK
         assert response.json() == expected_response

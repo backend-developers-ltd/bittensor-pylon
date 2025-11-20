@@ -24,7 +24,6 @@ from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
-from bittensor_wallet import Wallet
 from turbobt import Bittensor
 from turbobt import BlockReference as TurboBtBlockReference
 from turbobt import Subnet as TurboBtSubnet
@@ -69,9 +68,18 @@ def bittensor_spec(block_spec, subnet_spec):
 
 
 @pytest_asyncio.fixture
-async def turbobt_client(monkeypatch, bittensor_spec):
+async def turbobt_client(monkeypatch, bittensor_spec, wallet):
     from pylon._internal.common.types import BittensorNetwork
 
     monkeypatch.setattr("pylon.service.bittensor.client.Bittensor", bittensor_spec)
-    async with TurboBtClient(wallet=Wallet(), uri=BittensorNetwork("ws://testserver")) as client:
+    async with TurboBtClient(wallet=wallet, uri=BittensorNetwork("ws://testserver")) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def turbobt_client_no_wallet(monkeypatch, bittensor_spec):
+    from pylon._internal.common.types import BittensorNetwork
+
+    monkeypatch.setattr("pylon.service.bittensor.client.Bittensor", bittensor_spec)
+    async with TurboBtClient(wallet=None, uri=BittensorNetwork("ws://testserver")) as client:
         yield client

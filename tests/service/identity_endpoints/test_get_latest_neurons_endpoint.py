@@ -1,7 +1,11 @@
+"""
+Tests for the GET /subnet/{netuid}/identity/{identity_name}/neurons/latest endpoint.
+"""
+
 from ipaddress import IPv4Address
 
 import pytest
-from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND
+from litestar.status_codes import HTTP_200_OK
 from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.currency import Currency, Token
@@ -13,7 +17,6 @@ from pylon._internal.common.models import (
     Stakes,
     SubnetNeurons,
 )
-from pylon._internal.common.settings import settings
 from pylon._internal.common.types import (
     AlphaStake,
     BlockHash,
@@ -134,74 +137,48 @@ def neurons(neurons_json, block):
 
 
 @pytest.mark.asyncio
-async def test_get_neurons_with_block_number(
+async def test_get_latest_neurons_identity_success(
     test_client: AsyncTestClient,
-    mock_bt_client: MockBittensorClient,
-    block: Block,
+    sn1_mock_bt_client: MockBittensorClient,
     neurons: SubnetNeurons,
+    block: Block,
     neurons_json: dict,
 ):
-    block_number = block.number
-
-    async with mock_bt_client.mock_behavior(
-        get_block=[block],
+    """
+    Test getting the latest neurons successfully.
+    """
+    async with sn1_mock_bt_client.mock_behavior(
+        get_latest_block=[block],
         get_neurons=[neurons],
     ):
-        response = await test_client.get(f"/api/v1/neurons/{block_number}")
+        response = await test_client.get("/api/v1/subnet/1/identity/sn1/neurons/latest")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == neurons_json
 
-    assert mock_bt_client.calls["get_block"] == [(block_number,)]
-    assert mock_bt_client.calls["get_neurons"] == [(settings.bittensor_netuid, block)]
+    assert sn1_mock_bt_client.calls["get_block"] == []
+    assert sn1_mock_bt_client.calls["get_latest_block"] == [()]
+    assert sn1_mock_bt_client.calls["get_neurons"] == [(1, block)]
 
 
 @pytest.mark.asyncio
-async def test_get_neurons_empty_neurons(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_get_latest_neurons_identity_empty_neurons(
+    test_client: AsyncTestClient, sn2_mock_bt_client: MockBittensorClient
+):
+    """
+    Test getting the latest neurons when the subnet has no neurons.
+    """
     block = Block(number=BlockNumber(100), hash=BlockHash("0x123abc"))
     neurons = SubnetNeurons(block=block, neurons={})
 
-    async with mock_bt_client.mock_behavior(
-        get_block=[block],
+    async with sn2_mock_bt_client.mock_behavior(
+        get_latest_block=[block],
         get_neurons=[neurons],
     ):
-        response = await test_client.get("/api/v1/neurons/100")
+        response = await test_client.get("/api/v1/subnet/2/identity/sn2/neurons/latest")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == {
             "block": {"number": 100, "hash": "0x123abc"},
             "neurons": {},
         }
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "invalid_block_number",
-    [
-        pytest.param("not_a_number", id="string_value"),
-        pytest.param("123.456", id="float_string"),
-        pytest.param("true", id="boolean_string"),
-    ],
-)
-async def test_get_neurons_invalid_block_number_type(test_client: AsyncTestClient, invalid_block_number: str):
-    response = await test_client.get(f"/api/v1/neurons/{invalid_block_number}")
-
-    assert response.status_code == HTTP_404_NOT_FOUND, response.content
-    assert response.json() == {
-        "status_code": HTTP_404_NOT_FOUND,
-        "detail": "Not Found",
-    }
-
-
-@pytest.mark.asyncio
-async def test_get_neurons_block_not_found(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
-    async with mock_bt_client.mock_behavior(get_block=[None]):
-        response = await test_client.get("/api/v1/neurons/123")
-
-        assert response.status_code == HTTP_404_NOT_FOUND, response.content
-        assert response.json() == {
-            "status_code": HTTP_404_NOT_FOUND,
-            "detail": "Block 123 not found.",
-        }
-
-    assert mock_bt_client.calls["get_block"] == [(123,)]

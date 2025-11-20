@@ -4,7 +4,7 @@ from litestar.openapi.config import OpenAPIConfig
 
 from pylon._internal.common.settings import settings
 from pylon.service import dependencies
-from pylon.service.lifespans import bittensor_client
+from pylon.service.lifespans import bittensor_client_pool
 from pylon.service.routers import v1_router
 from pylon.service.schema import PylonSchemaPlugin
 from pylon.service.sentry_config import init_sentry
@@ -21,8 +21,8 @@ def create_app() -> Litestar:
             version="0.1.0",
             description="REST API for the bittensor-pylon service",
         ),
-        lifespan=[bittensor_client],
-        dependencies={"bt_client": Provide(dependencies.bt_client, use_cache=True)},
+        lifespan=[bittensor_client_pool],
+        dependencies={"bt_client_pool": Provide(dependencies.bt_client_pool_dep, use_cache=True)},
         plugins=[PylonSchemaPlugin()],
         debug=settings.debug,
     )

@@ -74,7 +74,7 @@ class AbstractBittensorClient(ABC):
     Interface for Bittensor clients.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork):
+    def __init__(self, wallet: Wallet | None, uri: BittensorNetwork):
         self.wallet = wallet
         self.uri = uri
 
@@ -174,7 +174,7 @@ class TurboBtClient(AbstractBittensorClient):
     Adapter for turbobt client.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork):
+    def __init__(self, wallet: Wallet | None, uri: BittensorNetwork):
         super().__init__(wallet, uri)
         self._raw_client: Bittensor | None = None
 
@@ -295,7 +295,10 @@ class TurboBtClient(AbstractBittensorClient):
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
         )
-        hotkey = hotkey or Hotkey(self.wallet.hotkey.ss58_address)
+        if not hotkey:
+            if self.wallet is None:
+                raise ValueError("No hotkey provided while the client has no wallet.")
+            hotkey = Hotkey(self.wallet.hotkey.ss58_address)
         logger.debug(
             f"Fetching certificate of {hotkey} hotkey from subnet {netuid} at block {block.number}, {self.uri}"
         )
@@ -388,7 +391,7 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
 
     def __init__(
         self,
-        wallet: Wallet,
+        wallet: Wallet | None,
         uri: BittensorNetwork,
         archive_uri: BittensorNetwork,
         archive_blocks_cutoff: ArchiveBlocksCutoff = ArchiveBlocksCutoff(300),

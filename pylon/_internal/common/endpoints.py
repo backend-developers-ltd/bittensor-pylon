@@ -10,7 +10,7 @@ class Endpoint(StrEnum):
     CERTIFICATES_HOTKEY = "/certificates/{hotkey:str}"
     NEURONS = "/neurons/{block_number:int}"
     LATEST_NEURONS = "/neurons/latest"
-    SUBNET_WEIGHTS = "/subnet/weights"
+    SUBNET_WEIGHTS = "/weights"
 
     def format(self, *args, **kwargs) -> str:
         normalized = re.sub(r":.+?}", "}", self)

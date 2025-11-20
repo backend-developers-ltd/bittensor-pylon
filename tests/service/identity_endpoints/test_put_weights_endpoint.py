@@ -7,7 +7,6 @@ from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import AsyncTestClient
 
 from pylon._internal.common.models import Block, CommitReveal, SubnetHyperparams
-from pylon._internal.common.settings import settings
 from pylon._internal.common.types import BlockHash, BlockNumber, RevealRound
 from pylon.service.tasks import ApplyWeights
 from tests.helpers import wait_for_background_tasks
@@ -15,7 +14,7 @@ from tests.mock_bittensor_client import MockBittensorClient
 
 
 @pytest.mark.asyncio
-async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, sn1_mock_bt_client: MockBittensorClient):
     """
     Test setting weights when commit-reveal is enabled.
     """
@@ -27,7 +26,7 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
 
     # Set up behaviors that will persist for the background task
     # The background task calls get_latest_block twice (start and during apply)
-    async with mock_bt_client.mock_behavior(
+    async with sn1_mock_bt_client.mock_behavior(
         get_latest_block=[
             Block(number=BlockNumber(1000), hash=BlockHash("0xabc123")),  # First call in run_job
             Block(number=BlockNumber(1001), hash=BlockHash("0xabc124")),  # Second call in run_job
@@ -36,11 +35,11 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
         commit_weights=[RevealRound(1005)],
     ):
         response = await test_client.put(
-            "/api/v1/subnet/weights",
+            "/api/v1/subnet/1/identity/sn1/weights",
             json={"weights": weights},
         )
 
-        assert response.status_code == HTTP_200_OK, response.json()
+        assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == {
             "detail": "weights update scheduled",
             "count": 3,
@@ -50,13 +49,15 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, m
         await wait_for_background_tasks(ApplyWeights.tasks_running)
 
     # Verify the commit_weights was called with correct arguments
-    assert mock_bt_client.calls["commit_weights"] == [
-        (settings.bittensor_netuid, weights),
+    assert sn1_mock_bt_client.calls["commit_weights"] == [
+        (1, weights),
     ]
 
 
 @pytest.mark.asyncio
-async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, mock_bt_client: MockBittensorClient):
+async def test_put_weights_commit_reveal_disabled(
+    test_client: AsyncTestClient, sn2_mock_bt_client: MockBittensorClient
+):
     """
     Test setting weights when commit-reveal is disabled.
     """
@@ -66,7 +67,7 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
     }
 
     # Set up behaviors that will persist for the background task
-    async with mock_bt_client.mock_behavior(
+    async with sn2_mock_bt_client.mock_behavior(
         get_latest_block=[
             Block(number=BlockNumber(2000), hash=BlockHash("0xdef456")),  # First call in run_job
             Block(number=BlockNumber(2000), hash=BlockHash("0xdef456")),  # Second call in run_job
@@ -75,11 +76,11 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
         set_weights=[None],
     ):
         response = await test_client.put(
-            "/api/v1/subnet/weights",
+            "/api/v1/subnet/2/identity/sn2/weights",
             json={"weights": weights},
         )
 
-        assert response.status_code == HTTP_200_OK, response.json()
+        assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == {
             "detail": "weights update scheduled",
             "count": 2,
@@ -89,8 +90,8 @@ async def test_put_weights_commit_reveal_disabled(test_client: AsyncTestClient, 
         await wait_for_background_tasks(ApplyWeights.tasks_running)
 
     # Verify set_weights was called with correct arguments
-    assert mock_bt_client.calls["set_weights"] == [
-        (settings.bittensor_netuid, weights),
+    assert sn2_mock_bt_client.calls["set_weights"] == [
+        (2, weights),
     ]
 
 
@@ -130,13 +131,13 @@ async def test_put_weights_validation_errors(test_client: AsyncTestClient, json_
     Test that invalid weight data fails validation.
     """
     response = await test_client.put(
-        "/api/v1/subnet/weights",
+        "/api/v1/subnet/1/identity/sn1/weights",
         json=json_data,
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.content
     assert response.json() == {
         "status_code": 400,
-        "detail": "Validation failed for PUT /api/v1/subnet/weights",
+        "detail": "Validation failed for PUT /api/v1/subnet/1/identity/sn1/weights",
         "extra": expected_extra,
     }
