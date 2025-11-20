@@ -20,53 +20,72 @@ from prometheus_client import Counter, Histogram
 
 logger = logging.getLogger(__name__)
 
+# Type variable for async function decorators - bound to async callables returning coroutines
 F = TypeVar("F", bound=Callable[..., CoroutineType[Any, Any, Any]])
-R_co = TypeVar("R_co", covariant=True)
 
 
 class MetricsConfigurationError(Exception):
     """Raised when metrics label configuration is invalid."""
-
-    pass
 
 
 class MetricsContext:
     """
     Context for tracking metrics during operation execution.
 
-    Allows setting additional labels dynamically during operation execution
+    Allows setting labels dynamically during operation execution
     that will be included in the final metrics recording.
     """
 
-    def __init__(self, base_labels: dict[str, str]):
-        self.base_labels = base_labels.copy()
-        self.dynamic_labels: dict[str, str] = {}
+    def __init__(self, initial_labels: dict[str, str] | None = None):
+        self.labels = initial_labels.copy() if initial_labels else {}
 
     def set_label(self, key: str, value: str) -> None:
-        """Set a dynamic label that will be included in metrics."""
-        self.dynamic_labels[key] = value
+        """Set or update a label that will be included in metrics."""
+        self.labels[key] = value
 
     def get_all_labels(self) -> dict[str, str]:
-        """Get all labels (base + dynamic) for metrics recording."""
-        return {**self.base_labels, **self.dynamic_labels}
+        """Get all labels for metrics recording."""
+        return self.labels
 
 
 bittensor_operation_duration = Histogram(
     "pylon_bittensor_operation_duration_seconds",
-    "Duration of Bittensor blockchain operations in seconds",
+    """Duration of Bittensor blockchain operations in seconds.
+
+    Labels:
+        operation: Name of the blockchain operation (e.g., get_block, get_neurons, commit_weights).
+        status: Operation outcome ("success" / "error").
+        client_type: Client used ("main" / "archive").
+        netuid: Subnet identifier (or "N/A" for operations without subnet context).
+        hotkey: Wallet hotkey (ss58) performing the operation.
+    """,
     ["operation", "status", "client_type", "netuid", "hotkey"],
+    # Buckets chosen for blockchain operations: 100ms to 2min covering typical RPC response times
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
 )
 
 bittensor_errors_total = Counter(
     "pylon_bittensor_errors_total",
-    "Total number of errors in Bittensor operations",
-    ["operation", "exception", "client_type", "netuid", "hotkey"],
+    """Total number of errors in Bittensor blockchain operations.
+
+    Labels:
+        operation: Name of the blockchain operation that failed.
+        client_type: Client used ("main" / "archive").
+        netuid: Subnet identifier (or "N/A" for operations without subnet context).
+        hotkey: Wallet hotkey (ss58) performing the operation.
+    """,
+    ["operation", "client_type", "netuid", "hotkey"],
 )
 
 bittensor_fallback_total = Counter(
     "pylon_bittensor_fallback_total",
-    "Total number of archive client fallback events",
+    """Total number of archive client fallback events.
+
+    Labels:
+        reason: Reason for fallback (e.g., "unknown_block", "old_block").
+        operation: Name of the operation that triggered fallback.
+        hotkey: Wallet hotkey (ss58) performing the operation.
+    """,
     ["reason", "operation", "hotkey"],
 )
 
@@ -81,6 +100,7 @@ apply_weights_job_duration = Histogram(
         hotkey: Wallet hotkey (ss58) used by the client submitting weights.
     """,
     ["job_status", "netuid", "hotkey"],
+    # Buckets for long-running jobs with retries: 1s to 20min covering typical weight application times
     buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1200.0),
 )
 
@@ -107,6 +127,7 @@ apply_weights_attempt_duration = Histogram(
         hotkey: Wallet hotkey (ss58) used by the client submitting weights.
     """,
     ["operation", "status", "netuid", "hotkey"],
+    # Buckets for single weight application attempt: 100ms to 2min (same as bittensor operations)
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
 )
 
@@ -260,18 +281,39 @@ def _extract_labels(
     return extracted
 
 
-def _filter_labels_for_metric(metric: Histogram | Counter, labels: dict[str, str]) -> dict[str, str]:
+def _prepare_metric_labels(
+    metric: Histogram | Counter, context_labels: dict[str, str], required_labels: dict[str, str]
+) -> dict[str, str]:
     """
-    Filter labels to only include those that the metric expects.
+    Prepare labels for metric recording with validation and auto-filling missing labels.
 
-    Prometheus metrics have a fixed set of label names defined at creation time.
-    This function filters the provided labels to only include those expected by the metric.
+    Args:
+        metric: The Prometheus metric (Histogram or Counter)
+        context_labels: Labels from MetricsContext
+        required_labels: Labels that must be added (e.g., operation, status)
+
+    Returns:
+        Complete label dict ready for metric recording with missing labels set to "N/A"
+
+    Raises:
+        MetricsConfigurationError: If a configured label is not expected by the metric
     """
-    # Get the metric's expected label names
-    expected_labels = metric._labelnames  # This is a tuple of expected label names
+    expected_label_names = set(metric._labelnames)
+    all_labels = {**context_labels, **required_labels}
 
-    # Filter to only include labels that the metric expects
-    return {key: value for key, value in labels.items() if key in expected_labels}
+    # Check for unexpected labels - this indicates misconfiguration
+    unexpected = set(all_labels.keys()) - expected_label_names
+    if unexpected:
+        raise MetricsConfigurationError(
+            f"Labels {unexpected} are not expected by metric '{metric._name}'. Expected: {expected_label_names}"
+        )
+
+    # Fill missing labels with N/A
+    result = {}
+    for label_name in expected_label_names:
+        result[label_name] = all_labels.get(label_name, "N/A")
+
+    return result
 
 
 @asynccontextmanager
@@ -284,32 +326,16 @@ async def _track_operation_context(
 
     try:
         yield
-    except Exception as exc:
+    except Exception:
         status = "error"
-        exception_name = type(exc).__name__
-
-        # Get final labels including any dynamically set ones
-        final_labels = context.get_all_labels()
-
-        # Filter labels to only those expected by the error metric
-        error_labels = _filter_labels_for_metric(error_metric, final_labels)
-
-        # Add required labels that might be missing
-        error_labels_with_required = {"operation": operation, "exception": exception_name, **error_labels}
-
-        # Record to error counter
-        error_metric.labels(**error_labels_with_required).inc()
-
+        # Record error counter
+        error_labels = _prepare_metric_labels(error_metric, context.get_all_labels(), {"operation": operation})
+        error_metric.labels(**error_labels).inc()
         raise
     finally:
-        # Get final labels including any dynamically set ones
-        final_labels = context.get_all_labels()
-
-        # Filter labels to only those expected by the duration metric
-        duration_labels = _filter_labels_for_metric(duration_metric, final_labels)
-
-        # Add required labels that might be missing
-        duration_labels_with_required = {"operation": operation, "status": status, **duration_labels}
-
+        # Record duration histogram
+        duration_labels = _prepare_metric_labels(
+            duration_metric, context.get_all_labels(), {"operation": operation, "status": status}
+        )
         duration = perf_counter() - start_time
-        duration_metric.labels(**duration_labels_with_required).observe(duration)
+        duration_metric.labels(**duration_labels).observe(duration)

@@ -26,6 +26,7 @@ class ApplyWeights:
     def __init__(self, client: AbstractBittensorClient):
         self._client: AbstractBittensorClient = client
         self._hotkey_ss58: str = client.wallet.hotkey.ss58_address
+        self._netuid: str = str(settings.bittensor_netuid)
 
     @classmethod
     async def schedule(cls, client: AbstractBittensorClient, weights: dict[Hotkey, Weight]) -> Self:
@@ -39,7 +40,7 @@ class ApplyWeights:
         duration_metric=apply_weights_job_duration,
         error_metric=apply_weights_job_errors,
         labels={
-            "netuid": "static:" + str(settings.bittensor_netuid),
+            "netuid": "attr:_netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
         inject_context="job_metrics",
@@ -50,8 +51,8 @@ class ApplyWeights:
         *,
         job_metrics: MetricsContext | None = None,
     ) -> None:
-        if job_metrics is None:
-            job_metrics = MetricsContext({"netuid": str(settings.bittensor_netuid)})
+        # job_metrics is always injected by @track_operation decorator
+        assert job_metrics is not None, "job_metrics should be injected by decorator"
         start_block = await self._client.get_latest_block()
 
         tempo = get_epoch_containing_block(start_block.number)
@@ -101,7 +102,7 @@ class ApplyWeights:
         duration_metric=apply_weights_attempt_duration,
         error_metric=apply_weights_attempt_errors,
         labels={
-            "netuid": "static:" + str(settings.bittensor_netuid),
+            "netuid": "attr:_netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
     )

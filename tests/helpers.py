@@ -1,19 +1,23 @@
 import asyncio
 from collections.abc import Iterable
+from unittest.mock import MagicMock
+
+from bittensor_wallet import Wallet
 
 
-class StubHotkey:
-    def __init__(self, ss58_address: str = "test_hotkey") -> None:
-        self.ss58_address = ss58_address
+def make_mock_wallet(hotkey_ss58: str = "test_hotkey") -> Wallet:
+    """
+    Create a mock Wallet object for testing.
 
+    Args:
+        hotkey_ss58: The SS58 address to use for the hotkey
 
-class StubWallet:
-    def __init__(self, hotkey_ss58: str = "test_hotkey") -> None:
-        self.hotkey = StubHotkey(hotkey_ss58)
-
-
-def make_stub_wallet(hotkey_ss58: str = "test_hotkey") -> StubWallet:
-    return StubWallet(hotkey_ss58)
+    Returns:
+        A MagicMock configured to behave like a Wallet
+    """
+    mock_wallet = MagicMock(spec=Wallet)
+    mock_wallet.hotkey.ss58_address = hotkey_ss58
+    return mock_wallet
 
 
 async def wait_for_background_tasks(tasks_to_wait: Iterable[asyncio.Task] | None, timeout: float = 2.0) -> None:

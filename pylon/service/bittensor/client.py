@@ -79,7 +79,6 @@ logger = logging.getLogger(__name__)
 class ClientType(str, Enum):
     """Bittensor client flavor used for metrics labelling."""
 
-    UNKNOWN = "unknown"
     MAIN = "main"
     ARCHIVE = "archive"
 
@@ -92,7 +91,7 @@ class AbstractBittensorClient(ABC):
     Interface for Bittensor clients.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork, *, client_type: ClientType = ClientType.UNKNOWN):
+    def __init__(self, wallet: Wallet, uri: BittensorNetwork, *, client_type: ClientType = ClientType.MAIN):
         self.wallet = wallet
         self.uri = uri
         # Store client_type for metrics tracking (used by TrackedBittensorClient)
@@ -216,7 +215,6 @@ class TurboBtClient(AbstractBittensorClient):
         bittensor_errors_total,
         labels={
             "client_type": "attr:_client_type",
-            "netuid": "static:N/A",
             "hotkey": "attr:_hotkey_ss58",
         },
     )
@@ -238,7 +236,6 @@ class TurboBtClient(AbstractBittensorClient):
         bittensor_errors_total,
         labels={
             "client_type": "attr:_client_type",
-            "netuid": "static:N/A",
             "hotkey": "attr:_hotkey_ss58",
         },
     )

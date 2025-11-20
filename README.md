@@ -100,7 +100,7 @@ All HTTP metrics include labels: `method`, `path`, `status_code`, `app_name`.
   - Labels: `operation`, `status` (success/error), `client_type` (main/archive), `netuid`, `hotkey`
   - Buckets: 0.1s, 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, 120s
 - `pylon_bittensor_errors_total` - Total number of errors in blockchain operations (counter)
-  - Labels: `operation`, `exception`, `client_type`, `netuid`, `hotkey`
+  - Labels: `operation`, `client_type`, `netuid`, `hotkey`
 - `pylon_bittensor_fallback_total` - Archive client fallback events (counter)
   - Labels: `reason`, `operation`, `hotkey`
 

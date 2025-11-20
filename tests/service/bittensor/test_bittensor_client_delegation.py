@@ -39,7 +39,7 @@ from pylon._internal.common.types import (
     ValidatorTrust,
 )
 from pylon.service.bittensor.client import BittensorClient
-from tests.helpers import make_stub_wallet
+from tests.helpers import make_mock_wallet
 from tests.mock_bittensor_client import MockBittensorClient
 
 
@@ -72,7 +72,7 @@ def test_neuron():
 
 @pytest.fixture
 def bittensor_client():
-    wallet = make_stub_wallet()
+    wallet = make_mock_wallet()
 
     # Create BittensorClient
     client = BittensorClient(
