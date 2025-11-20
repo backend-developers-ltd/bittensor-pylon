@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
-from enum import Enum
 from typing import Any, Generic, TypeVar
 
 from bittensor_wallet import Wallet
@@ -67,7 +66,6 @@ from pylon._internal.common.types import (
     Weight,
 )
 from pylon.service.metrics import (
-    bittensor_errors_total,
     bittensor_fallback_total,
     bittensor_operation_duration,
     track_operation,
@@ -76,26 +74,15 @@ from pylon.service.metrics import (
 logger = logging.getLogger(__name__)
 
 
-class ClientType(str, Enum):
-    """Bittensor client flavor used for metrics labelling."""
-
-    MAIN = "main"
-    ARCHIVE = "archive"
-
-    def __str__(self) -> str:  # pragma: no cover - convenience for logging
-        return self.value
-
-
 class AbstractBittensorClient(ABC):
     """
     Interface for Bittensor clients.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork, *, client_type: ClientType = ClientType.MAIN):
+    def __init__(self, wallet: Wallet, uri: BittensorNetwork):
         self.wallet = wallet
         self.uri = uri
-        # Store client_type for metrics tracking (used by TrackedBittensorClient)
-        self._client_type: ClientType = client_type
+        # Cache hotkey for metrics labels
         self._hotkey_ss58: str = self.wallet.hotkey.ss58_address
 
     async def __aenter__(self):
@@ -194,8 +181,8 @@ class TurboBtClient(AbstractBittensorClient):
     Adapter for turbobt client.
     """
 
-    def __init__(self, wallet: Wallet, uri: BittensorNetwork, client_type: ClientType = ClientType.MAIN):
-        super().__init__(wallet, uri, client_type=client_type)
+    def __init__(self, wallet: Wallet, uri: BittensorNetwork):
+        super().__init__(wallet, uri)
         self._raw_client: Bittensor | None = None
 
     async def open(self) -> None:
@@ -212,9 +199,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "hotkey": "attr:_hotkey_ss58",
         },
     )
@@ -233,9 +219,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "hotkey": "attr:_hotkey_ss58",
         },
     )
@@ -273,9 +258,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -293,9 +277,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -315,9 +298,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -341,9 +323,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -363,9 +344,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -395,9 +375,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -418,9 +397,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -457,9 +435,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -476,9 +453,8 @@ class TurboBtClient(AbstractBittensorClient):
 
     @track_operation(
         bittensor_operation_duration,
-        bittensor_errors_total,
         labels={
-            "client_type": "attr:_client_type",
+            "uri": "attr:uri",
             "netuid": "param:netuid",
             "hotkey": "attr:_hotkey_ss58",
         },
@@ -515,9 +491,8 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         self.archive_uri = archive_uri
         self._archive_blocks_cutoff = archive_blocks_cutoff
         self.subclient_cls = subclient_cls
-
-        self._main_client = self.subclient_cls(wallet, uri, client_type=ClientType.MAIN)
-        self._archive_client = self.subclient_cls(wallet, archive_uri, client_type=ClientType.ARCHIVE)
+        self._main_client: SubClient = self.subclient_cls(wallet, uri)
+        self._archive_client: SubClient = self.subclient_cls(wallet, archive_uri)
 
     async def open(self) -> None:
         await self._main_client.open()
@@ -574,7 +549,7 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         Archive client is used when the block is stale (older than archive_blocks_cutoff blocks).
         Operations on the main client are retried if UnknownBlock exception is raised.
         """
-        method_name = operation.__name__
+        operation_name = operation.__name__
 
         if block:
             kwargs["block"] = block
@@ -583,23 +558,20 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
                 logger.debug(f"Block is stale, falling back to the archive client: {self._archive_client.uri}")
                 bittensor_fallback_total.labels(
                     reason="stale_block",
-                    operation=method_name,
+                    operation=operation_name,
                     hotkey=self._hotkey_ss58,
                 ).inc()
-                bound_method = getattr(self._archive_client, method_name)
-                return await bound_method(*args, **kwargs)
+                return await operation(self._archive_client, *args, **kwargs)
 
         try:
-            bound_method = getattr(self._main_client, method_name)
-            return await bound_method(*args, **kwargs)
+            return await operation(self._main_client, *args, **kwargs)
         except UnknownBlock:
             logger.warning(
                 f"Block unknown for the main client, falling back to the archive client: {self._archive_client.uri}"
             )
             bittensor_fallback_total.labels(
                 reason="unknown_block",
-                operation=method_name,
+                operation=operation_name,
                 hotkey=self._hotkey_ss58,
             ).inc()
-            bound_method = getattr(self._archive_client, method_name)
-            return await bound_method(*args, **kwargs)
+            return await operation(self._archive_client, *args, **kwargs)

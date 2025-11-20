@@ -26,7 +26,7 @@ def metrics_auth_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
         PermissionDeniedException: If PYLON_METRICS_TOKEN is not configured
         NotAuthorizedException: If Authorization header is missing or invalid
     """
-    if not settings.pylon_metrics_token:
+    if not settings.metrics_token:
         logger.warning("Metrics endpoint accessed but PYLON_METRICS_TOKEN is not configured")
         raise PermissionDeniedException(detail="Metrics endpoint is not configured")
 
@@ -42,7 +42,7 @@ def metrics_auth_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
 
     token = parts[1]
 
-    if not secrets.compare_digest(token, settings.pylon_metrics_token):
+    if not secrets.compare_digest(token, settings.metrics_token):
         logger.warning("Metrics endpoint accessed with invalid token")
         raise NotAuthorizedException(detail="Invalid authorization token")
 

@@ -9,9 +9,7 @@ from pylon.service.bittensor.client import AbstractBittensorClient
 from pylon.service.metrics import (
     MetricsContext,
     apply_weights_attempt_duration,
-    apply_weights_attempt_errors,
     apply_weights_job_duration,
-    apply_weights_job_errors,
     track_operation,
 )
 from pylon.service.utils import get_epoch_containing_block
@@ -38,7 +36,6 @@ class ApplyWeights:
 
     @track_operation(
         duration_metric=apply_weights_job_duration,
-        error_metric=apply_weights_job_errors,
         labels={
             "netuid": "attr:_netuid",
             "hotkey": "attr:_hotkey_ss58",
@@ -51,14 +48,13 @@ class ApplyWeights:
         *,
         job_metrics: MetricsContext | None = None,
     ) -> None:
-        # job_metrics is always injected by @track_operation decorator
-        assert job_metrics is not None, "job_metrics should be injected by decorator"
         start_block = await self._client.get_latest_block()
 
         tempo = get_epoch_containing_block(start_block.number)
         initial_tempo = tempo
 
-        job_metrics.set_label("job_status", "running")
+        if job_metrics:
+            job_metrics.set_label("job_status", "running")
 
         retry_count = settings.weights_retry_attempts
         next_sleep_seconds = settings.weights_retry_delay_seconds
@@ -67,7 +63,8 @@ class ApplyWeights:
         for retry_no in range(retry_count + 1):
             latest_block = await self._client.get_latest_block()
             if latest_block.number > initial_tempo.end:
-                job_metrics.set_label("job_status", "tempo_expired")
+                if job_metrics:
+                    job_metrics.set_label("job_status", "tempo_expired")
                 logger.error(
                     f"Apply weights job task cancelled: tempo ended "
                     f"({latest_block.number} > {initial_tempo.end}, {start_block.number=})"
@@ -78,10 +75,12 @@ class ApplyWeights:
                 f"still got {initial_tempo.end - latest_block.number} blocks left to go."
             )
             try:
-                job_metrics.set_label("attempt", str(retry_no))
+                if job_metrics:
+                    job_metrics.set_label("attempt", str(retry_no))
 
                 await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
-                job_metrics.set_label("job_status", "completed")
+                if job_metrics:
+                    job_metrics.set_label("job_status", "completed")
                 return
             except Exception as exc:
                 logger.error(
@@ -92,7 +91,8 @@ class ApplyWeights:
                     exc_info=True,
                 )
                 if retry_no == retry_count:
-                    job_metrics.set_label("job_status", "failed")
+                    if job_metrics:
+                        job_metrics.set_label("job_status", "failed")
                     raise
                 logger.info(f"Sleeping for {next_sleep_seconds} seconds before retrying...")
                 await asyncio.sleep(next_sleep_seconds)
@@ -100,7 +100,6 @@ class ApplyWeights:
 
     @track_operation(
         duration_metric=apply_weights_attempt_duration,
-        error_metric=apply_weights_attempt_errors,
         labels={
             "netuid": "attr:_netuid",
             "hotkey": "attr:_hotkey_ss58",

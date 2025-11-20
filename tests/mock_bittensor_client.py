@@ -24,7 +24,7 @@ from pylon._internal.common.models import (
     SubnetState,
 )
 from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
-from pylon.service.bittensor.client import AbstractBittensorClient, ClientType
+from pylon.service.bittensor.client import AbstractBittensorClient
 from tests.helpers import make_mock_wallet
 
 Behavior: TypeAlias = Callable | Exception | Any
@@ -59,9 +59,8 @@ class MockBittensorClient(AbstractBittensorClient):
         self,
         wallet: Any | None = None,
         uri: BittensorNetwork = BittensorNetwork("mock://test"),
-        client_type: ClientType = ClientType.MAIN,
     ):
-        super().__init__(wallet=wallet or make_mock_wallet(), uri=uri, client_type=client_type)
+        super().__init__(wallet=wallet or make_mock_wallet(), uri=uri)
         self._behaviors: dict[MethodName, list[Behavior]] = defaultdict(list)
         self._behavior_lock = asyncio.Lock()
         self._is_open = False

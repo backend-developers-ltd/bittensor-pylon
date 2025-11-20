@@ -95,20 +95,23 @@ The endpoint provides the following Prometheus metrics organized by category:
 
 All HTTP metrics include labels: `method`, `path`, `status_code`, `app_name`.
 
-**Bittensor Blockchain Metrics:**
-- `pylon_bittensor_operation_duration_seconds` - Duration of blockchain operations (histogram)
-  - Labels: `operation`, `status` (success/error), `client_type` (main/archive), `netuid`, `hotkey`
+**Bittensor Operations Metrics:**
+- `pylon_bittensor_operation_duration_seconds` - Duration of bittensor operations (histogram)
+  - Labels: `operation`, `status` (success/error), `uri`, `netuid`, `hotkey`
   - Buckets: 0.1s, 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, 120s
-- `pylon_bittensor_errors_total` - Total number of errors in blockchain operations (counter)
-  - Labels: `operation`, `client_type`, `netuid`, `hotkey`
+  - Error count can be derived from histogram bucket counts with `status="error"`
 - `pylon_bittensor_fallback_total` - Archive client fallback events (counter)
   - Labels: `reason`, `operation`, `hotkey`
 
 **ApplyWeights Job Metrics:**
 - `pylon_apply_weights_job_duration_seconds` - Duration of entire ApplyWeights job execution (histogram)
+  - Labels: `job_status`, `netuid`, `hotkey`
   - Buckets: 1s, 5s, 10s, 30s, 60s, 120s, 300s, 600s, 1200s
+  - Note: `job_status` label provides business outcome context (e.g., "completed", "tempo_expired", "failed")
 - `pylon_apply_weights_attempt_duration_seconds` - Duration of individual weight application attempts (histogram)
+  - Labels: `operation`, `status`, `netuid`, `hotkey`
   - Buckets: 0.1s, 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, 120s
+  - Error count can be derived from histogram bucket counts with `status="error"`
 
 **Python Runtime Metrics:**
 

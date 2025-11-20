@@ -1,17 +1,9 @@
-"""
-Prometheus metrics for Bittensor Pylon service.
-
-This module defines all domain-specific metrics for monitoring:
-- Bittensor blockchain operations
-"""
-
 from __future__ import annotations
 
 import functools
 import inspect
 import logging
-from collections.abc import Callable
-from collections.abc import Coroutine as CoroutineType
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Any, TypeVar, cast
@@ -20,8 +12,8 @@ from prometheus_client import Counter, Histogram
 
 logger = logging.getLogger(__name__)
 
-# Type variable for async function decorators - bound to async callables returning coroutines
-F = TypeVar("F", bound=Callable[..., CoroutineType[Any, Any, Any]])
+
+F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
 
 
 class MetricsConfigurationError(Exception):
@@ -31,9 +23,6 @@ class MetricsConfigurationError(Exception):
 class MetricsContext:
     """
     Context for tracking metrics during operation execution.
-
-    Allows setting labels dynamically during operation execution
-    that will be included in the final metrics recording.
     """
 
     def __init__(self, initial_labels: dict[str, str] | None = None):
@@ -50,31 +39,17 @@ class MetricsContext:
 
 bittensor_operation_duration = Histogram(
     "pylon_bittensor_operation_duration_seconds",
-    """Duration of Bittensor blockchain operations in seconds.
+    """Duration of Bittensor operations in seconds.
 
     Labels:
-        operation: Name of the blockchain operation (e.g., get_block, get_neurons, commit_weights).
-        status: Operation outcome ("success" / "error").
-        client_type: Client used ("main" / "archive").
-        netuid: Subnet identifier (or "N/A" for operations without subnet context).
+        operation: Name of the operation (e.g., get_block, get_neurons, commit_weights).
+        status: Operation outcome.
+        uri: Bittensor network URI.
+        netuid: Subnet identifier.
         hotkey: Wallet hotkey (ss58) performing the operation.
     """,
-    ["operation", "status", "client_type", "netuid", "hotkey"],
-    # Buckets chosen for blockchain operations: 100ms to 2min covering typical RPC response times
+    ["operation", "status", "uri", "netuid", "hotkey"],
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
-)
-
-bittensor_errors_total = Counter(
-    "pylon_bittensor_errors_total",
-    """Total number of errors in Bittensor blockchain operations.
-
-    Labels:
-        operation: Name of the blockchain operation that failed.
-        client_type: Client used ("main" / "archive").
-        netuid: Subnet identifier (or "N/A" for operations without subnet context).
-        hotkey: Wallet hotkey (ss58) performing the operation.
-    """,
-    ["operation", "client_type", "netuid", "hotkey"],
 )
 
 bittensor_fallback_total = Counter(
@@ -95,30 +70,17 @@ apply_weights_job_duration = Histogram(
     """Duration of entire ApplyWeights job execution (outer ``run_job`` wrapper).
 
     Labels:
-        job_status: Business outcome set via ``MetricsContext`` ("completed", "tempo_expired", "failed", ...).
+        job_status: Outcome set via ``MetricsContext`` ("completed", "tempo_expired", "failed", ...).
         netuid: Subnet identifier for multi-net deployments.
         hotkey: Wallet hotkey (ss58) used by the client submitting weights.
     """,
     ["job_status", "netuid", "hotkey"],
-    # Buckets for long-running jobs with retries: 1s to 20min covering typical weight application times
     buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1200.0),
-)
-
-apply_weights_job_errors = Counter(
-    "pylon_apply_weights_job_errors_total",
-    """Total number of errors raised by the ApplyWeights job wrapper.
-
-    Labels:
-        job_status: Business outcome tag that was set before the exception (e.g. "failed").
-        netuid: Subnet identifier.
-        hotkey: Wallet hotkey (ss58) used by the client submitting weights.
-    """,
-    ["job_status", "netuid", "hotkey"],
 )
 
 apply_weights_attempt_duration = Histogram(
     "pylon_apply_weights_attempt_duration_seconds",
-    """Duration of individual `_apply_weights` attempts (inner business logic).
+    """Duration of individual `_apply_weights` attempts.
 
     Labels:
         operation: Name of the inner coroutine (``_apply_weights``).
@@ -127,80 +89,37 @@ apply_weights_attempt_duration = Histogram(
         hotkey: Wallet hotkey (ss58) used by the client submitting weights.
     """,
     ["operation", "status", "netuid", "hotkey"],
-    # Buckets for single weight application attempt: 100ms to 2min (same as bittensor operations)
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
-)
-
-apply_weights_attempt_errors = Counter(
-    "pylon_apply_weights_attempt_errors_total",
-    """Total number of errors observed inside `_apply_weights`.
-
-    Labels:
-        operation: Name of the inner coroutine.
-        netuid: Subnet identifier.
-        hotkey: Wallet hotkey (ss58) used by the client submitting weights.
-    """,
-    ["operation", "netuid", "hotkey"],
 )
 
 
 def track_operation(
     duration_metric: Histogram,
-    error_metric: Counter,
     operation_name: str | None = None,
     labels: dict[str, str] | None = None,
     *,
     inject_context: str | None = None,
 ):
     """
-    Operation tracking decorator with explicit metrics context passing.
+    Operation tracking decorator.
 
     This decorator:
     1. Extracts initial labels from method parameters/attributes
     2. Creates a MetricsContext and optionally injects it as a parameter
     3. Allows dynamic label setting during execution via the context
-    4. Records metrics with all labels (initial + dynamic) when operation completes
+    4. Records duration histogram with all labels when operation completes
+
+    The histogram automatically includes a "status" label ("success" or "error") to track
+    operation outcomes.
 
     Args:
-        duration_metric: Prometheus Histogram for operation duration
-        error_metric: Prometheus Counter for operation errors
+        duration_metric: Prometheus Histogram for operation duration (must include "status" label)
         operation_name: Custom operation name. If None, uses method name.
         labels: Label extraction with EXPLICIT prefixes:
             - "static:value" -> Static string "value"
             - "param:name" -> Extract from method parameter "name"
             - "attr:field" -> Extract from self.field attribute
         inject_context: Parameter name to inject MetricsContext into. If None, no injection.
-
-    Examples:
-        @track_operation(
-            duration_metric=my_duration_histogram,
-            error_metric=my_error_counter,
-            labels={"client_type": "attr:_client_type"},
-            inject_context="metrics"
-        )
-        async def apply_weights(self, mode: str, *, metrics: MetricsContext):
-            # Set dynamic label during execution
-            metrics.set_label("mode", mode)  # Will be included in final metrics
-
-            if mode == "commit":
-                metrics.set_label("operation_type", "commit_reveal")
-            else:
-                metrics.set_label("operation_type", "direct_set")
-
-            # ... operation logic
-
-        @track_operation(
-            duration_metric=bittensor_operation_duration,
-            error_metric=bittensor_errors_total,
-            labels={
-                "netuid": "param:netuid",
-                "client_type": "attr:_client_type",
-            },
-            inject_context="ctx"
-        )
-        async def get_neurons(self, netuid: int, *, ctx: MetricsContext):
-            # Can set additional context-specific labels
-            ctx.set_label("cache_status", "miss" if not_in_cache else "hit")
     """
 
     def decorator(func: F) -> F:
@@ -223,8 +142,8 @@ def track_operation(
                     raise ValueError(f"Parameter '{inject_context}' already exists in function call")
                 call_kwargs[inject_context] = context
 
-            async with _track_operation_context(op_name, context, duration_metric, error_metric):
-                return await func(*args, **call_kwargs)  # type: ignore[misc]
+            async with _track_operation_context(op_name, context, duration_metric):
+                return await func(*args, **call_kwargs)
 
         return cast(F, wrapper)
 
@@ -317,10 +236,12 @@ def _prepare_metric_labels(
 
 
 @asynccontextmanager
-async def _track_operation_context(
-    operation: str, context: MetricsContext, duration_metric: Histogram, error_metric: Counter
-):
-    """Track operation with histogram + error counter using the provided metrics context."""
+async def _track_operation_context(operation: str, context: MetricsContext, duration_metric: Histogram):
+    """Track operation duration with histogram using the provided metrics context.
+
+    Records duration with status label ("success" or "error"). Error count can be
+    derived from histogram bucket counts with status="error".
+    """
     start_time = perf_counter()
     status = "success"
 
@@ -328,12 +249,9 @@ async def _track_operation_context(
         yield
     except Exception:
         status = "error"
-        # Record error counter
-        error_labels = _prepare_metric_labels(error_metric, context.get_all_labels(), {"operation": operation})
-        error_metric.labels(**error_labels).inc()
         raise
     finally:
-        # Record duration histogram
+        # Record duration histogram with status label
         duration_labels = _prepare_metric_labels(
             duration_metric, context.get_all_labels(), {"operation": operation, "status": status}
         )
