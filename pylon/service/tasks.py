@@ -23,7 +23,7 @@ class ApplyWeights:
 
     def __init__(self, client: AbstractBittensorClient):
         self._client: AbstractBittensorClient = client
-        self._hotkey_ss58: str = client.wallet.hotkey.ss58_address
+        self._hotkey: Hotkey = Hotkey(client.wallet.hotkey.ss58_address)
         self._netuid: str = str(settings.bittensor_netuid)
 
     @classmethod
@@ -38,7 +38,7 @@ class ApplyWeights:
         duration_metric=apply_weights_job_duration,
         labels={
             "netuid": "attr:_netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
         inject_context="job_metrics",
     )
@@ -102,7 +102,7 @@ class ApplyWeights:
         duration_metric=apply_weights_attempt_duration,
         labels={
             "netuid": "attr:_netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def _apply_weights(

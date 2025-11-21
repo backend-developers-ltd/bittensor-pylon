@@ -83,7 +83,7 @@ class AbstractBittensorClient(ABC):
         self.wallet = wallet
         self.uri = uri
         # Cache hotkey for metrics labels
-        self._hotkey_ss58: str = self.wallet.hotkey.ss58_address
+        self._hotkey: Hotkey = Hotkey(self.wallet.hotkey.ss58_address)
 
     async def __aenter__(self):
         await self.open()
@@ -201,7 +201,7 @@ class TurboBtClient(AbstractBittensorClient):
         bittensor_operation_duration,
         labels={
             "uri": "attr:uri",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_block(self, number: BlockNumber) -> Block | None:
@@ -221,7 +221,7 @@ class TurboBtClient(AbstractBittensorClient):
         bittensor_operation_duration,
         labels={
             "uri": "attr:uri",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_latest_block(self) -> Block:
@@ -261,7 +261,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
@@ -280,7 +280,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
@@ -301,7 +301,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_hyperparams(self, netuid: NetUid, block: Block) -> SubnetHyperparams | None:
@@ -326,7 +326,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_certificates(self, netuid: NetUid, block: Block) -> dict[Hotkey, NeuronCertificate]:
@@ -347,7 +347,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_certificate(
@@ -378,7 +378,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def generate_certificate_keypair(
@@ -400,7 +400,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
@@ -438,7 +438,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
@@ -456,7 +456,7 @@ class TurboBtClient(AbstractBittensorClient):
         labels={
             "uri": "attr:uri",
             "netuid": "param:netuid",
-            "hotkey": "attr:_hotkey_ss58",
+            "hotkey": "attr:_hotkey",
         },
     )
     async def set_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> None:
@@ -559,7 +559,7 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
                 bittensor_fallback_total.labels(
                     reason="stale_block",
                     operation=operation_name,
-                    hotkey=self._hotkey_ss58,
+                    hotkey=self._hotkey,
                 ).inc()
                 return await operation(self._archive_client, *args, **kwargs)
 
@@ -572,6 +572,6 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
             bittensor_fallback_total.labels(
                 reason="unknown_block",
                 operation=operation_name,
-                hotkey=self._hotkey_ss58,
+                hotkey=self._hotkey,
             ).inc()
             return await operation(self._archive_client, *args, **kwargs)
