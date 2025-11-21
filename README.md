@@ -62,6 +62,63 @@ Example of the proper request using `curl`:
 curl -X PUT http://localhost:8000/api/v1/subnet/weights --data '{"weights": {"hk1": 0.8, "hk2": 0.5}}' -H "Authorization: Bearer abc"
 ```
 
+### Prometheus Metrics Endpoint
+
+The service exposes Prometheus metrics at the `/metrics` endpoint for monitoring and observability. This endpoint is
+protected with Bearer token authentication.
+
+**Configuration:**
+
+Set the `PYLON_METRICS_TOKEN` environment variable in your `.env` file:
+
+```bash
+PYLON_METRICS_TOKEN=your-secure-metrics-token
+```
+
+**Important:** If `PYLON_METRICS_TOKEN` is empty or not set, the `/metrics` endpoint will return `403 Forbidden` to
+prevent unauthorized access.
+
+**Accessing the metrics:**
+
+```bash
+curl http://localhost:8000/metrics -H "Authorization: Bearer your-secure-metrics-token"
+```
+
+**Available metrics:**
+
+The endpoint provides the following Prometheus metrics organized by category:
+
+**HTTP API Metrics:**
+- `pylon_requests_total` - Total number of HTTP requests
+- `pylon_request_duration_seconds` - HTTP request duration in seconds (histogram)
+- `pylon_requests_in_progress` - Number of HTTP requests currently being processed (gauge)
+
+All HTTP metrics include labels: `method`, `path`, `status_code`, `app_name`.
+
+**Bittensor Operations Metrics:**
+- `pylon_bittensor_operation_duration_seconds` - Duration of bittensor operations (histogram)
+  - Labels: `operation`, `status` (success/error), `uri`, `netuid`, `hotkey`
+  - Buckets: 0.1s, 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, 120s
+  - Error count can be derived from histogram bucket counts with `status="error"`
+- `pylon_bittensor_fallback_total` - Archive client fallback events (counter)
+  - Labels: `reason`, `operation`, `hotkey`
+
+**ApplyWeights Job Metrics:**
+- `pylon_apply_weights_job_duration_seconds` - Duration of entire ApplyWeights job execution (histogram)
+  - Labels: `job_status`, `netuid`, `hotkey`
+  - Buckets: 1s, 5s, 10s, 30s, 60s, 120s, 300s, 600s, 1200s
+  - Note: `job_status` label provides business outcome context (e.g., "completed", "tempo_expired", "failed")
+- `pylon_apply_weights_attempt_duration_seconds` - Duration of individual weight application attempts (histogram)
+  - Labels: `operation`, `status`, `netuid`, `hotkey`
+  - Buckets: 0.1s, 0.5s, 1s, 2s, 5s, 10s, 30s, 60s, 120s
+  - Error count can be derived from histogram bucket counts with `status="error"`
+
+**Python Runtime Metrics:**
+
+Standard Python process metrics are also exposed: memory usage, CPU time, garbage collection stats, and file descriptors.
+
+**Note:** All counter and histogram metrics automatically include `*_created` gauge metrics showing the timestamp when each label combination was first seen. You can disable these by setting `PROMETHEUS_DISABLE_CREATED_SERIES=True` in your environment to reduce metrics output.
+
 ## Using the Python Client
 
 Install the client library:

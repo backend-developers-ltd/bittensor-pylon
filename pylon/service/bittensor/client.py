@@ -65,6 +65,11 @@ from pylon._internal.common.types import (
     ValidatorTrust,
     Weight,
 )
+from pylon.service.metrics import (
+    bittensor_fallback_total,
+    bittensor_operation_duration,
+    track_operation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +82,8 @@ class AbstractBittensorClient(ABC):
     def __init__(self, wallet: Wallet, uri: BittensorNetwork):
         self.wallet = wallet
         self.uri = uri
+        # Cache hotkey for metrics labels
+        self._hotkey: Hotkey = Hotkey(self.wallet.hotkey.ss58_address)
 
     async def __aenter__(self):
         await self.open()
@@ -190,6 +197,13 @@ class TurboBtClient(AbstractBittensorClient):
         await self._raw_client.__aexit__(None, None, None)
         self._raw_client = None
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_block(self, number: BlockNumber) -> Block | None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -203,6 +217,13 @@ class TurboBtClient(AbstractBittensorClient):
             hash=BlockHash(block_obj.hash),
         )
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_latest_block(self) -> Block:
         logger.debug(f"Fetching the latest block from {self.uri}")
         block = await self.get_block(BlockNumber(LATEST_BLOCK_MARK))
@@ -235,6 +256,14 @@ class TurboBtClient(AbstractBittensorClient):
             stakes=stakes,
         )
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_neurons_list(self, netuid: NetUid, block: Block) -> list[Neuron]:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -246,6 +275,14 @@ class TurboBtClient(AbstractBittensorClient):
         stakes = state.hotkeys_stakes
         return [await self._translate_neuron(neuron, stakes[Hotkey(neuron.hotkey)]) for neuron in neurons]
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
         neurons = await self.get_neurons_list(netuid, block)
         return SubnetNeurons(block=block, neurons={neuron.hotkey: neuron for neuron in neurons})
@@ -259,6 +296,14 @@ class TurboBtClient(AbstractBittensorClient):
             )
         return SubnetHyperparams(**translated_params)
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_hyperparams(self, netuid: NetUid, block: Block) -> SubnetHyperparams | None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -276,6 +321,14 @@ class TurboBtClient(AbstractBittensorClient):
             public_key=PublicKey(certificate["public_key"]),
         )
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_certificates(self, netuid: NetUid, block: Block) -> dict[Hotkey, NeuronCertificate]:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -289,6 +342,14 @@ class TurboBtClient(AbstractBittensorClient):
             for hotkey, certificate in certificates.items()
         }
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_certificate(
         self, netuid: NetUid, block: Block, hotkey: Hotkey | None = None
     ) -> NeuronCertificate | None:
@@ -312,6 +373,14 @@ class TurboBtClient(AbstractBittensorClient):
             private_key=PrivateKey(keypair["private_key"]),
         )
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def generate_certificate_keypair(
         self, netuid: NetUid, algorithm: CertificateAlgorithm
     ) -> NeuronCertificateKeypair | None:
@@ -326,6 +395,14 @@ class TurboBtClient(AbstractBittensorClient):
             keypair = await self._translate_certificate_keypair(keypair)
         return keypair
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -356,6 +433,14 @@ class TurboBtClient(AbstractBittensorClient):
             )
         return translated_weights
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -366,6 +451,14 @@ class TurboBtClient(AbstractBittensorClient):
         )
         return RevealRound(reveal_round)
 
+    @track_operation(
+        bittensor_operation_duration,
+        labels={
+            "uri": "attr:uri",
+            "netuid": "param:netuid",
+            "hotkey": "attr:_hotkey",
+        },
+    )
     async def set_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> None:
         assert self._raw_client is not None, (
             "The client is not open, please use the client as a context manager or call the open() method."
@@ -456,11 +549,18 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
         Archive client is used when the block is stale (older than archive_blocks_cutoff blocks).
         Operations on the main client are retried if UnknownBlock exception is raised.
         """
+        operation_name = operation.__name__
+
         if block:
             kwargs["block"] = block
             latest_block = await self._main_client.get_latest_block()
             if latest_block.number - block.number > self._archive_blocks_cutoff:
                 logger.debug(f"Block is stale, falling back to the archive client: {self._archive_client.uri}")
+                bittensor_fallback_total.labels(
+                    reason="stale_block",
+                    operation=operation_name,
+                    hotkey=self._hotkey,
+                ).inc()
                 return await operation(self._archive_client, *args, **kwargs)
 
         try:
@@ -469,4 +569,9 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
             logger.warning(
                 f"Block unknown for the main client, falling back to the archive client: {self._archive_client.uri}"
             )
+            bittensor_fallback_total.labels(
+                reason="unknown_block",
+                operation=operation_name,
+                hotkey=self._hotkey,
+            ).inc()
             return await operation(self._archive_client, *args, **kwargs)

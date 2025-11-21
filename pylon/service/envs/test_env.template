@@ -21,6 +21,9 @@ PYLON_ID_SN12_BITTENSOR_WALLET_NAME=my_wallet
 PYLON_ID_SN12_BITTENSOR_HOTKEY_NAME=my_hotkey
 # Token with which the user will authenticate to pylon to use this identity. Keep it secret.
 PYLON_ID_SN12_BITTENSOR_TOKEN=my_secure_token
+# Token for accessing /metrics endpoint. Must be passed as Bearer token in Authorization header.
+# If empty, /metrics endpoint will return 403 Forbidden.
+PYLON_METRICS_TOKEN=
 
 # Sentry Configuration
 # DSN address for pylon to use - leave empty to disable sentry integration.
