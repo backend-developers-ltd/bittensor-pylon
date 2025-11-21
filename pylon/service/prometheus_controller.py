@@ -1,15 +1,17 @@
 """
 Custom Prometheus controller with Bearer token authorization using Litestar Guards.
+
+Uses Litestar's built-in PrometheusController with custom authentication guard
+instead of implementing a custom endpoint from scratch.
 """
 
 import logging
+import secrets
 
-from litestar import Response, get
 from litestar.connection import ASGIConnection
 from litestar.exceptions import NotAuthorizedException, PermissionDeniedException
 from litestar.handlers import BaseRouteHandler
-from litestar.status_codes import HTTP_200_OK
-from prometheus_client import REGISTRY, generate_latest
+from litestar.plugins.prometheus.controller import PrometheusController
 
 from pylon._internal.common.settings import settings
 
@@ -24,7 +26,7 @@ def metrics_auth_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
         PermissionDeniedException: If PYLON_METRICS_TOKEN is not configured
         NotAuthorizedException: If Authorization header is missing or invalid
     """
-    if not settings.pylon_metrics_token:
+    if not settings.metrics_token:
         logger.warning("Metrics endpoint accessed but PYLON_METRICS_TOKEN is not configured")
         raise PermissionDeniedException(detail="Metrics endpoint is not configured")
 
@@ -40,21 +42,14 @@ def metrics_auth_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
 
     token = parts[1]
 
-    if token != settings.pylon_metrics_token:
+    if not secrets.compare_digest(token, settings.metrics_token):
         logger.warning("Metrics endpoint accessed with invalid token")
         raise NotAuthorizedException(detail="Invalid authorization token")
 
 
-@get("/metrics", guards=[metrics_auth_guard])
-async def metrics_endpoint() -> Response:
+class AuthenticatedPrometheusController(PrometheusController):
     """
-    Prometheus metrics endpoint.
+    PrometheusController with Bearer token authentication.
+    """
 
-    Returns metrics in Prometheus text format.
-    Protected by metrics_auth_guard - requires Bearer token matching PYLON_METRICS_TOKEN.
-    """
-    return Response(
-        content=generate_latest(REGISTRY),
-        status_code=HTTP_200_OK,
-        media_type="text/plain; version=0.0.4; charset=utf-8",
-    )
+    guards = [metrics_auth_guard]

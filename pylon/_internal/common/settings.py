@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     open_access_token: str = ""
 
     # metrics
-    pylon_metrics_token: str = ""
+    metrics_token: str = ""
 
     # docker
     docker_image_name: str = "bittensor_pylon"

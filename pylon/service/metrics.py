@@ -1,216 +1,259 @@
-"""
-Prometheus metrics for Bittensor Pylon service.
-
-This module defines all domain-specific metrics for monitoring:
-- Bittensor blockchain operations
-- ApplyWeights background task
-- API business logic errors
-"""
+from __future__ import annotations
 
 import functools
 import inspect
 import logging
-from collections.abc import Callable, Coroutine, Generator
-from contextlib import contextmanager
-from contextvars import ContextVar
+from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from time import perf_counter
-from typing import TYPE_CHECKING, Any
+from typing import Any, TypeVar, cast
 
 from prometheus_client import Counter, Histogram
-
-from pylon._internal.common.types import Hotkey, NetUid, RevealRound, Weight
-
-if TYPE_CHECKING:
-    from pylon.service.bittensor.client import AbstractBittensorClient
 
 logger = logging.getLogger(__name__)
 
 
-bittensor_operations_total = Counter(
-    "pylon_bittensor_operations_total",
-    "Total number of Bittensor blockchain operations",
-    ["operation", "status", "client_type"],
-)
+F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
+
+
+class MetricsConfigurationError(Exception):
+    """Raised when metrics label configuration is invalid."""
+
+
+class MetricsContext:
+    """
+    Context for tracking metrics during operation execution.
+    """
+
+    def __init__(self, initial_labels: dict[str, str] | None = None):
+        self.labels = initial_labels.copy() if initial_labels else {}
+
+    def set_label(self, key: str, value: str) -> None:
+        """Set or update a label that will be included in metrics."""
+        self.labels[key] = value
+
+    def get_all_labels(self) -> dict[str, str]:
+        """Get all labels for metrics recording."""
+        return self.labels
+
 
 bittensor_operation_duration = Histogram(
     "pylon_bittensor_operation_duration_seconds",
-    "Duration of Bittensor blockchain operations in seconds",
-    ["operation", "client_type"],
-    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
-)
+    """Duration of Bittensor operations in seconds.
 
-bittensor_errors_total = Counter(
-    "pylon_bittensor_errors_total",
-    "Total number of errors in Bittensor operations",
-    ["operation", "exception", "client_type"],
+    Labels:
+        operation: Name of the operation (e.g., get_block, get_neurons, commit_weights).
+        status: Operation outcome.
+        uri: Bittensor network URI.
+        netuid: Subnet identifier.
+        hotkey: Wallet hotkey (ss58) performing the operation.
+    """,
+    ["operation", "status", "uri", "netuid", "hotkey"],
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
 )
 
 bittensor_fallback_total = Counter(
     "pylon_bittensor_fallback_total",
-    "Total number of archive client fallback events",
-    ["reason", "operation"],
+    """Total number of archive client fallback events.
+
+    Labels:
+        reason: Reason for fallback (e.g., "unknown_block", "old_block").
+        operation: Name of the operation that triggered fallback.
+        hotkey: Wallet hotkey (ss58) performing the operation.
+    """,
+    ["reason", "operation", "hotkey"],
 )
 
-apply_weights_duration = Histogram(
-    "pylon_apply_weights_duration_seconds",
-    "Duration of apply weights job execution in seconds",
-    ["mode", "status"],
-    buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0),
+# ApplyWeights metrics
+apply_weights_job_duration = Histogram(
+    "pylon_apply_weights_job_duration_seconds",
+    """Duration of entire ApplyWeights job execution (outer ``run_job`` wrapper).
+
+    Labels:
+        job_status: Outcome set via ``MetricsContext`` ("completed", "tempo_expired", "failed", ...).
+        netuid: Subnet identifier for multi-net deployments.
+        hotkey: Wallet hotkey (ss58) used by the client submitting weights.
+    """,
+    ["job_status", "netuid", "hotkey"],
+    buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1200.0),
 )
 
-apply_weights_jobs_total = Counter(
-    "pylon_apply_weights_jobs_total",
-    "Total number of apply weights jobs",
-    ["mode", "status"],
+apply_weights_attempt_duration = Histogram(
+    "pylon_apply_weights_attempt_duration_seconds",
+    """Duration of individual `_apply_weights` attempts.
+
+    Labels:
+        operation: Name of the inner coroutine (``_apply_weights``).
+        status: Outcome of the attempt ("success" / "error").
+        netuid: Subnet identifier.
+        hotkey: Wallet hotkey (ss58) used by the client submitting weights.
+    """,
+    ["operation", "status", "netuid", "hotkey"],
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0),
 )
 
 
-class TrackedBittensorClient:
+def track_operation(
+    duration_metric: Histogram,
+    operation_name: str | None = None,
+    labels: dict[str, str] | None = None,
+    *,
+    inject_context: str | None = None,
+):
     """
-    Proxy for AbstractBittensorClient that auto-tracks all operations.
-    """
+    Operation tracking decorator.
 
-    def __init__(self, client: "AbstractBittensorClient") -> None:
-        self._client = client
-        self._client_type: str = getattr(client, "_client_type", "unknown")
+    This decorator:
+    1. Extracts initial labels from method parameters/attributes
+    2. Creates a MetricsContext and optionally injects it as a parameter
+    3. Allows dynamic label setting during execution via the context
+    4. Records duration histogram with all labels when operation completes
 
-    def _record_operation_metrics(self, operation: str, duration: float, exception_name: str | None = None) -> None:
-        status = "error" if exception_name else "success"
-        bittensor_operations_total.labels(
-            operation=operation,
-            status=status,
-            client_type=self._client_type,
-        ).inc()
-        if exception_name:
-            bittensor_errors_total.labels(
-                operation=operation,
-                exception=exception_name,
-                client_type=self._client_type,
-            ).inc()
-        bittensor_operation_duration.labels(
-            operation=operation,
-            client_type=self._client_type,
-        ).observe(duration)
-
-    @contextmanager
-    def _operation_span(self, operation: str) -> Generator[None, None, None]:
-        start_time = perf_counter()
-        try:
-            yield
-        except Exception as exc:
-            self._record_operation_metrics(operation, perf_counter() - start_time, type(exc).__name__)
-            raise
-        self._record_operation_metrics(operation, perf_counter() - start_time)
-
-    async def _track_async_operation(
-        self, operation: str, method: Callable[..., Coroutine[Any, Any, Any]], *args: Any, **kwargs: Any
-    ) -> Any:
-        with self._operation_span(operation):
-            return await method(*args, **kwargs)
-
-    def _track_sync_operation(self, operation: str, method: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-        with self._operation_span(operation):
-            return method(*args, **kwargs)
-
-    async def commit_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> RevealRound:
-        _set_job_mode("commit")
-        return await self._track_async_operation("commit_weights", self._client.commit_weights, netuid, weights)
-
-    async def set_weights(self, netuid: NetUid, weights: dict[Hotkey, Weight]) -> None:
-        _set_job_mode("set")
-        return await self._track_async_operation("set_weights", self._client.set_weights, netuid, weights)
-
-    def __getattr__(self, name: str) -> Any:
-        """
-        Proxy all other methods transparently.
-
-        Async and sync callables are wrapped with tracking, other attributes pass through.
-        """
-        attr = getattr(self._client, name)
-
-        if inspect.iscoroutinefunction(attr):
-
-            async def tracked_wrapper(*args: Any, **kwargs: Any) -> Any:
-                return await self._track_async_operation(name, attr, *args, **kwargs)
-
-            return tracked_wrapper
-
-        if callable(attr):
-
-            def tracked_sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-                return self._track_sync_operation(name, attr, *args, **kwargs)
-
-            return tracked_sync_wrapper
-
-        return attr
-
-
-class _JobContext:
-    """Generic state holder for job metrics."""
-
-    def __init__(self, duration_metric: Histogram, counter_metric: Counter) -> None:
-        self.duration_metric: Histogram = duration_metric
-        self.counter_metric: Counter = counter_metric
-        self.mode: str = "unknown"
-        self.status: str = "success"
-        self._start_time: float = perf_counter()
-
-    def finalize(self) -> None:
-        duration = perf_counter() - self._start_time
-        self.duration_metric.labels(mode=self.mode, status=self.status).observe(duration)
-        self.counter_metric.labels(mode=self.mode, status=self.status).inc()
-
-
-_current_job: ContextVar[_JobContext | None] = ContextVar(
-    "current_job",
-    default=None,
-)
-
-
-def _set_job_mode(mode: str) -> None:
-    """Set the mode for the current job context (e.g., 'commit', 'set')."""
-    job = _current_job.get()
-    if job is not None:
-        job.mode = mode
-
-
-def _set_job_status(status: str) -> None:
-    """Set the status for the current job context (e.g., 'tempo_expired')."""
-    job = _current_job.get()
-    if job is not None:
-        job.status = status
-
-
-def track_job(
-    duration_metric: Histogram, counter_metric: Counter
-) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
-    """
-    Decorator factory that records job-level metrics.
+    The histogram automatically includes a "status" label ("success" or "error") to track
+    operation outcomes.
 
     Args:
-        duration_metric: Histogram metric for tracking job duration
-        counter_metric: Counter metric for tracking job counts
+        duration_metric: Prometheus Histogram for operation duration (must include "status" label)
+        operation_name: Custom operation name. If None, uses method name.
+        labels: Label extraction with EXPLICIT prefixes:
+            - "static:value" -> Static string "value"
+            - "param:name" -> Extract from method parameter "name"
+            - "attr:field" -> Extract from self.field attribute
+        inject_context: Parameter name to inject MetricsContext into. If None, no injection.
     """
 
-    def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
+    def decorator(func: F) -> F:
         @functools.wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            job = _JobContext(duration_metric, counter_metric)
-            token = _current_job.set(job)
+        async def wrapper(*args, **kwargs):
+            # We bind the original call to inspect parameters/attributes for label extraction.
+            sig = inspect.signature(func)
+            bound_args = sig.bind_partial(*args, **kwargs)
+            bound_args.apply_defaults()
 
-            try:
-                result = await func(*args, **kwargs)
-                return result
-            except TimeoutError:
-                job.status = "timeout"
-                raise
-            except Exception:
-                job.status = "error"
-                raise
-            finally:
-                _current_job.reset(token)
-                job.finalize()
+            self_obj = args[0] if args else None
+            op_name = operation_name or func.__name__
+            extracted_labels = _extract_labels(labels or {}, self_obj, bound_args.arguments)
 
-        return wrapper
+            context = MetricsContext(extracted_labels)
+
+            call_kwargs = dict(kwargs)
+            if inject_context:
+                if inject_context in call_kwargs:
+                    raise ValueError(f"Parameter '{inject_context}' already exists in function call")
+                call_kwargs[inject_context] = context
+
+            async with _track_operation_context(op_name, context, duration_metric):
+                return await func(*args, **call_kwargs)
+
+        return cast(F, wrapper)
 
     return decorator
+
+
+def _extract_labels(
+    label_config: dict[str, str], self_obj: object | None, method_params: dict[str, object]
+) -> dict[str, str]:
+    """Extract labels with strict validation, raising exceptions on misconfiguration.
+
+    Raises:
+        MetricsConfigurationError: When label configuration is invalid or references missing attributes/parameters.
+    """
+    extracted = {}
+
+    for label_name, source_spec in label_config.items():
+        if not isinstance(source_spec, str) or ":" not in source_spec:
+            raise MetricsConfigurationError(f"Label '{label_name}' must use explicit prefix format: 'type:value'")
+
+        prefix, source = source_spec.split(":", 1)
+
+        if prefix == "static":
+            # Static string value
+            value = source
+
+        elif prefix == "param":
+            # Extract from method parameter
+            if source not in method_params:
+                raise MetricsConfigurationError(
+                    f"Parameter '{source}' not found in method signature for label '{label_name}'"
+                )
+            value = method_params[source]
+
+        elif prefix == "attr":
+            # Extract from self attribute
+            if self_obj is None:
+                raise MetricsConfigurationError(
+                    f"Cannot extract attribute '{source}' for label '{label_name}' - no self object"
+                )
+            if not hasattr(self_obj, source):
+                raise MetricsConfigurationError(
+                    f"Attribute '{source}' not found on {type(self_obj).__name__} for label '{label_name}'"
+                )
+            value = getattr(self_obj, source)
+
+        else:
+            raise MetricsConfigurationError(
+                f"Unknown label prefix '{prefix}' for label '{label_name}'. Use: static, param, or attr"
+            )
+
+        extracted[label_name] = str(value) if value is not None else "unknown"
+
+    return extracted
+
+
+def _prepare_metric_labels(
+    metric: Histogram | Counter, context_labels: dict[str, str], required_labels: dict[str, str]
+) -> dict[str, str]:
+    """
+    Prepare labels for metric recording with validation and auto-filling missing labels.
+
+    Args:
+        metric: The Prometheus metric (Histogram or Counter)
+        context_labels: Labels from MetricsContext
+        required_labels: Labels that must be added (e.g., operation, status)
+
+    Returns:
+        Complete label dict ready for metric recording with missing labels set to "N/A"
+
+    Raises:
+        MetricsConfigurationError: If a configured label is not expected by the metric
+    """
+    expected_label_names = set(metric._labelnames)
+    all_labels = {**context_labels, **required_labels}
+
+    # Check for unexpected labels - this indicates misconfiguration
+    unexpected = set(all_labels.keys()) - expected_label_names
+    if unexpected:
+        raise MetricsConfigurationError(
+            f"Labels {unexpected} are not expected by metric '{metric._name}'. Expected: {expected_label_names}"
+        )
+
+    # Fill missing labels with N/A
+    result = {}
+    for label_name in expected_label_names:
+        result[label_name] = all_labels.get(label_name, "N/A")
+
+    return result
+
+
+@asynccontextmanager
+async def _track_operation_context(operation: str, context: MetricsContext, duration_metric: Histogram):
+    """Track operation duration with histogram using the provided metrics context.
+
+    Records duration with status label ("success" or "error"). Error count can be
+    derived from histogram bucket counts with status="error".
+    """
+    start_time = perf_counter()
+    status = "success"
+
+    try:
+        yield
+    except Exception:
+        status = "error"
+        raise
+    finally:
+        # Record duration histogram with status label
+        duration_labels = _prepare_metric_labels(
+            duration_metric, context.get_all_labels(), {"operation": operation, "status": status}
+        )
+        duration = perf_counter() - start_time
+        duration_metric.labels(**duration_labels).observe(duration)

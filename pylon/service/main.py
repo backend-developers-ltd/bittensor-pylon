@@ -6,7 +6,7 @@ from litestar.plugins.prometheus import PrometheusConfig
 from pylon._internal.common.settings import settings
 from pylon.service import dependencies
 from pylon.service.lifespans import bittensor_client
-from pylon.service.prometheus_controller import metrics_endpoint
+from pylon.service.prometheus_controller import AuthenticatedPrometheusController
 from pylon.service.routers import v1_router
 from pylon.service.schema import PylonSchemaPlugin
 from pylon.service.sentry_config import init_sentry
@@ -24,7 +24,7 @@ def create_app() -> Litestar:
     return Litestar(
         route_handlers=[
             v1_router,
-            metrics_endpoint,
+            AuthenticatedPrometheusController,
         ],
         openapi_config=OpenAPIConfig(
             title="Bittensor Pylon API",
