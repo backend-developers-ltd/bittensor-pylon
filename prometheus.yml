@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: pylon
+    metrics_path: /metrics
+    scheme: http
+    authorization:
+      type: Bearer
+      credentials: test-metrics-token
+    static_configs:
+      - targets:
+          - host.docker.internal:8000
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

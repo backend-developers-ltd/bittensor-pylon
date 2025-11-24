@@ -1,0 +1,3 @@
+# Jsonnet dependencies
+vendor/
+jsonnetfile.lock.json

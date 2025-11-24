@@ -1,0 +1,54 @@
+name: Deploy Grafana Dashboards
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'observability/grafana/**/*.jsonnet'
+      - 'observability/jsonnetfile.json'
+      - '.github/workflows/deploy-dashboards.yml'
+  workflow_dispatch:
+    inputs:
+      grafana_url:
+        description: 'Grafana URL'
+        required: false
+        default: 'http://localhost:3000'
+      prom_ds_uid:
+        description: 'Prometheus Datasource UID'
+        required: false
+        default: 'prom-local'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      GRAFANA_URL: ${{ inputs.grafana_url || secrets.GRAFANA_URL }}
+      PROM_DS_UID: ${{ inputs.prom_ds_uid || secrets.PROM_DS_UID }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install jsonnet and jsonnet-bundler
+        run: |
+          go install -a github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@latest
+          go install github.com/google/go-jsonnet/cmd/jsonnet@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Compile and deploy dashboards
+        run: ./scripts/deploy_dashboards.sh
+
+      - name: Upload compiled dashboards as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: grafana-dashboards
+          path: build/dashboards/*.json
+          retention-days: 30
