@@ -9,7 +9,7 @@ import logging
 import secrets
 
 from litestar.connection import ASGIConnection
-from litestar.exceptions import NotAuthorizedException, PermissionDeniedException
+from litestar.exceptions import PermissionDeniedException
 from litestar.handlers import BaseRouteHandler
 from litestar.plugins.prometheus.controller import PrometheusController
 
@@ -23,8 +23,7 @@ def metrics_auth_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
     Guard for /metrics endpoint - validates Bearer token.
 
     Raises:
-        PermissionDeniedException: If PYLON_METRICS_TOKEN is not configured
-        NotAuthorizedException: If Authorization header is missing or invalid
+        PermissionDeniedException: If metrics are disabled or credentials are missing/invalid.
     """
     if not settings.metrics_token:
         logger.warning("Metrics endpoint accessed but PYLON_METRICS_TOKEN is not configured")
@@ -33,18 +32,18 @@ def metrics_auth_guard(connection: ASGIConnection, _: BaseRouteHandler) -> None:
     auth_header = connection.headers.get("Authorization")
     if not auth_header:
         logger.warning("Metrics endpoint accessed without Authorization header")
-        raise NotAuthorizedException(detail="Authorization header is required")
+        raise PermissionDeniedException(detail="Authorization header is required")
 
     parts = auth_header.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
         logger.warning("Metrics endpoint accessed with invalid Authorization format")
-        raise NotAuthorizedException(detail="Invalid Authorization header format. Expected: Bearer <token>")
+        raise PermissionDeniedException(detail="Invalid Authorization header format. Expected: Bearer <token>")
 
     token = parts[1]
 
     if not secrets.compare_digest(token, settings.metrics_token):
         logger.warning("Metrics endpoint accessed with invalid token")
-        raise NotAuthorizedException(detail="Invalid authorization token")
+        raise PermissionDeniedException(detail="Invalid authorization token")
 
 
 class AuthenticatedPrometheusController(PrometheusController):

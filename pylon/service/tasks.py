@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from enum import StrEnum
 from typing import ClassVar, Self
 
 from pylon._internal.common.models import Block, CommitReveal
@@ -20,6 +21,12 @@ logger = logging.getLogger(__name__)
 class ApplyWeights:
     JOB_NAME: ClassVar[str] = "apply_weights"
     tasks_running = set()
+
+    class JobStatus(StrEnum):
+        RUNNING = "running"
+        TEMPO_EXPIRED = "tempo_expired"
+        COMPLETED = "completed"
+        FAILED = "failed"
 
     def __init__(self, client: AbstractBittensorClient):
         self._client: AbstractBittensorClient = client
@@ -53,8 +60,8 @@ class ApplyWeights:
         tempo = get_epoch_containing_block(start_block.number)
         initial_tempo = tempo
 
-        if job_metrics:
-            job_metrics.set_label("job_status", "running")
+        assert job_metrics is not None, "track_operation injects MetricsContext"
+        job_metrics.set_label("job_status", self.JobStatus.RUNNING)
 
         retry_count = settings.weights_retry_attempts
         next_sleep_seconds = settings.weights_retry_delay_seconds
@@ -63,8 +70,7 @@ class ApplyWeights:
         for retry_no in range(retry_count + 1):
             latest_block = await self._client.get_latest_block()
             if latest_block.number > initial_tempo.end:
-                if job_metrics:
-                    job_metrics.set_label("job_status", "tempo_expired")
+                job_metrics.set_label("job_status", self.JobStatus.TEMPO_EXPIRED)
                 logger.error(
                     f"Apply weights job task cancelled: tempo ended "
                     f"({latest_block.number} > {initial_tempo.end}, {start_block.number=})"
@@ -75,12 +81,10 @@ class ApplyWeights:
                 f"still got {initial_tempo.end - latest_block.number} blocks left to go."
             )
             try:
-                if job_metrics:
-                    job_metrics.set_label("attempt", str(retry_no))
+                job_metrics.set_label("attempt", str(retry_no))
 
                 await asyncio.wait_for(self._apply_weights(weights, latest_block), 120)
-                if job_metrics:
-                    job_metrics.set_label("job_status", "completed")
+                job_metrics.set_label("job_status", self.JobStatus.COMPLETED)
                 return
             except Exception as exc:
                 logger.error(
@@ -91,8 +95,7 @@ class ApplyWeights:
                     exc_info=True,
                 )
                 if retry_no == retry_count:
-                    if job_metrics:
-                        job_metrics.set_label("job_status", "failed")
+                    job_metrics.set_label("job_status", self.JobStatus.FAILED)
                     raise
                 logger.info(f"Sleeping for {next_sleep_seconds} seconds before retrying...")
                 await asyncio.sleep(next_sleep_seconds)

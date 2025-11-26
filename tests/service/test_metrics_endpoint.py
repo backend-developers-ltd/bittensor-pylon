@@ -15,16 +15,16 @@ class TestMetricsEndpoint:
         assert response.json()["detail"] == "Metrics endpoint is not configured"
 
     @pytest.mark.asyncio
-    async def test_metrics_without_authorization_header_returns_401(self, test_client: AsyncTestClient, monkeypatch):
+    async def test_metrics_without_authorization_header_returns_403(self, test_client: AsyncTestClient, monkeypatch):
         monkeypatch.setattr(settings, "metrics_token", "test-metrics-token")
 
         response = await test_client.get("/metrics")
 
-        assert response.status_code == 401
+        assert response.status_code == 403
         assert response.json()["detail"] == "Authorization header is required"
 
     @pytest.mark.asyncio
-    async def test_metrics_with_invalid_authorization_format_returns_401(
+    async def test_metrics_with_invalid_authorization_format_returns_403(
         self, test_client: AsyncTestClient, monkeypatch
     ):
         monkeypatch.setattr(settings, "metrics_token", "test-metrics-token")
@@ -41,15 +41,15 @@ class TestMetricsEndpoint:
         for auth_header in invalid_headers:
             response = await test_client.get("/metrics", headers={"Authorization": auth_header})
 
-            assert response.status_code == 401
+            assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_metrics_with_wrong_token_returns_401(self, test_client: AsyncTestClient, monkeypatch):
+    async def test_metrics_with_wrong_token_returns_403(self, test_client: AsyncTestClient, monkeypatch):
         monkeypatch.setattr(settings, "metrics_token", "correct-token")
 
         response = await test_client.get("/metrics", headers={"Authorization": "Bearer wrong-token"})
 
-        assert response.status_code == 401
+        assert response.status_code == 403
         assert response.json()["detail"] == "Invalid authorization token"
 
     @pytest.mark.asyncio

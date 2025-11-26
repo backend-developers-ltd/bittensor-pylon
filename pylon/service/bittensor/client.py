@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
+from enum import StrEnum
 from typing import Any, Generic, TypeVar
 
 from bittensor_wallet import Wallet
@@ -471,6 +472,11 @@ SubClient = TypeVar("SubClient", bound=AbstractBittensorClient)
 DelegateReturn = TypeVar("DelegateReturn")
 
 
+class FallbackReason(StrEnum):
+    STALE_BLOCK = "stale_block"
+    UNKNOWN_BLOCK = "unknown_block"
+
+
 class BittensorClient(Generic[SubClient], AbstractBittensorClient):
     """
     Bittensor client with archive node fallback support.
@@ -557,7 +563,7 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
             if latest_block.number - block.number > self._archive_blocks_cutoff:
                 logger.debug(f"Block is stale, falling back to the archive client: {self._archive_client.uri}")
                 bittensor_fallback_total.labels(
-                    reason="stale_block",
+                    reason=FallbackReason.STALE_BLOCK,
                     operation=operation_name,
                     hotkey=self._hotkey,
                 ).inc()
@@ -570,7 +576,7 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
                 f"Block unknown for the main client, falling back to the archive client: {self._archive_client.uri}"
             )
             bittensor_fallback_total.labels(
-                reason="unknown_block",
+                reason=FallbackReason.UNKNOWN_BLOCK,
                 operation=operation_name,
                 hotkey=self._hotkey,
             ).inc()

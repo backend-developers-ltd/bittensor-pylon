@@ -9,11 +9,17 @@ from time import perf_counter
 from typing import Any, TypeVar, cast
 
 from prometheus_client import Counter, Histogram
+from prometheus_client.metrics import MetricWrapperBase
 
 logger = logging.getLogger(__name__)
 
 
-F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
+class UseMethodNameType:
+    """Sentinel type indicating the decorator should use the function name."""
+
+
+AsyncCallableT = TypeVar("AsyncCallableT", bound=Callable[..., Awaitable[Any]])
+USE_METHOD_NAME = UseMethodNameType()
 
 
 class MetricsConfigurationError(Exception):
@@ -57,7 +63,7 @@ bittensor_fallback_total = Counter(
     """Total number of archive client fallback events.
 
     Labels:
-        reason: Reason for fallback (e.g., "unknown_block", "old_block").
+        reason: Reason for fallback (e.g., "unknown_block", "stale_block").
         operation: Name of the operation that triggered fallback.
         hotkey: Wallet hotkey (ss58) performing the operation.
     """,
@@ -95,7 +101,7 @@ apply_weights_attempt_duration = Histogram(
 
 def track_operation(
     duration_metric: Histogram,
-    operation_name: str | None = None,
+    operation_name: str | UseMethodNameType = USE_METHOD_NAME,
     labels: dict[str, str] | None = None,
     *,
     inject_context: str | None = None,
@@ -114,15 +120,16 @@ def track_operation(
 
     Args:
         duration_metric: Prometheus Histogram for operation duration (must include "status" label)
-        operation_name: Custom operation name. If None, uses method name.
-        labels: Label extraction with EXPLICIT prefixes:
+        operation_name: Custom operation name. If not provided, uses method name.
+        labels: Label extraction with EXPLICIT prefixes. Extraction happens at the time of the call,
+            not at the time of metric reporting.
             - "static:value" -> Static string "value"
             - "param:name" -> Extract from method parameter "name"
             - "attr:field" -> Extract from self.field attribute
         inject_context: Parameter name to inject MetricsContext into. If None, no injection.
     """
 
-    def decorator(func: F) -> F:
+    def decorator(func: AsyncCallableT) -> AsyncCallableT:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # We bind the original call to inspect parameters/attributes for label extraction.
@@ -131,7 +138,7 @@ def track_operation(
             bound_args.apply_defaults()
 
             self_obj = args[0] if args else None
-            op_name = operation_name or func.__name__
+            op_name = func.__name__ if isinstance(operation_name, UseMethodNameType) else operation_name
             extracted_labels = _extract_labels(labels or {}, self_obj, bound_args.arguments)
 
             context = MetricsContext(extracted_labels)
@@ -145,7 +152,7 @@ def track_operation(
             async with _track_operation_context(op_name, context, duration_metric):
                 return await func(*args, **call_kwargs)
 
-        return cast(F, wrapper)
+        return cast(AsyncCallableT, wrapper)
 
     return decorator
 
@@ -166,34 +173,32 @@ def _extract_labels(
 
         prefix, source = source_spec.split(":", 1)
 
-        if prefix == "static":
-            # Static string value
-            value = source
-
-        elif prefix == "param":
-            # Extract from method parameter
-            if source not in method_params:
+        match prefix:
+            case "static":
+                # Static string value
+                value = source
+            case "param":
+                # Extract from method parameter
+                if source not in method_params:
+                    raise MetricsConfigurationError(
+                        f"Parameter '{source}' not found in method signature for label '{label_name}'"
+                    )
+                value = method_params[source]
+            case "attr":
+                # Extract from self attribute
+                if self_obj is None:
+                    raise MetricsConfigurationError(
+                        f"Cannot extract attribute '{source}' for label '{label_name}' - no self object"
+                    )
+                if not hasattr(self_obj, source):
+                    raise MetricsConfigurationError(
+                        f"Attribute '{source}' not found on {type(self_obj).__name__} for label '{label_name}'"
+                    )
+                value = getattr(self_obj, source)
+            case _:
                 raise MetricsConfigurationError(
-                    f"Parameter '{source}' not found in method signature for label '{label_name}'"
+                    f"Unknown label prefix '{prefix}' for label '{label_name}'. Use: static, param, or attr"
                 )
-            value = method_params[source]
-
-        elif prefix == "attr":
-            # Extract from self attribute
-            if self_obj is None:
-                raise MetricsConfigurationError(
-                    f"Cannot extract attribute '{source}' for label '{label_name}' - no self object"
-                )
-            if not hasattr(self_obj, source):
-                raise MetricsConfigurationError(
-                    f"Attribute '{source}' not found on {type(self_obj).__name__} for label '{label_name}'"
-                )
-            value = getattr(self_obj, source)
-
-        else:
-            raise MetricsConfigurationError(
-                f"Unknown label prefix '{prefix}' for label '{label_name}'. Use: static, param, or attr"
-            )
 
         extracted[label_name] = str(value) if value is not None else "unknown"
 
@@ -201,7 +206,7 @@ def _extract_labels(
 
 
 def _prepare_metric_labels(
-    metric: Histogram | Counter, context_labels: dict[str, str], required_labels: dict[str, str]
+    metric: MetricWrapperBase, context_labels: dict[str, str], required_labels: dict[str, str]
 ) -> dict[str, str]:
     """
     Prepare labels for metric recording with validation and auto-filling missing labels.
