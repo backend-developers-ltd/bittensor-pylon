@@ -7,6 +7,7 @@ from pylon._internal.common.endpoints import Endpoint
 from pylon._internal.common.models import Hotkey, SubnetNeurons
 from pylon._internal.common.requests import (
     GenerateCertificateKeypairRequest,
+    SetCommitmentRequest,
     SetWeightsRequest,
 )
 from pylon._internal.common.settings import settings
@@ -109,3 +110,44 @@ async def generate_certificate_keypair_endpoint(
         )
 
     return Response(certificate_keypair, status_code=status_codes.HTTP_201_CREATED)
+
+
+@get(Endpoint.COMMITMENTS)
+async def get_commitments_endpoint(bt_client: AbstractBittensorClient) -> Response:
+    """
+    Get all commitments for the subnet.
+    """
+    block = await bt_client.get_latest_block()
+    commitments = await bt_client.get_commitments(settings.bittensor_netuid, block)
+    # Convert bytes to hex strings for JSON serialization
+    serialized = {hotkey: data.hex() for hotkey, data in commitments.items()}
+    return Response({"commitments": serialized}, status_code=status_codes.HTTP_200_OK)
+
+
+@get(Endpoint.COMMITMENTS_HOTKEY)
+async def get_commitment_endpoint(hotkey: Hotkey, bt_client: AbstractBittensorClient) -> Response:
+    """
+    Get a specific commitment for a hotkey.
+    """
+    block = await bt_client.get_latest_block()
+    commitment = await bt_client.get_commitment(settings.bittensor_netuid, block, hotkey=hotkey)
+    if commitment is None:
+        return Response(
+            {"detail": "Commitment not found."}, status_code=status_codes.HTTP_404_NOT_FOUND
+        )
+    # Convert bytes to hex string for JSON serialization
+    return Response({"hotkey": hotkey, "data": commitment.hex()}, status_code=status_codes.HTTP_200_OK)
+
+
+@post(Endpoint.COMMITMENTS)
+async def set_commitment_endpoint(
+    bt_client: AbstractBittensorClient, data: SetCommitmentRequest
+) -> Response:
+    """
+    Set a commitment (model metadata) on chain for the wallet's hotkey.
+    """
+    await bt_client.set_commitment(settings.bittensor_netuid, data.data)
+    return Response(
+        {"detail": "Commitment set successfully."},
+        status_code=status_codes.HTTP_201_CREATED,
+    )

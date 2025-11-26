@@ -11,6 +11,8 @@ class Endpoint(StrEnum):
     NEURONS = "/neurons/{block_number:int}"
     LATEST_NEURONS = "/neurons/latest"
     SUBNET_WEIGHTS = "/subnet/weights"
+    COMMITMENTS = "/commitments"
+    COMMITMENTS_HOTKEY = "/commitments/{hotkey:str}"
 
     def format(self, *args, **kwargs) -> str:
         normalized = re.sub(r":.+?}", "}", self)
