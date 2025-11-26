@@ -44,6 +44,7 @@ from pylon._internal.common.types import (
     BlockHash,
     BlockNumber,
     Coldkey,
+    CommitmentData,
     Consensus,
     Dividends,
     Emission,
@@ -166,6 +167,28 @@ class AbstractBittensorClient(ABC):
     async def get_neurons(self, netuid: NetUid, block: Block) -> SubnetNeurons:
         """
         Fetches metagraph for a subnet at the given block.
+        """
+
+    @abstractmethod
+    async def get_commitment(
+        self, netuid: NetUid, block: Block, hotkey: Hotkey
+    ) -> CommitmentData | None:
+        """
+        Fetches commitment data for a hotkey in a subnet.
+        """
+
+    @abstractmethod
+    async def get_commitments(
+        self, netuid: NetUid, block: Block
+    ) -> dict[Hotkey, CommitmentData]:
+        """
+        Fetches all commitments for a subnet.
+        """
+
+    @abstractmethod
+    async def set_commitment(self, netuid: NetUid, data: CommitmentData) -> None:
+        """
+        Sets commitment data on chain for the wallet's hotkey.
         """
 
 
@@ -373,6 +396,37 @@ class TurboBtClient(AbstractBittensorClient):
         logger.debug(f"Setting weights on subnet {netuid} at {self.uri}")
         await self._raw_client.subnet(netuid).weights.set(await self._translate_weights(netuid, weights))
 
+    async def get_commitment(
+        self, netuid: NetUid, block: Block, hotkey: Hotkey
+    ) -> CommitmentData | None:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
+        logger.debug(f"Fetching commitment for {hotkey} from subnet {netuid} at block {block.number}, {self.uri}")
+        commitment = await self._raw_client.subnet(netuid).commitments.get(hotkey, block_hash=block.hash)
+        if commitment is None:
+            return None
+        return CommitmentData(commitment)
+
+    async def get_commitments(
+        self, netuid: NetUid, block: Block
+    ) -> dict[Hotkey, CommitmentData]:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
+        logger.debug(f"Fetching all commitments from subnet {netuid} at block {block.number}, {self.uri}")
+        commitments = await self._raw_client.subnet(netuid).commitments.fetch(block_hash=block.hash)
+        if not commitments:
+            return {}
+        return {Hotkey(hotkey): CommitmentData(data) for hotkey, data in commitments.items()}
+
+    async def set_commitment(self, netuid: NetUid, data: CommitmentData) -> None:
+        assert self._raw_client is not None, (
+            "The client is not open, please use the client as a context manager or call the open() method."
+        )
+        logger.debug(f"Setting commitment on subnet {netuid} at {self.uri}")
+        await self._raw_client.subnet(netuid).commitments.set(data)
+
 
 SubClient = TypeVar("SubClient", bound=AbstractBittensorClient)
 DelegateReturn = TypeVar("DelegateReturn")
@@ -445,6 +499,19 @@ class BittensorClient(Generic[SubClient], AbstractBittensorClient):
 
     async def get_subnet_state(self, netuid: NetUid, block: Block) -> SubnetState:
         return await self._delegate(self.subclient_cls.get_subnet_state, netuid=netuid, block=block)
+
+    async def get_commitment(
+        self, netuid: NetUid, block: Block, hotkey: Hotkey
+    ) -> CommitmentData | None:
+        return await self._delegate(self.subclient_cls.get_commitment, netuid=netuid, block=block, hotkey=hotkey)
+
+    async def get_commitments(
+        self, netuid: NetUid, block: Block
+    ) -> dict[Hotkey, CommitmentData]:
+        return await self._delegate(self.subclient_cls.get_commitments, netuid=netuid, block=block)
+
+    async def set_commitment(self, netuid: NetUid, data: CommitmentData) -> None:
+        return await self._delegate(self.subclient_cls.set_commitment, netuid=netuid, data=data)
 
     async def _delegate(
         self, operation: Callable[..., Awaitable[DelegateReturn]], *args, block: Block | None = None, **kwargs

@@ -24,7 +24,7 @@ from pylon._internal.common.models import (
     SubnetNeurons,
     SubnetState,
 )
-from pylon._internal.common.types import BittensorNetwork, BlockNumber, Hotkey, NetUid, RevealRound, Weight
+from pylon._internal.common.types import BittensorNetwork, BlockNumber, CommitmentData, Hotkey, NetUid, RevealRound, Weight
 from pylon.service.bittensor.client import AbstractBittensorClient
 
 Behavior: TypeAlias = Callable | Exception | Any
@@ -220,6 +220,31 @@ class MockBittensorClient(AbstractBittensorClient):
         """
         self.calls["get_subnet_state"].append((netuid, block))
         return await self._execute_behavior("get_subnet_state", netuid, block)
+
+    async def get_commitment(
+        self, netuid: NetUid, block: Block, hotkey: Hotkey
+    ) -> CommitmentData | None:
+        """
+        Get commitment data for a specific hotkey.
+        """
+        self.calls["get_commitment"].append((netuid, block, hotkey))
+        return await self._execute_behavior("get_commitment", netuid, block, hotkey)
+
+    async def get_commitments(
+        self, netuid: NetUid, block: Block
+    ) -> dict[Hotkey, CommitmentData]:
+        """
+        Get all commitments for a subnet.
+        """
+        self.calls["get_commitments"].append((netuid, block))
+        return await self._execute_behavior("get_commitments", netuid, block)
+
+    async def set_commitment(self, netuid: NetUid, data: CommitmentData) -> None:
+        """
+        Set commitment data on chain.
+        """
+        self.calls["set_commitment"].append((netuid, data))
+        return await self._execute_behavior("set_commitment", netuid, data)
 
     async def reset_call_tracking(self) -> None:
         """
