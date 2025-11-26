@@ -88,6 +88,7 @@ async def test_generate_certificate_keypair_identity_failure(
         assert response.status_code == HTTP_502_BAD_GATEWAY
         assert response.json() == {
             "detail": "Could not generate certificate pair.",
+            "status_code": HTTP_502_BAD_GATEWAY,
         }
 
 
@@ -111,7 +112,7 @@ async def test_generate_certificate_keypair_identity_invalid_algorithm(test_clie
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json() == {
-        "status_code": 400,
+        "status_code": HTTP_400_BAD_REQUEST,
         "detail": "Validation failed for POST /api/v1/subnet/1/identity/sn1/certificates/self",
         "extra": [
             {

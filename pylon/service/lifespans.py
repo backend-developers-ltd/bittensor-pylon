@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def bittensor_client_pool(app: Litestar) -> AsyncGenerator[None, None]:
     """
-    Lifespan for litestar app that creates an instance of BittensorClientPool so that endpoints may reuse connections.
+    Lifespan for litestar app that creates an instance of BittensorClientPool so that endpoints may reuse
+    client instances.
     """
     logger.debug("Initializing bittensor client pool.")
     async with BittensorClientPool(

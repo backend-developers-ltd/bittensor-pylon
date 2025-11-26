@@ -55,4 +55,5 @@ async def test_get_own_certificate_identity_not_found(
         assert response.status_code == HTTP_404_NOT_FOUND
         assert response.json() == {
             "detail": "Certificate not found or error fetching.",
+            "status_code": HTTP_404_NOT_FOUND,
         }

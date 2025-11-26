@@ -18,7 +18,7 @@ async def test_get_certificate_open_access_success(
     """
     Test getting a specific certificate successfully.
     """
-    hotkey = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+    hotkey = "hotkey1"
     certificate = NeuronCertificate(
         algorithm=CertificateAlgorithm.ED25519,
         public_key=PublicKey("0x1234567890abcdef"),
@@ -45,7 +45,7 @@ async def test_get_certificate_open_access_not_found(
     """
     Test getting a certificate that doesn't exist.
     """
-    hotkey = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+    hotkey = "hotkey1"
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
     async with open_access_mock_bt_client.mock_behavior(
@@ -57,4 +57,5 @@ async def test_get_certificate_open_access_not_found(
         assert response.status_code == HTTP_404_NOT_FOUND
         assert response.json() == {
             "detail": "Certificate not found or error fetching.",
+            "status_code": HTTP_404_NOT_FOUND,
         }

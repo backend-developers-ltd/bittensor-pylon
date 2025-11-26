@@ -48,10 +48,10 @@ def neurons_json():
     return {
         "block": {"number": 1000, "hash": "0xabc123"},
         "neurons": {
-            "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": {
+            "hotkey1": {
                 "uid": 0,
-                "coldkey": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuyUpnhM",
-                "hotkey": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+                "coldkey": "coldkey1",
+                "hotkey": "hotkey1",
                 "active": True,
                 "axon_info": {"ip": "192.168.1.1", "port": 8091, "protocol": 4},
                 "stake": 100.5,
@@ -67,10 +67,10 @@ def neurons_json():
                 "pruning_score": 1000,
                 "stakes": {"alpha": 75.0, "tao": 45.0, "total": 83.1},
             },
-            "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": {
+            "hotkey2": {
                 "uid": 1,
-                "coldkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-                "hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+                "coldkey": "coldkey2",
+                "hotkey": "hotkey2",
                 "active": True,
                 "axon_info": {"ip": "192.168.1.2", "port": 8092, "protocol": 0},
                 "stake": 200.75,

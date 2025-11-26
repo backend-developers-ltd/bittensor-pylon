@@ -13,6 +13,7 @@ from pylon._internal.common.requests import (
 from pylon._internal.common.types import BlockNumber, NetUid
 from pylon.service.bittensor.client import AbstractBittensorClient
 from pylon.service.dependencies import bt_client_identity_dep, bt_client_open_access_dep, identity_dep
+from pylon.service.exceptions import BadGatewayException
 from pylon.service.tasks import ApplyWeights
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,8 @@ class OpenAccessController(Controller):
         Raises:
             NotFoundException: If block does not exist in subtensor.
         """
-        # TODO: TurboBT struggles with fetching old blocks, for tb try to ask for block 4671121
+        # TurboBT struggles with fetching old blocks (like block 4671121), it is so because of broken backwards
+        # compatibility in bittensor, so we are not going to fix it.
         block = await bt_client.get_block(block_number)
         if block is None:
             raise NotFoundException(detail=f"Block {block_number} not found.")
@@ -59,13 +61,14 @@ class OpenAccessController(Controller):
     ) -> Response:
         """
         Get a specific certificate for a hotkey.
+
+        Raises:
+            NotFoundException: If certificate could not be found in the blockchain.
         """
         block = await bt_client.get_latest_block()
         certificate = await bt_client.get_certificate(netuid, block, hotkey=hotkey)
         if certificate is None:
-            return Response(
-                {"detail": "Certificate not found or error fetching."}, status_code=status_codes.HTTP_404_NOT_FOUND
-            )
+            raise NotFoundException(detail="Certificate not found or error fetching.")
 
         return Response(certificate, status_code=status_codes.HTTP_200_OK)
 
@@ -95,13 +98,14 @@ class IdentityController(OpenAccessController):
     async def get_own_certificate_endpoint(self, bt_client: AbstractBittensorClient, netuid: NetUid) -> Response:
         """
         Get a certificate for the identity's wallet.
+
+        Raises:
+            NotFoundException: If certificate could not be found in the blockchain.
         """
         block = await bt_client.get_latest_block()
         certificate = await bt_client.get_certificate(netuid, block)
         if certificate is None:
-            return Response(
-                {"detail": "Certificate not found or error fetching."}, status_code=status_codes.HTTP_404_NOT_FOUND
-            )
+            raise NotFoundException(detail="Certificate not found or error fetching.")
 
         return Response(certificate, status_code=status_codes.HTTP_200_OK)
 
@@ -111,11 +115,12 @@ class IdentityController(OpenAccessController):
     ) -> Response:
         """
         Generate a certificate keypair for the app's wallet.
+
+        Raises:
+            BadGatewayException: When certificate keypair could not be generated.
         """
         certificate_keypair = await bt_client.generate_certificate_keypair(netuid, data.algorithm)
         if certificate_keypair is None:
-            return Response(
-                {"detail": "Could not generate certificate pair."}, status_code=status_codes.HTTP_502_BAD_GATEWAY
-            )
+            raise BadGatewayException(detail="Could not generate certificate pair.")
 
         return Response(certificate_keypair, status_code=status_codes.HTTP_201_CREATED)
