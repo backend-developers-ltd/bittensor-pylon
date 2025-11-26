@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     identities: list[IdentityName] = Field(default_factory=list)
     open_access_token: str = ""
 
+    # metrics
+    metrics_token: str = ""
+
     # docker
     docker_image_name: str = "bittensor_pylon"
 
