@@ -17,21 +17,21 @@ from tests.mock_bittensor_client import MockBittensorClient
     [
         pytest.param(
             {
-                "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": NeuronCertificate(
+                "hotkey1": NeuronCertificate(
                     algorithm=CertificateAlgorithm.ED25519,
                     public_key=PublicKey("0x1234567890abcdef"),
                 ),
-                "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": NeuronCertificate(
+                "hothey2": NeuronCertificate(
                     algorithm=CertificateAlgorithm.ED25519,
                     public_key=PublicKey("0xfedcba0987654321"),
                 ),
             },
             {
-                "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": {
+                "hotkey1": {
                     "algorithm": 1,
                     "public_key": "0x1234567890abcdef",
                 },
-                "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": {
+                "hothey2": {
                     "algorithm": 1,
                     "public_key": "0xfedcba0987654321",
                 },

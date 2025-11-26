@@ -19,9 +19,9 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, s
     Test setting weights when commit-reveal is enabled.
     """
     weights = {
-        "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": 0.5,
-        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": 0.3,
-        "5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL": 0.2,
+        "hotkey1": 0.5,
+        "hotkey2": 0.3,
+        "hotkey3": 0.2,
     }
 
     # Set up behaviors that will persist for the background task
@@ -62,8 +62,8 @@ async def test_put_weights_commit_reveal_disabled(
     Test setting weights when commit-reveal is disabled.
     """
     weights = {
-        "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": 0.7,
-        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY": 0.3,
+        "hotkey1": 0.7,
+        "hotkey2": 0.3,
     }
 
     # Set up behaviors that will persist for the background task
@@ -110,11 +110,11 @@ async def test_put_weights_commit_reveal_disabled(
             id="empty_weights",
         ),
         pytest.param(
-            {"weights": {"5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty": "invalid"}},
+            {"weights": {"hotkey1": "invalid"}},
             [
                 {
                     "message": "Input should be a valid number, unable to parse string as a number",
-                    "key": "weights.5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",
+                    "key": "weights.hotkey1",
                 }
             ],
             id="invalid_weight_value",

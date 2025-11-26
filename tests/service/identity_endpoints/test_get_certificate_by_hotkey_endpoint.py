@@ -16,7 +16,7 @@ async def test_get_certificate_identity_success(test_client: AsyncTestClient, sn
     """
     Test getting a specific certificate successfully.
     """
-    hotkey = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+    hotkey = "hotkey1"
     certificate = NeuronCertificate(
         algorithm=CertificateAlgorithm.ED25519,
         public_key=PublicKey("0x1234567890abcdef"),
@@ -43,7 +43,7 @@ async def test_get_certificate_identity_not_found(
     """
     Test getting a certificate that doesn't exist.
     """
-    hotkey = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+    hotkey = "hotkey2"
     latest_block = Block(number=BlockNumber(1000), hash=BlockHash("0xabc123"))
 
     async with sn2_mock_bt_client.mock_behavior(
