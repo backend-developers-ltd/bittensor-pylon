@@ -237,10 +237,33 @@ async def test_bittensor_client_pool_stress(barrier_factory):
         uri="ws://localhost:8000",
         archive_uri="ws://localhost:8001",
     )
-    pool._acquire_lock = TracingLock(return_control=True)
     await pool.open()
     tasks = [asyncio.create_task(acquire_client(pool, None, barrier)) for _ in range(10000)]
     async with asyncio.timeout(2):
         clients = await asyncio.gather(*tasks)
     await pool.close()
     assert set(clients) == {clients[0]}
+
+
+@pytest.mark.asyncio
+async def test_bittensor_client_pool_close_timeout(barrier_factory):
+    """
+    Test that the pool will close after timeout.
+    """
+    barrier = await barrier_factory(2)
+    pool = BittensorClientPool(
+        pool_closing_timeout=0.1,
+        uri="ws://localhost:8000",
+        archive_uri="ws://localhost:8001",
+    )
+    await pool.open()
+    task = asyncio.create_task(acquire_client(pool, None, barrier))
+    await wait_until(lambda: pool._acquire_counter == 1)
+    await pool.close()
+    async with asyncio.timeout(2):
+        await barrier.wait()
+    await task
+    # Check if the client is closed.
+    client = task.result()
+    assert client._main_client._raw_client is None
+    assert client._archive_client._raw_client is None

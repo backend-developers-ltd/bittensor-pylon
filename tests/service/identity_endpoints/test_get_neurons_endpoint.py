@@ -2,7 +2,6 @@
 Tests for the GET /subnet/{netuid}/identity/{identity_name}/neurons/{block_number} endpoint.
 """
 
-
 import pytest
 from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND
 from litestar.testing import AsyncTestClient

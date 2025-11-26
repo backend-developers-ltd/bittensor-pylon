@@ -2,7 +2,6 @@
 Tests for the GET /subnet/{netuid}/identity/{identity_name}/neurons/latest endpoint.
 """
 
-
 import pytest
 from litestar.status_codes import HTTP_200_OK
 from litestar.testing import AsyncTestClient

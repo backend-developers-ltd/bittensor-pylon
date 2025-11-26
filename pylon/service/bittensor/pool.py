@@ -59,11 +59,14 @@ class BittensorClientPool(Generic[BTClient]):
         CLOSING = "closing"
         CLOSED = "closed"
 
-    def __init__(self, client_cls: type[BTClient] = BittensorClient, **client_kwargs) -> None:
+    def __init__(
+        self, client_cls: type[BTClient] = BittensorClient, pool_closing_timeout: float = 60, **client_kwargs
+    ) -> None:
         if "wallet" in client_kwargs:
             raise ValueError("Wallet may not be given as a client kwarg in the client pool.")
         self.state = self.State.CLOSED
         self.client_cls = client_cls
+        self.closing_timeout = pool_closing_timeout
         self._pool: dict[WalletKey | None, BTClient] = {}
         self._close_condition = asyncio.Condition()
         self._acquire_lock = asyncio.Lock()
@@ -87,12 +90,20 @@ class BittensorClientPool(Generic[BTClient]):
         logger.info(f"Closing sequence initialized for {self.client_cls.__name__} client pool.")
         self.state = self.State.CLOSING
         logger.info(
-            f"Entered the closing state. Waiting until all ({self._acquire_counter}) clients "
-            "are returned to the pool..."
+            f"Entered the closing state. Waiting {self.closing_timeout} seconds until all "
+            f"({self._acquire_counter}) clients are returned to the pool..."
         )
-        async with self._close_condition:
-            await self._close_condition.wait_for(self.can_close)
-        logger.info("Closing all the clients...")
+        try:
+            async with asyncio.timeout(self.closing_timeout):
+                async with self._close_condition:
+                    await self._close_condition.wait_for(self.can_close)
+        except TimeoutError:
+            logger.exception(
+                "Timeout while waiting for clients to be returned to the pool. "
+                "Closing all the clients now, tasks using the clients may break..."
+            )
+        else:
+            logger.info("Closing all the clients...")
         await asyncio.gather(*(client.close() for client in self._pool.values()), return_exceptions=True)
         self._pool.clear()
         self.state = self.State.CLOSED
