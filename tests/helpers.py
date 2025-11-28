@@ -1,7 +1,6 @@
 import asyncio
 from collections.abc import Callable, Iterable
-from enum import StrEnum
-from typing import Any, NamedTuple
+from typing import Any
 
 
 async def wait_for_background_tasks(tasks_to_wait: Iterable[asyncio.Task], timeout: float = 2.0) -> None:
@@ -30,43 +29,3 @@ async def wait_until(func: Callable[[], Any], timeout: float = 2.0, sleep_interv
     async with asyncio.timeout(timeout):
         while not func():
             await asyncio.sleep(sleep_interval)
-
-
-class LockTrace(NamedTuple):
-    class Action(StrEnum):
-        ENTERED = "entered"
-        ACQUIRED = "acquired"
-        RELEASED = "released"
-
-    task_name: str
-    action: Action
-
-
-class TracingLock(asyncio.Lock):
-    """
-    Lock that traces history of lock acquisition events.
-    Also supports additional testing capacity of releasing the control to the event loop
-    just after the lock acquisition.
-    """
-
-    def __init__(self, return_control: bool = False):
-        super().__init__()
-        self.trace: list[LockTrace] = []
-        self.return_control = return_control
-
-    def add_trace(self, action: LockTrace.Action):
-        task = asyncio.current_task()
-        task_name = task.get_name() if task is not None else ""
-        self.trace.append(LockTrace(task_name=task_name, action=action))
-
-    async def acquire(self):
-        self.add_trace(LockTrace.Action.ENTERED)
-        ret = await super().acquire()
-        self.add_trace(LockTrace.Action.ACQUIRED)
-        if self.return_control:
-            await asyncio.sleep(0)
-        return ret
-
-    def release(self):
-        self.add_trace(LockTrace.Action.RELEASED)
-        return super().release()

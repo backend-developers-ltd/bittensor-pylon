@@ -35,7 +35,7 @@ async def test_put_weights_commit_reveal_enabled(test_client: AsyncTestClient, s
         commit_weights=[RevealRound(1005)],
     ):
         response = await test_client.put(
-            "/api/v1/subnet/1/identity/sn1/weights",
+            "/api/v1/identity/sn1/subnet/1/weights",
             json={"weights": weights},
         )
 
@@ -76,7 +76,7 @@ async def test_put_weights_commit_reveal_disabled(
         set_weights=[None],
     ):
         response = await test_client.put(
-            "/api/v1/subnet/2/identity/sn2/weights",
+            "/api/v1/identity/sn2/subnet/2/weights",
             json={"weights": weights},
         )
 
@@ -131,13 +131,13 @@ async def test_put_weights_validation_errors(test_client: AsyncTestClient, json_
     Test that invalid weight data fails validation.
     """
     response = await test_client.put(
-        "/api/v1/subnet/1/identity/sn1/weights",
+        "/api/v1/identity/sn1/subnet/1/weights",
         json=json_data,
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.content
     assert response.json() == {
         "status_code": 400,
-        "detail": "Validation failed for PUT /api/v1/subnet/1/identity/sn1/weights",
+        "detail": "Validation failed for PUT /api/v1/identity/sn1/subnet/1/weights",
         "extra": expected_extra,
     }

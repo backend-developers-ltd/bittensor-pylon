@@ -1,5 +1,5 @@
 """
-Tests for the GET /subnet/{netuid}/identity/{identity_name}/certificates endpoint.
+Tests for the GET /identity/{identity_name}/subnet/{netuid}/certificates endpoint.
 """
 
 import pytest
@@ -59,7 +59,7 @@ async def test_get_certificates_identity(
         get_latest_block=[latest_block],
         get_certificates=[certificates_input],
     ):
-        response = await test_client.get("/api/v1/subnet/1/identity/sn1/certificates")
+        response = await test_client.get("/api/v1/identity/sn1/subnet/1/certificates")
 
         assert response.status_code == HTTP_200_OK
         assert response.json() == expected_response

@@ -1,5 +1,5 @@
 """
-Tests for the POST /subnet/{netuid}/identity/{identity_name}/certificates/self endpoint.
+Tests for the POST /identity/{identity_name}/subnet/{netuid}/certificates/self endpoint.
 """
 
 import pytest
@@ -32,7 +32,7 @@ async def test_generate_certificate_keypair_identity_success(
         generate_certificate_keypair=[keypair],
     ):
         response = await test_client.post(
-            "/api/v1/subnet/1/identity/sn1/certificates/self",
+            "/api/v1/identity/sn1/subnet/1/certificates/self",
             json={"algorithm": 1},
         )
 
@@ -61,7 +61,7 @@ async def test_generate_certificate_keypair_identity_default_algorithm(
         generate_certificate_keypair=[keypair],
     ):
         response = await test_client.post(
-            "/api/v1/subnet/2/identity/sn2/certificates/self",
+            "/api/v1/identity/sn2/subnet/2/certificates/self",
             json={},
         )
 
@@ -81,7 +81,7 @@ async def test_generate_certificate_keypair_identity_failure(
         generate_certificate_keypair=[None],
     ):
         response = await test_client.post(
-            "/api/v1/subnet/1/identity/sn1/certificates/self",
+            "/api/v1/identity/sn1/subnet/1/certificates/self",
             json={"algorithm": 1},
         )
 
@@ -106,14 +106,14 @@ async def test_generate_certificate_keypair_identity_invalid_algorithm(test_clie
     Test generating a certificate keypair with invalid algorithm.
     """
     response = await test_client.post(
-        "/api/v1/subnet/1/identity/sn1/certificates/self",
+        "/api/v1/identity/sn1/subnet/1/certificates/self",
         json={"algorithm": algorithm},
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json() == {
         "status_code": HTTP_400_BAD_REQUEST,
-        "detail": "Validation failed for POST /api/v1/subnet/1/identity/sn1/certificates/self",
+        "detail": "Validation failed for POST /api/v1/identity/sn1/subnet/1/certificates/self",
         "extra": [
             {
                 "message": "Value error, Currently, only algorithm equals 1 is supported which is EdDSA using Ed25519 curve",

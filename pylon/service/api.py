@@ -74,7 +74,7 @@ class OpenAccessController(Controller):
 
 
 class IdentityController(OpenAccessController):
-    path = "/subnet/{netuid:int}/identity/{identity_name:str}"
+    path = "/identity/{identity_name:str}/subnet/{netuid:int}"
     dependencies = {"identity": Provide(identity_dep), "bt_client": Provide(bt_client_identity_dep)}
 
     @put(Endpoint.SUBNET_WEIGHTS)

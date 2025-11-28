@@ -1,5 +1,5 @@
 """
-Tests for the GET /subnet/{netuid}/identity/{identity_name}/neurons/latest endpoint.
+Tests for the GET /identity/{identity_name}/subnet/{netuid}/neurons/latest endpoint.
 """
 
 import pytest
@@ -48,7 +48,7 @@ async def test_get_latest_neurons_identity_success(
         get_latest_block=[block],
         get_neurons=[subnet_neurons],
     ):
-        response = await test_client.get("/api/v1/subnet/1/identity/sn1/neurons/latest")
+        response = await test_client.get("/api/v1/identity/sn1/subnet/1/neurons/latest")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == subnet_neurons.model_dump(mode="json")
@@ -72,7 +72,7 @@ async def test_get_latest_neurons_identity_empty_neurons(
         get_latest_block=[block],
         get_neurons=[neurons],
     ):
-        response = await test_client.get("/api/v1/subnet/2/identity/sn2/neurons/latest")
+        response = await test_client.get("/api/v1/identity/sn2/subnet/2/neurons/latest")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == {

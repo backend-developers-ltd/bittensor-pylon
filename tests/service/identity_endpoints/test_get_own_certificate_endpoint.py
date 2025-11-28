@@ -1,5 +1,5 @@
 """
-Tests for the GET /subnet/{netuid}/identity/{identity_name}/certificates/self endpoint.
+Tests for the GET /identity/{identity_name}/subnet/{netuid}/certificates/self endpoint.
 """
 
 import pytest
@@ -28,7 +28,7 @@ async def test_get_own_certificate_identity_success(
         get_latest_block=[latest_block],
         get_certificate=[certificate],
     ):
-        response = await test_client.get("/api/v1/subnet/1/identity/sn1/certificates/self")
+        response = await test_client.get("/api/v1/identity/sn1/subnet/1/certificates/self")
 
         assert response.status_code == HTTP_200_OK
         assert response.json() == {
@@ -50,7 +50,7 @@ async def test_get_own_certificate_identity_not_found(
         get_latest_block=[latest_block],
         get_certificate=[None],
     ):
-        response = await test_client.get("/api/v1/subnet/2/identity/sn2/certificates/self")
+        response = await test_client.get("/api/v1/identity/sn2/subnet/2/certificates/self")
 
         assert response.status_code == HTTP_404_NOT_FOUND
         assert response.json() == {

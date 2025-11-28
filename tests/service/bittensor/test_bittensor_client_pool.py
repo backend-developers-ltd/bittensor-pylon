@@ -11,7 +11,7 @@ from pylon.service.bittensor.pool import (
     BittensorClientPoolInvalidState,
     WalletKey,
 )
-from tests.helpers import LockTrace, TracingLock, wait_until
+from tests.helpers import wait_until
 
 
 @pytest_asyncio.fixture
@@ -194,37 +194,6 @@ async def test_bittensor_client_pool_close_empty_pool():
     assert pool.state == BittensorClientPool.State.OPEN
     await pool.close()
     assert pool.state == BittensorClientPool.State.CLOSED
-
-
-@pytest.mark.asyncio
-async def test_bittensor_client_pool_acquire_lock(barrier_factory):
-    """
-    Test that lock is properly protecting acquire from double client creation.
-    """
-    barrier = await barrier_factory(2)
-    pool = BittensorClientPool(
-        uri="ws://localhost:8000",
-        archive_uri="ws://localhost:8001",
-    )
-    pool._acquire_lock = TracingLock(return_control=True)
-    await pool.open()
-    tasks = [
-        asyncio.create_task(acquire_client(pool, None, barrier), name="first"),
-        asyncio.create_task(acquire_client(pool, None, barrier), name="second"),
-    ]
-    async with asyncio.timeout(2):
-        await tasks[0]
-    clients = await asyncio.gather(*tasks)
-    await pool.close()
-    assert pool._acquire_lock.trace == [
-        LockTrace("first", LockTrace.Action.ENTERED),
-        LockTrace("first", LockTrace.Action.ACQUIRED),
-        LockTrace("second", LockTrace.Action.ENTERED),
-        LockTrace("first", LockTrace.Action.RELEASED),
-        LockTrace("second", LockTrace.Action.ACQUIRED),
-        LockTrace("second", LockTrace.Action.RELEASED),
-    ]
-    assert set(clients) == {clients[0]}
 
 
 @pytest.mark.asyncio

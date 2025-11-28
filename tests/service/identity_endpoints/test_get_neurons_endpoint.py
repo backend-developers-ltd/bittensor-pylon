@@ -1,5 +1,5 @@
 """
-Tests for the GET /subnet/{netuid}/identity/{identity_name}/neurons/{block_number} endpoint.
+Tests for the GET /identity/{identity_name}/subnet/{netuid}/neurons/{block_number} endpoint.
 """
 
 import pytest
@@ -50,7 +50,7 @@ async def test_get_neurons_identity_with_block_number(
         get_block=[block],
         get_neurons=[subnet_neurons],
     ):
-        response = await test_client.get(f"/api/v1/subnet/1/identity/sn1/neurons/{block_number}")
+        response = await test_client.get(f"/api/v1/identity/sn1/subnet/1/neurons/{block_number}")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == subnet_neurons.model_dump(mode="json")
@@ -73,7 +73,7 @@ async def test_get_neurons_identity_empty_neurons(
         get_block=[block],
         get_neurons=[neurons],
     ):
-        response = await test_client.get("/api/v1/subnet/2/identity/sn2/neurons/100")
+        response = await test_client.get("/api/v1/identity/sn2/subnet/2/neurons/100")
 
         assert response.status_code == HTTP_200_OK, response.content
         assert response.json() == {
@@ -95,7 +95,7 @@ async def test_get_neurons_identity_invalid_block_number_type(test_client: Async
     """
     Test that invalid block number types return 404.
     """
-    response = await test_client.get(f"/api/v1/subnet/1/identity/sn1/neurons/{invalid_block_number}")
+    response = await test_client.get(f"/api/v1/identity/sn1/subnet/1/neurons/{invalid_block_number}")
 
     assert response.status_code == HTTP_404_NOT_FOUND, response.content
     assert response.json() == {
@@ -112,7 +112,7 @@ async def test_get_neurons_identity_block_not_found(
     Test that non-existent block returns 404.
     """
     async with sn1_mock_bt_client.mock_behavior(get_block=[None]):
-        response = await test_client.get("/api/v1/subnet/1/identity/sn1/neurons/123")
+        response = await test_client.get("/api/v1/identity/sn1/subnet/1/neurons/123")
 
         assert response.status_code == HTTP_404_NOT_FOUND, response.content
         assert response.json() == {
