@@ -1,6 +1,7 @@
 import logging
 
-from litestar import Response, get, post, put, status_codes
+from litestar import Controller, Response, get, post, put, status_codes
+from litestar.di import Provide
 from litestar.exceptions import NotFoundException
 
 from pylon._internal.common.endpoints import Endpoint
@@ -9,103 +10,117 @@ from pylon._internal.common.requests import (
     GenerateCertificateKeypairRequest,
     SetWeightsRequest,
 )
-from pylon._internal.common.settings import settings
-from pylon._internal.common.types import BlockNumber
+from pylon._internal.common.types import BlockNumber, NetUid
 from pylon.service.bittensor.client import AbstractBittensorClient
+from pylon.service.dependencies import bt_client_identity_dep, bt_client_open_access_dep, identity_dep
+from pylon.service.exceptions import BadGatewayException
 from pylon.service.tasks import ApplyWeights
 
 logger = logging.getLogger(__name__)
 
 
-@get(Endpoint.NEURONS)
-async def get_neurons(bt_client: AbstractBittensorClient, block_number: BlockNumber) -> SubnetNeurons:
-    """
-    Get a metagraph for a block.
+class OpenAccessController(Controller):
+    path = "/subnet/{netuid:int}/"
+    dependencies = {"bt_client": Provide(bt_client_open_access_dep)}
 
-    Raises:
-        NotFoundException: If block does not exist in subtensor.
-    """
-    # TODO: TurboBT struggles with fetching old blocks, for tb try to ask for block 4671121
-    block = await bt_client.get_block(block_number)
-    if block is None:
-        raise NotFoundException(detail=f"Block {block_number} not found.")
-    return await bt_client.get_neurons(settings.bittensor_netuid, block=block)
+    @get(Endpoint.NEURONS)
+    async def get_neurons(
+        self, bt_client: AbstractBittensorClient, block_number: BlockNumber, netuid: NetUid
+    ) -> SubnetNeurons:
+        """
+        Get a metagraph for a block.
+
+        Raises:
+            NotFoundException: If block does not exist in subtensor.
+        """
+        # TurboBT struggles with fetching old blocks (like block 4671121), it is so because of broken backwards
+        # compatibility in bittensor, so we are not going to fix it.
+        block = await bt_client.get_block(block_number)
+        if block is None:
+            raise NotFoundException(detail=f"Block {block_number} not found.")
+        return await bt_client.get_neurons(netuid, block=block)
+
+    @get(Endpoint.LATEST_NEURONS)
+    async def get_latest_neurons(self, bt_client: AbstractBittensorClient, netuid: NetUid) -> SubnetNeurons:
+        block = await bt_client.get_latest_block()
+        return await bt_client.get_neurons(netuid, block=block)
+
+    @get(Endpoint.CERTIFICATES)
+    async def get_certificates_endpoint(self, bt_client: AbstractBittensorClient, netuid: NetUid) -> Response:
+        """
+        Get all certificates for the subnet at the latest block.
+        """
+        block = await bt_client.get_latest_block()
+        certificates = await bt_client.get_certificates(netuid, block)
+
+        return Response(certificates, status_code=status_codes.HTTP_200_OK)
+
+    @get(Endpoint.CERTIFICATES_HOTKEY)
+    async def get_certificate_endpoint(
+        self, hotkey: Hotkey, bt_client: AbstractBittensorClient, netuid: NetUid
+    ) -> Response:
+        """
+        Get a specific certificate for a hotkey.
+
+        Raises:
+            NotFoundException: If certificate could not be found in the blockchain.
+        """
+        block = await bt_client.get_latest_block()
+        certificate = await bt_client.get_certificate(netuid, block, hotkey=hotkey)
+        if certificate is None:
+            raise NotFoundException(detail="Certificate not found or error fetching.")
+
+        return Response(certificate, status_code=status_codes.HTTP_200_OK)
 
 
-@get(Endpoint.LATEST_NEURONS)
-async def get_latest_neurons(bt_client: AbstractBittensorClient) -> SubnetNeurons:
-    block = await bt_client.get_latest_block()
-    return await bt_client.get_neurons(settings.bittensor_netuid, block=block)
+class IdentityController(OpenAccessController):
+    path = "/identity/{identity_name:str}/subnet/{netuid:int}"
+    dependencies = {"identity": Provide(identity_dep), "bt_client": Provide(bt_client_identity_dep)}
 
+    @put(Endpoint.SUBNET_WEIGHTS)
+    async def put_weights_endpoint(
+        self, data: SetWeightsRequest, bt_client: AbstractBittensorClient, netuid: NetUid
+    ) -> Response:
+        """
+        Set multiple hotkeys' weights for the current epoch in a single transaction.
+        """
+        await ApplyWeights.schedule(bt_client, data.weights, netuid=netuid)
 
-@put(Endpoint.SUBNET_WEIGHTS)
-async def put_weights_endpoint(data: SetWeightsRequest, bt_client: AbstractBittensorClient) -> Response:
-    """
-    Set multiple hotkeys' weights for the current epoch in a single transaction.
-    """
-    await ApplyWeights.schedule(bt_client, data.weights)
-
-    return Response(
-        {
-            "detail": "weights update scheduled",
-            "count": len(data.weights),
-        },
-        status_code=status_codes.HTTP_200_OK,
-    )
-
-
-@get(Endpoint.CERTIFICATES)
-async def get_certificates_endpoint(bt_client: AbstractBittensorClient) -> Response:
-    """
-    Get all certificates for the subnet.
-    """
-    block = await bt_client.get_latest_block()
-    certificates = await bt_client.get_certificates(settings.bittensor_netuid, block)
-
-    return Response(certificates, status_code=status_codes.HTTP_200_OK)
-
-
-@get(Endpoint.CERTIFICATES_HOTKEY)
-async def get_certificate_endpoint(hotkey: Hotkey, bt_client: AbstractBittensorClient) -> Response:
-    """
-    Get a specific certificate for a hotkey.
-    """
-    block = await bt_client.get_latest_block()
-    certificate = await bt_client.get_certificate(settings.bittensor_netuid, block, hotkey=hotkey)
-    if certificate is None:
         return Response(
-            {"detail": "Certificate not found or error fetching."}, status_code=status_codes.HTTP_404_NOT_FOUND
+            {
+                "detail": "weights update scheduled",
+                "count": len(data.weights),
+            },
+            status_code=status_codes.HTTP_200_OK,
         )
 
-    return Response(certificate, status_code=status_codes.HTTP_200_OK)
+    @get(Endpoint.CERTIFICATES_SELF)
+    async def get_own_certificate_endpoint(self, bt_client: AbstractBittensorClient, netuid: NetUid) -> Response:
+        """
+        Get a certificate for the identity's wallet.
 
+        Raises:
+            NotFoundException: If certificate could not be found in the blockchain.
+        """
+        block = await bt_client.get_latest_block()
+        certificate = await bt_client.get_certificate(netuid, block)
+        if certificate is None:
+            raise NotFoundException(detail="Certificate not found or error fetching.")
 
-@get(Endpoint.CERTIFICATES_SELF)
-async def get_own_certificate_endpoint(bt_client: AbstractBittensorClient) -> Response:
-    """
-    Get a certificate for the app's wallet.
-    """
-    block = await bt_client.get_latest_block()
-    certificate = await bt_client.get_certificate(settings.bittensor_netuid, block)
-    if certificate is None:
-        return Response(
-            {"detail": "Certificate not found or error fetching."}, status_code=status_codes.HTTP_404_NOT_FOUND
-        )
+        return Response(certificate, status_code=status_codes.HTTP_200_OK)
 
-    return Response(certificate, status_code=status_codes.HTTP_200_OK)
+    @post(Endpoint.CERTIFICATES_SELF)
+    async def generate_certificate_keypair_endpoint(
+        self, bt_client: AbstractBittensorClient, data: GenerateCertificateKeypairRequest, netuid: NetUid
+    ) -> Response:
+        """
+        Generate a certificate keypair for the app's wallet.
 
+        Raises:
+            BadGatewayException: When certificate keypair could not be generated.
+        """
+        certificate_keypair = await bt_client.generate_certificate_keypair(netuid, data.algorithm)
+        if certificate_keypair is None:
+            raise BadGatewayException(detail="Could not generate certificate pair.")
 
-@post(Endpoint.CERTIFICATES_SELF)
-async def generate_certificate_keypair_endpoint(
-    bt_client: AbstractBittensorClient, data: GenerateCertificateKeypairRequest
-) -> Response:
-    """
-    Generate a certificate keypair for the app's wallet.
-    """
-    certificate_keypair = await bt_client.generate_certificate_keypair(settings.bittensor_netuid, data.algorithm)
-    if certificate_keypair is None:
-        return Response(
-            {"detail": "Could not generate certificate pair."}, status_code=status_codes.HTTP_502_BAD_GATEWAY
-        )
-
-    return Response(certificate_keypair, status_code=status_codes.HTTP_201_CREATED)
+        return Response(certificate_keypair, status_code=status_codes.HTTP_201_CREATED)
