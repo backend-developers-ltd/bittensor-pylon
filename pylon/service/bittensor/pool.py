@@ -81,12 +81,12 @@ class BittensorClientPool(Generic[BTClient]):
         await self.close()
 
     async def open(self):
-        self.assert_not_open()
+        self._verify_not_open()
         logger.info(f"Opening {self.client_cls.__name__} client pool.")
         self.state = self.State.OPEN
 
     async def close(self):
-        self.assert_open()
+        self._verify_open()
         logger.info(f"Closing sequence initialized for {self.client_cls.__name__} client pool.")
         self.state = self.State.CLOSING
         logger.info(
@@ -96,7 +96,7 @@ class BittensorClientPool(Generic[BTClient]):
         try:
             async with asyncio.timeout(self.closing_timeout):
                 async with self._close_condition:
-                    await self._close_condition.wait_for(self.can_close)
+                    await self._close_condition.wait_for(self._can_close)
         except TimeoutError:
             logger.exception(
                 "Timeout while waiting for clients to be returned to the pool. "
@@ -109,14 +109,14 @@ class BittensorClientPool(Generic[BTClient]):
         self.state = self.State.CLOSED
         logger.info(f"{self.client_cls.__name__} client pool successfully closed.")
 
-    def can_close(self) -> bool:
+    def _can_close(self) -> bool:
         return self._acquire_counter == 0
 
-    def assert_open(self):
+    def _verify_open(self):
         if self.state != self.State.OPEN:
             raise BittensorClientPoolInvalidState("The pool is not open.")
 
-    def assert_not_open(self):
+    def _verify_not_open(self):
         if self.state == self.State.OPEN:
             raise BittensorClientPoolInvalidState("The pool is open.")
 
@@ -132,15 +132,15 @@ class BittensorClientPool(Generic[BTClient]):
         Raises:
             BittensorClientPoolInvalidState: When acquire is called when the pool is not open.
         """
+        self._verify_open()
+        self._acquire_counter += 1
         wallet_key = wallet and WalletKey.from_wallet(wallet)
         wallet_name = f"'{wallet.name}'" if wallet else "no"
+        logger.debug(
+            f"Acquiring client with {wallet_name} wallet from the pool. "
+            f"Count of clients acquired: {self._acquire_counter}"
+        )
         async with self._acquire_lock:
-            self.assert_open()
-            self._acquire_counter += 1
-            logger.debug(
-                f"Acquiring client with {wallet_name} wallet from the pool. "
-                f"Count of clients acquired: {self._acquire_counter}"
-            )
             if wallet_key in self._pool:
                 client = self._pool[wallet_key]
             else:
